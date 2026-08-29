@@ -24,7 +24,7 @@ export class PrismaSanteEleveRepository implements SanteEleveRepository {
       where: {
         studentId,
         academicYearId,
-        validationStatus: { in: ['VALIDATED', 'LOCKED'] },
+        validationStatus: { in: ['LOCKED'] },
       },
       select: { sequenceAverage: true, coefficient: true },
     });
@@ -69,7 +69,7 @@ export class PrismaSanteEleveRepository implements SanteEleveRepository {
         where: {
           studentId,
           sequenceId: { in: seqIds },
-          validationStatus: { in: ['VALIDATED', 'LOCKED'] },
+        validationStatus: { in: ['LOCKED'] },
         },
         select: { sequenceAverage: true, coefficient: true },
       });

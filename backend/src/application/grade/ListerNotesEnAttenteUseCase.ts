@@ -33,7 +33,7 @@ export class ListerNotesEnAttenteUseCase {
 
     const noteFilters: NoteFilters = {
       schoolId,
-      validationStatus: 'SUBMITTED',
+      validationStatus: 'DRAFT',
       ...filters,
     };
 

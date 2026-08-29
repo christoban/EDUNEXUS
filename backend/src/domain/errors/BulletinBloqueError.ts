@@ -1,6 +1,6 @@
 /**
  * DOMAIN LAYER — Logique métier pure
- * Loi 4 : Si une seule note de la classe est en DRAFT ou SUBMITTED,
+ * Loi 4 : Si une seule note de la classe est en DRAFT,
  * la génération de bulletin est bloquée pour toute la classe.
  */
 export class BulletinBloqueError extends Error {

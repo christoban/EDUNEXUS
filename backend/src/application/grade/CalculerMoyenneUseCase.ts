@@ -27,7 +27,7 @@ export class CalculerMoyenneUseCase {
     const grades = await this.noteRepository.findByStatuts(
       classId,
       sequenceId,
-      ['VALIDATED', 'LOCKED'],
+      ['LOCKED'],
     );
 
     const studentGrades = grades.filter(g => g.studentId === studentId);

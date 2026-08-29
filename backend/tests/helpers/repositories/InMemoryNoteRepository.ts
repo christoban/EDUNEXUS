@@ -111,7 +111,7 @@ export class InMemoryNoteRepository implements NoteRepository {
       n =>
         n.toObject().classId === classId &&
         n.toObject().sequenceId === sequenceId &&
-        (n.validationStatus === 'VALIDATED' || n.validationStatus === 'LOCKED')
+        n.validationStatus === 'LOCKED'
     );
 
     const byStudent = new Map<string, number[]>();
@@ -143,7 +143,7 @@ export class InMemoryNoteRepository implements NoteRepository {
         note =>
           note.toObject().classId === classId &&
           this.sequencePeriods.get(note.toObject().sequenceId) === academicPeriodId &&
-          (note.validationStatus === 'DRAFT' || note.validationStatus === 'SUBMITTED')
+          (note.validationStatus === 'DRAFT')
       )
       .map(note => ({
         matiereNom: note.toObject().subjectId,
@@ -197,7 +197,7 @@ export class InMemoryNoteRepository implements NoteRepository {
 
     return [...this.store.values()].filter(
       note =>
-        note.validationStatus === 'SUBMITTED' && note.toObject().createdAt <= depuis
+        note.validationStatus === 'DRAFT' && note.toObject().createdAt <= depuis
     );
   }
 
@@ -212,7 +212,7 @@ export class InMemoryNoteRepository implements NoteRepository {
         data.studentId === studentId &&
         data.classId === classId &&
         this.sequencePeriods.get(data.sequenceId) === academicPeriodId &&
-        data.validationStatus === 'VALIDATED'
+        data.validationStatus === 'DRAFT'
       ) {
         note.verrouiller();
       }
@@ -224,7 +224,7 @@ export class InMemoryNoteRepository implements NoteRepository {
     return [...this.store.values()]
       .filter(n => {
         const d = n.toObject();
-        return d.schoolId === schoolId && d.classId === classId && studentIds.includes(d.studentId) && (n.validationStatus === 'VALIDATED' || n.validationStatus === 'LOCKED');
+        return d.schoolId === schoolId && d.classId === classId && studentIds.includes(d.studentId) && n.validationStatus === 'LOCKED';
       })
       .map(n => ({ studentId: n.toObject().studentId, sequenceAverage: n.sequenceAverage ?? null, coefficient: n.toObject().coefficient ?? 1 }));
   }
@@ -239,7 +239,7 @@ export class InMemoryNoteRepository implements NoteRepository {
   async groupMoyennesPourPeriode(params: { schoolId: string; classId: string; academicYearId: string; sequenceIds: string[] }): Promise<Array<{ studentId: string; average: number }>> {
     const notes = [...this.store.values()].filter(n => {
       const d = n.toObject();
-      return d.schoolId === params.schoolId && d.classId === params.classId && d.academicYearId === params.academicYearId && params.sequenceIds.includes(d.sequenceId) && (n.validationStatus === 'VALIDATED' || n.validationStatus === 'LOCKED');
+      return d.schoolId === params.schoolId && d.classId === params.classId && d.academicYearId === params.academicYearId && params.sequenceIds.includes(d.sequenceId) && n.validationStatus === 'LOCKED';
     });
     const byStudent = new Map<string, number[]>();
     for (const n of notes) {
@@ -251,17 +251,17 @@ export class InMemoryNoteRepository implements NoteRepository {
     return [...byStudent.entries()].map(([studentId, avgs]) => ({ studentId, average: avgs.reduce((s, a) => s + a, 0) / avgs.length })).sort((a, b) => b.average - a.average);
   }
 
-  async getStatsValidationParClasse(classId: string, schoolId: string, sequenceIds: string[]): Promise<{ total: number; DRAFT: number; SUBMITTED: number; VALIDATED: number; LOCKED: number; REJECTED: number }> {
+  async getStatsValidationParClasse(classId: string, schoolId: string, sequenceIds: string[]): Promise<{ total: number; DRAFT: number; LOCKED: number }> {
     const filtered = [...this.store.values()].filter(n => {
       const d = n.toObject();
       if (d.schoolId !== schoolId || d.classId !== classId) return false;
       if (sequenceIds.length > 0 && !sequenceIds.includes(d.sequenceId)) return false;
       return true;
     });
-    const stats = { total: filtered.length, VALIDATED: 0, LOCKED: 0, SUBMITTED: 0, DRAFT: 0, REJECTED: 0 };
+    const stats: { total: number; DRAFT: number; LOCKED: number } = { total: filtered.length, DRAFT: 0, LOCKED: 0 };
     for (const n of filtered) {
-      const s = n.validationStatus as keyof typeof stats;
-      if (s in stats) (stats[s] as number)++;
+      if (n.validationStatus === 'DRAFT') stats.DRAFT++;
+      else if (n.validationStatus === 'LOCKED') stats.LOCKED++;
     }
     return stats;
   }

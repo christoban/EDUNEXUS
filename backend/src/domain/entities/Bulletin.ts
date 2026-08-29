@@ -2,7 +2,7 @@
  * DOMAIN LAYER — Entité Bulletin (ReportCard)
  *
  * Loi 4 : la génération est bloquée si une seule note de la classe
- * est encore en DRAFT ou SUBMITTED.
+ * est encore en DRAFT.
  *
  * Workflow : DRAFT → GENERATED → SENT
  */
@@ -129,10 +129,10 @@ export class Bulletin {
   // --- Loi 4 : vérification prérequis avant génération ---
 
   /**
-   * Vérifie que toutes les notes sont VALIDATED avant de générer le bulletin.
+   * Vérifie que toutes les notes sont LOCKED avant de générer le bulletin.
    * Lance BulletinBloqueError si ce n'est pas le cas.
    *
-   * @param notesNonValidees - liste des notes pas encore VALIDATED dans la classe
+   * @param notesNonValidees - liste des notes pas encore LOCKED dans la classe
    * @param classeNom - nom de la classe pour le message d'erreur
    */
   static verifierPrerequisGeneration(

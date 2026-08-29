@@ -242,8 +242,8 @@ describe('GradeController.calculerMoyenne — moyenne pondérée entre matières
     const subjectFr = await prismaTest.subject.create({ data: { schoolId, name: 'Français (moy)' } });
     const student = await creerUtilisateurTest(prismaTest, schoolId, { role: 'STUDENT' });
 
-    await prismaTest.grade.create({ data: { schoolId, studentId: student.id, subjectId: subjectMaths.id, classId, academicYearId, sequenceId, sequenceAverage: 15, coefficient: 3, validationStatus: 'VALIDATED' } });
-    await prismaTest.grade.create({ data: { schoolId, studentId: student.id, subjectId: subjectFr.id, classId, academicYearId, sequenceId, sequenceAverage: 10, coefficient: 2, validationStatus: 'VALIDATED' } });
+    await prismaTest.grade.create({ data: { schoolId, studentId: student.id, subjectId: subjectMaths.id, classId, academicYearId, sequenceId, sequenceAverage: 15, coefficient: 3, validationStatus: 'LOCKED' } });
+    await prismaTest.grade.create({ data: { schoolId, studentId: student.id, subjectId: subjectFr.id, classId, academicYearId, sequenceId, sequenceAverage: 10, coefficient: 2, validationStatus: 'LOCKED' } });
 
     const res = await fetch(`${baseUrl}/grades/average/${student.id}?classId=${classId}&sequenceId=${sequenceId}`, { headers: authHeaders() });
     const body = await res.json() as { average: number };
@@ -256,8 +256,8 @@ describe('GradeController.calculerMoyenne — moyenne pondérée entre matières
     const subjectNormale = await prismaTest.subject.create({ data: { schoolId, name: 'Matière normale' } });
     const student = await creerUtilisateurTest(prismaTest, schoolId, { role: 'STUDENT' });
 
-    await prismaTest.grade.create({ data: { schoolId, studentId: student.id, subjectId: subjectExclue.id, classId, academicYearId, sequenceId, sequenceAverage: 18, coefficient: 0, validationStatus: 'VALIDATED' } });
-    await prismaTest.grade.create({ data: { schoolId, studentId: student.id, subjectId: subjectNormale.id, classId, academicYearId, sequenceId, sequenceAverage: 10, coefficient: 2, validationStatus: 'VALIDATED' } });
+    await prismaTest.grade.create({ data: { schoolId, studentId: student.id, subjectId: subjectExclue.id, classId, academicYearId, sequenceId, sequenceAverage: 18, coefficient: 0, validationStatus: 'LOCKED' } });
+    await prismaTest.grade.create({ data: { schoolId, studentId: student.id, subjectId: subjectNormale.id, classId, academicYearId, sequenceId, sequenceAverage: 10, coefficient: 2, validationStatus: 'LOCKED' } });
 
     const res = await fetch(`${baseUrl}/grades/average/${student.id}?classId=${classId}&sequenceId=${sequenceId}`, { headers: authHeaders() });
     const body = await res.json() as { average: number };
@@ -290,9 +290,9 @@ describe('GradeController.calculerMoyenne — moyenne pondérée entre matières
     const eleveMoyen = await creerUtilisateurTest(prismaTest, schoolId, { role: 'STUDENT' });
     const eleveFaible = await creerUtilisateurTest(prismaTest, schoolId, { role: 'STUDENT' });
 
-    await prismaTest.grade.create({ data: { schoolId, studentId: eleveFort.id, subjectId: subject.id, classId, academicYearId, sequenceId: sequenceClassement.id, sequenceAverage: 18, validationStatus: 'VALIDATED' } });
-    await prismaTest.grade.create({ data: { schoolId, studentId: eleveMoyen.id, subjectId: subject.id, classId, academicYearId, sequenceId: sequenceClassement.id, sequenceAverage: 12, validationStatus: 'VALIDATED' } });
-    await prismaTest.grade.create({ data: { schoolId, studentId: eleveFaible.id, subjectId: subject.id, classId, academicYearId, sequenceId: sequenceClassement.id, sequenceAverage: 6, validationStatus: 'VALIDATED' } });
+    await prismaTest.grade.create({ data: { schoolId, studentId: eleveFort.id, subjectId: subject.id, classId, academicYearId, sequenceId: sequenceClassement.id, sequenceAverage: 18, validationStatus: 'LOCKED' } });
+    await prismaTest.grade.create({ data: { schoolId, studentId: eleveMoyen.id, subjectId: subject.id, classId, academicYearId, sequenceId: sequenceClassement.id, sequenceAverage: 12, validationStatus: 'LOCKED' } });
+    await prismaTest.grade.create({ data: { schoolId, studentId: eleveFaible.id, subjectId: subject.id, classId, academicYearId, sequenceId: sequenceClassement.id, sequenceAverage: 6, validationStatus: 'LOCKED' } });
 
     const res = await fetch(`${baseUrl}/grades/average/${eleveMoyen.id}?classId=${classId}&sequenceId=${sequenceClassement.id}`, { headers: authHeaders() });
     const body = await res.json() as { average: number; rank: number; totalStudents: number };
@@ -349,8 +349,8 @@ describe('Scénario B — le coefficient de la matière est stampé sur la note 
     const { data: d2 } = await c2.json() as { data: { noteId: string } };
     await modifierNote(d2.noteId, { sequenceScore: 6 });
 
-    // Valider les deux notes pour qu'elles comptent dans calculerMoyenne (VALIDATED/LOCKED requis)
-    await prismaTest.grade.updateMany({ where: { id: { in: [d1.noteId, d2.noteId] } }, data: { validationStatus: 'VALIDATED' } });
+    // Verrouiller les deux notes pour qu'elles comptent dans calculerMoyenne (LOCKED requis)
+    await prismaTest.grade.updateMany({ where: { id: { in: [d1.noteId, d2.noteId] } }, data: { validationStatus: 'LOCKED' } });
 
     const res = await fetch(`${baseUrl}/grades/average/${student.id}?classId=${classId}&sequenceId=${sequenceId}`, { headers: authHeaders() });
     const body = await res.json() as { average: number };
@@ -380,12 +380,12 @@ describe('Scénario B — le coefficient de la matière est stampé sur la note 
     expect(grade?.coefficient).toBe(5);
   });
 
-  it("une fois VALIDATED, le coefficient reste figé même si celui de la matière change ensuite (verrouillage post-publication)", async () => {
+  it("une fois LOCKED, le coefficient reste figé même si celui de la matière change ensuite (verrouillage post-publication)", async () => {
     const subject = await prismaTest.subject.create({ data: { schoolId, name: 'Chimie (verrou)', coefficient: 2 } });
     const student = await creerUtilisateurTest(prismaTest, schoolId, { role: 'STUDENT' });
 
     const grade = await prismaTest.grade.create({
-      data: { schoolId, studentId: student.id, subjectId: subject.id, classId, academicYearId, sequenceId, sequenceAverage: 15, coefficient: 2, validationStatus: 'VALIDATED' },
+      data: { schoolId, studentId: student.id, subjectId: subject.id, classId, academicYearId, sequenceId, sequenceAverage: 15, coefficient: 2, validationStatus: 'LOCKED' },
     });
 
     // Le coefficient officiel de la matière change APRÈS validation de la note
@@ -393,7 +393,7 @@ describe('Scénario B — le coefficient de la matière est stampé sur la note 
 
     // Tentative de modification bloquée (loi 6 déjà en place, hors périmètre de ce correctif) —
     // ce test documente que le seul chemin de re-stamping (PUT /grades/:id) est justement celui
-    // qui devient inaccessible dès VALIDATED, donc le coefficient ne peut plus jamais changer.
+    // qui devient inaccessible dès LOCKED, donc le coefficient ne peut plus jamais changer.
     const res = await fetch(`${baseUrl}/grades/${grade.id}`, {
       method: 'PUT', headers: authHeaders(), body: JSON.stringify({ sequenceScore: 16 }),
     });
@@ -442,7 +442,7 @@ describe("Bulletin (GenererBulletinUseCase) — vérification via le VRAI flux d
     //    coefficient — déjà vérifié par ailleurs — donc mise à jour directe équivalente ici).
     await prismaTest.grade.updateMany({
       where: { classId: classeBulletin.id, sequenceId: sequenceBulletin.id, studentId: student.id },
-      data: { validationStatus: 'VALIDATED' },
+      data: { validationStatus: 'LOCKED' },
     });
 
     // 3. Conseil de classe verrouillé (Loi 5b, prérequis de génération)

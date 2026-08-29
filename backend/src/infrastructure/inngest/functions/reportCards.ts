@@ -11,15 +11,13 @@ import { PrismaBulletinRepository } from "../../persistence/prisma/PrismaBulleti
 import { PrismaSchoolRepository } from "../../persistence/prisma/PrismaSchoolRepository";
 import { PrismaMatiereRepository } from "../../persistence/prisma/PrismaMatiereRepository";
 import { PrismaUserRepository } from "../../persistence/prisma/PrismaUserRepository";
-import { PrismaClasseRepository } from "../../persistence/prisma/PrismaClasseRepository";
-import { PrismaStaffProfileRepository } from "../../persistence/prisma/PrismaStaffProfileRepository";
 import { PrismaStudentRecommendationRepository } from "../../persistence/prisma/PrismaStudentRecommendationRepository";
 import { PrismaSchoolConfigRepository } from "../../persistence/prisma/PrismaSchoolConfigRepository";
 import { PrismaTeachingAssignmentRepository } from "../../persistence/prisma/PrismaTeachingAssignmentRepository";
 import { PrismaStudentProfileRepository } from "../../persistence/prisma/PrismaStudentProfileRepository";
 import { DetecterChuteMoyenneUseCase, trouverSequencePrecedente } from "@application/grade/DetecterChuteMoyenneUseCase";
 import { GenererBulletinsInngestUseCase } from "@application/reportCard/GenererBulletinsInngestUseCase";
-import { RelancerValidationNotesUseCase } from "@application/reportCard/RelancerValidationNotesUseCase";
+
 import { NodemailerEmailService } from "@infrastructure/services/email/NodemailerEmailService";
 
 // Re-export for backward compat (anciennement défini ici)
@@ -90,8 +88,8 @@ export const generateReportCards = inngest.createFunction(
   }
 );
 
-export const handleGradeValidatedDropDetection = inngest.createFunction(
-  { id: "handle-grade-validated-drop-detection", name: "Détection chute par matière", triggers: [{ event: "grade/validated" }] },
+export const handleGradeLockedDropDetection = inngest.createFunction(
+  { id: "handle-grade-locked-drop-detection", name: "Détection chute par matière", triggers: [{ event: "grade/locked" }] },
   async ({ event }) => {
     const { studentId, subjectId, schoolId, sequenceId } = event.data as {
       gradeId: string; studentId: string; subjectId: string; schoolId: string; sequenceId: string;
@@ -103,8 +101,8 @@ export const handleGradeValidatedDropDetection = inngest.createFunction(
   },
 );
 
-export const handleGradeValidatedBatchDropDetection = inngest.createFunction(
-  { id: "handle-grade-validated-batch-drop-detection", name: "Détection chute par matière (validation en bloc)", triggers: [{ event: "grade/validated-batch" }] },
+export const handleGradeLockedBatchDropDetection = inngest.createFunction(
+  { id: "handle-grade-locked-batch-drop-detection", name: "Détection chute par matière (validation en bloc)", triggers: [{ event: "grade/locked-batch" }] },
   async ({ event }) => {
     const { schoolId, grades } = event.data as {
       schoolId: string;
@@ -116,37 +114,4 @@ export const handleGradeValidatedBatchDropDetection = inngest.createFunction(
   },
 );
 
-export const handleGradeSubmitted = inngest.createFunction(
-  { id: "Handle-Grade-Submitted", triggers: [{ event: "grade/submitted" }] },
-  async ({ event, step }) => {
-    const { gradeId, schoolId } = event.data as {
-      gradeId: string;
-      schoolId: string;
-      classId: string;
-      subjectId: string;
-      sequenceId: string;
-      submittedAt: string;
-    };
 
-    const relancerUseCase = new RelancerValidationNotesUseCase(
-      new PrismaNoteRepository(prisma),
-      new PrismaStaffProfileRepository(prisma),
-      new PrismaUserRepository(prisma),
-      new PrismaMatiereRepository(prisma),
-      new PrismaClasseRepository(prisma),
-      new NodemailerEmailService(),
-    );
-
-    await step.sleep("wait-48h", "48h");
-
-    await step.run("check-48h-reminder", async () => {
-      await relancerUseCase.relancer48h({ gradeId, schoolId });
-    });
-
-    await step.sleep("wait-24h-more", "24h");
-
-    await step.run("check-72h-admin-alert", async () => {
-      await relancerUseCase.alerter72h({ gradeId, schoolId });
-    });
-  }
-);

@@ -23,10 +23,8 @@ export function registerGradeRoutes(app: Application, prismaParam: typeof prisma
 
   const gradeController = new GradeController(
     c.grade.saisirNote,
-    c.grade.soumettreNote,
-    c.grade.validerNote,
-    c.grade.rejeterNote,
-    c.grade.validerEnBloc,
+    c.grade.verrouillerNote,
+    c.grade.verrouillerNotesEnMasse,
     c.grade.modifierNote,
     c.grade.draftEnMasse,
     c.grade.listerNotes,
@@ -34,7 +32,6 @@ export function registerGradeRoutes(app: Application, prismaParam: typeof prisma
     c.grade.statutParClasse,
     c.grade.calculerMoyenne,
     c.grade.importerNotesExcel,
-    c.school.schoolRepository,
     c.school.anneeRepository,
     c.school.classeRepository,
     c.school.matiereRepository,

@@ -15,7 +15,7 @@
 import { z } from 'zod';
 import { calculateAverageScoreOn20 } from '@domain/rules/GradingEngine';
 import type { SaisirNoteUseCase } from '@application/grade/SaisirNoteUseCase';
-import type { SoumettreNoteUseCase } from '@application/grade/SoumettreNoteUseCase';
+import type { VerrouillerNotesEnMasseUseCase } from '@application/grade/VerrouillerNotesEnMasseUseCase';
 import type { EnregistrerPresenceUseCase } from '@application/attendance/EnregistrerPresenceUseCase';
 import type { DemanderRattrapageUseCase } from '@application/timetable/DemanderRattrapageUseCase';
 import {
@@ -32,7 +32,7 @@ import { whereProfilesParClasse } from '@application/shared/studentEnrollment';
 
 export interface TeacherActionDeps {
   saisirNote: SaisirNoteUseCase;
-  soumettreNote: SoumettreNoteUseCase;
+  verrouillerNotesEnMasse: VerrouillerNotesEnMasseUseCase;
   enregistrerPresence: EnregistrerPresenceUseCase;
   demanderRattrapage: DemanderRattrapageUseCase;
 }
@@ -93,11 +93,11 @@ export function buildTeacherActionCatalog(deps: TeacherActionDeps): ActionDefini
       },
     },
 
-    // 2. Soumettre mes notes d'une classe/matière pour validation — NON annulable
+    // 2. Verrouiller mes notes d'une classe/matière — NON annulable
     {
-      name: 'soumettre_mes_notes_classe',
-      description: "Soumet pour validation toutes vos notes en brouillon (ou rejetées) d'une classe et d'une matière que vous enseignez, pour la séquence courante.",
-      destructive: false,
+      name: 'verrouiller_mes_notes_classe',
+      description: "Verrouille toutes vos notes en brouillon d'une classe et d'une matière que vous enseignez, pour la séquence courante. Cette action est irréversible.",
+      destructive: true,
       requiredPermission: null,
       allowedRoles: ['TEACHER'],
       inputSchema: z.object({ className: z.string().min(1), subjectName: z.string().min(1) }),
@@ -105,25 +105,20 @@ export function buildTeacherActionCatalog(deps: TeacherActionDeps): ActionDefini
         const classe = await resolveClass(ctx, input.className);
         const subject = await resolveSubject(ctx, input.subjectName);
         const sequence = await resolveCurrentSequence(ctx);
-        const r = await ctx.prisma.grade.updateMany({
-          where: {
-            schoolId: ctx.schoolId,
-            classId: classe.id,
-            subjectId: subject.id,
-            sequenceId: sequence.id,
-            recordedById: ctx.userId,
-            validationStatus: { in: ['DRAFT', 'REJECTED'] },
-          },
-          data: { validationStatus: 'SUBMITTED' },
+        const r = await deps.verrouillerNotesEnMasse.execute({
+          schoolId: ctx.schoolId,
+          classId: classe.id,
+          sequenceId: sequence.id,
+          demandeurId: ctx.userId,
         });
         return {
-          resultLabel: `${r.count} note(s) soumise(s) pour validation — ${classe.name}, ${subject.name} (${sequence.name})`,
+          resultLabel: `${r.notesVerrouillees} note(s) verrouillée(s) — ${classe.name}, ${subject.name} (${sequence.name})`,
           section: 'grades',
           entity: 'grade',
         };
       },
       async undo() {
-        throw new Error('La soumission de notes ne peut pas être annulée depuis le copilot — utilisez l\'écran Notes.');
+        throw new Error('Le verrouillage de notes ne peut pas être annulé depuis le copilot — utilisez l\'écran Notes.');
       },
     },
 

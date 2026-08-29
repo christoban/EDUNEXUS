@@ -1,6 +1,6 @@
 /**
  * DOMAIN LAYER — Logique métier pure
- * Loi 5 : Si une seule note de la classe n'est pas VALIDATED,
+ * Loi 5 : Si une seule note de la classe n'est pas LOCKED,
  * la création d'une session de Conseil de Classe est bloquée.
  */
 export class ConseilBloqueError extends Error {

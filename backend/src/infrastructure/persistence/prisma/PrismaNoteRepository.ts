@@ -80,7 +80,7 @@ export class PrismaNoteRepository implements NoteRepository {
         schoolId,
         classId,
         sequenceId,
-        validationStatus: { in: ['VALIDATED', 'LOCKED'] },
+        validationStatus: 'LOCKED',
       },
       _avg: { sequenceAverage: true },
       orderBy: { _avg: { sequenceAverage: 'desc' } },
@@ -106,7 +106,7 @@ export class PrismaNoteRepository implements NoteRepository {
       where: {
         classId,
         sequenceId: { in: sequenceIds },
-        validationStatus: { in: ['DRAFT', 'SUBMITTED'] },
+        validationStatus: 'DRAFT',
       },
       include: {
         subject: { select: { name: true } },
@@ -244,7 +244,7 @@ export class PrismaNoteRepository implements NoteRepository {
         studentId,
         classId,
         sequenceId: { in: sequenceIds },
-        validationStatus: 'VALIDATED',
+        validationStatus: 'DRAFT',
       },
       data: { validationStatus: 'LOCKED' },
     });
@@ -254,7 +254,7 @@ export class PrismaNoteRepository implements NoteRepository {
     const depuis = new Date(Date.now() - heures * 60 * 60 * 1000);
     const data = await this.prisma.grade.findMany({
       where: {
-        validationStatus: 'SUBMITTED',
+        validationStatus: 'DRAFT',
         createdAt: { lte: depuis },
       },
     });
@@ -264,7 +264,7 @@ export class PrismaNoteRepository implements NoteRepository {
   async findValideesParClasseEtEleves(schoolId: string, classId: string, studentIds: string[]): Promise<Array<{ studentId: string; sequenceAverage: number | null; coefficient: number }>> {
     if (studentIds.length === 0) return [];
     const data = await this.prisma.grade.findMany({
-      where: { schoolId, classId, studentId: { in: studentIds }, validationStatus: { in: ['VALIDATED', 'LOCKED'] } },
+      where: { schoolId, classId, studentId: { in: studentIds }, validationStatus: 'LOCKED' },
       select: { studentId: true, sequenceAverage: true, coefficient: true },
     });
     return data;
@@ -305,14 +305,14 @@ export class PrismaNoteRepository implements NoteRepository {
     return rows.map(r => ({ studentId: r.studentId, average: r._avg.sequenceAverage ?? 0 }));
   }
 
-  async getStatsValidationParClasse(classId: string, schoolId: string, sequenceIds: string[]): Promise<{ total: number; DRAFT: number; SUBMITTED: number; VALIDATED: number; LOCKED: number; REJECTED: number }> {
+  async getStatsValidationParClasse(classId: string, schoolId: string, sequenceIds: string[]): Promise<{ total: number; DRAFT: number; LOCKED: number }> {
     const where: Record<string, unknown> = { schoolId, classId };
     if (sequenceIds.length > 0) (where as Record<string, unknown>).sequenceId = { in: sequenceIds };
     const grades = await this.prisma.grade.findMany({ where: where as never, select: { validationStatus: true } });
-    const stats = { total: grades.length, VALIDATED: 0, LOCKED: 0, SUBMITTED: 0, DRAFT: 0, REJECTED: 0 };
+    const stats: { total: number; DRAFT: number; LOCKED: number } = { total: grades.length, DRAFT: 0, LOCKED: 0 };
     for (const g of grades) {
-      const s = g.validationStatus as keyof typeof stats;
-      if (s in stats) (stats[s] as number)++;
+      if (g.validationStatus === 'DRAFT') stats.DRAFT++;
+      else if (g.validationStatus === 'LOCKED') stats.LOCKED++;
     }
     return stats;
   }

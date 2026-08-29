@@ -1,10 +1,9 @@
 /**
  * DOMAIN LAYER — Entité Note (Grade)
- * Porte le workflow de validation MINESEC :
- * DRAFT → SUBMITTED → VALIDATED → LOCKED
- *                  ↘ REJECTED → DRAFT
+ * Porte le workflow de validation simplifié :
+ * DRAFT → LOCKED
  *
- * Loi 6 : une note VALIDATED ou LOCKED ne peut jamais être modifiée
+ * Loi 6 : une note LOCKED ne peut jamais être modifiée
  * lors d'une synchronisation hors ligne.
  */
 import type { GradeValidationStatus } from '@domain/types/enums';
@@ -107,56 +106,12 @@ export class Note {
 
   // --- Workflow de validation ---
 
-  // Étape 1 : Enseignant soumet pour validation (DRAFT ou REJECTED → SUBMITTED)
-  soumettrePourValidation(): void {
-    if (this.props.validationStatus !== 'DRAFT' && this.props.validationStatus !== 'REJECTED') {
-      throw new Error(
-        `Impossible de soumettre : statut actuel "${this.props.validationStatus}". ` +
-        `Seules les notes en DRAFT ou REJECTED peuvent être soumises.`
-      );
-    }
-    if (!this.aAuMoinsUnScore()) {
-      throw new Error('Impossible de soumettre une note sans aucun score saisi');
-    }
-    this.props.validationStatus = 'SUBMITTED';
-  }
-
-  // Étape 2a : Censeur/VP valide (SUBMITTED → VALIDATED)
-  valider(validateurId: string): void {
-    if (this.props.validationStatus !== 'SUBMITTED') {
-      throw new Error(
-        `Impossible de valider : statut actuel "${this.props.validationStatus}". ` +
-        `Seules les notes SUBMITTED peuvent être validées.`
-      );
-    }
-    this.props.validationStatus = 'VALIDATED';
-    this.props.validatedById = validateurId;
-    this.props.validatedAt = new Date();
-    this.props.rejectionReason = undefined;
-  }
-
-  // Étape 2b : Censeur/VP rejette (SUBMITTED → REJECTED)
-  rejeter(motif: string): void {
-    if (this.props.validationStatus !== 'SUBMITTED') {
-      throw new Error(
-        `Impossible de rejeter : statut actuel "${this.props.validationStatus}". ` +
-        `Seules les notes SUBMITTED peuvent être rejetées.`
-      );
-    }
-    if (!motif?.trim()) {
-      throw new Error('Un motif de rejet est obligatoire');
-    }
-    this.props.validationStatus = 'REJECTED';
-    this.props.rejectionReason = motif;
-    this.props.validatedById = undefined;
-    this.props.validatedAt = undefined;
-  }
-
-  // Étape 3 : Verrouillage lors de la génération du bulletin (VALIDATED → LOCKED)
+  // Verrouillage lors de la génération du bulletin (DRAFT → LOCKED)
   verrouiller(): void {
-    if (this.props.validationStatus !== 'VALIDATED') {
+    if (this.props.validationStatus !== 'DRAFT') {
       throw new Error(
-        `Impossible de verrouiller : la note doit être VALIDATED avant d'être verrouillée.`
+        `Impossible de verrouiller : statut actuel "${this.props.validationStatus}". ` +
+        `Seules les notes en DRAFT peuvent être verrouillées.`
       );
     }
     this.props.validationStatus = 'LOCKED';
@@ -166,27 +121,16 @@ export class Note {
 
   /**
    * Vérifie si cette note peut être modifiée lors d'une synchronisation hors ligne.
-   * Lance NoteValideeSyncError si la note est VALIDATED ou LOCKED.
+   * Lance NoteValideeSyncError si la note est LOCKED.
    */
   verifierModificationHorsLigneAutorisee(matiereNom: string): void {
-    if (
-      this.props.validationStatus === 'VALIDATED' ||
-      this.props.validationStatus === 'LOCKED'
-    ) {
+    if (this.props.validationStatus === 'LOCKED') {
       throw new NoteValideeSyncError(this.props.id, matiereNom);
     }
   }
 
   peutEtreModifiee(): boolean {
-    return this.props.validationStatus === 'DRAFT' || this.props.validationStatus === 'REJECTED';
-  }
-
-  estValidee(): boolean {
-    return this.props.validationStatus === 'VALIDATED';
-  }
-
-  estRejetee(): boolean {
-    return this.props.validationStatus === 'REJECTED';
+    return this.props.validationStatus === 'DRAFT';
   }
 
   estVerrouillee(): boolean {
@@ -214,17 +158,6 @@ export class Note {
   }
 
   // --- Helpers privés ---
-
-  private aAuMoinsUnScore(): boolean {
-    return [
-      this.props.sequenceScore,
-      this.props.classTestScore,
-      this.props.terminalExamScore,
-      this.props.theoreticalScore,
-      this.props.practicalScore,
-      this.props.oralScore,
-    ].some(s => s !== undefined && s !== null);
-  }
 
   private static validerScores(props: CreerNoteProps): void {
     const maxVal = props.maxValue ?? 20;

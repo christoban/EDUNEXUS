@@ -2171,10 +2171,7 @@ enum SequenceType {
 
 enum GradeValidationStatus {
   DRAFT
-  SUBMITTED
-  VALIDATED
   LOCKED
-  REJECTED
 }
 
 enum FeeType {

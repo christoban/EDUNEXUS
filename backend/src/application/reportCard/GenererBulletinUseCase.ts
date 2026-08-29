@@ -1,7 +1,7 @@
 /**
  * APPLICATION LAYER — Use Case : Générer les bulletins d'une classe
  *
- * Loi 4 : bloqué si une note n'est pas VALIDATED.
+ * Loi 4 : bloqué si une note n'est pas LOCKED.
  * Calcule les moyennes, rangs, mentions puis génère les PDFs.
  */
 import { Bulletin } from '@domain/entities/Bulletin';
@@ -55,7 +55,7 @@ export class GenererBulletinUseCase {
   ) {}
 
   async execute(commande: GenererBulletinCommande): Promise<GenererBulletinResultat> {
-    // 1. Vérifier Loi 4 — toutes les notes doivent être VALIDATED
+    // 1. Vérifier Loi 4 — toutes les notes doivent être LOCKED
     const notesNonValidees = await this.noteRepository.findNotesNonValideesParClasse(
       commande.classId,
       commande.academicPeriodId
@@ -118,7 +118,7 @@ export class GenererBulletinUseCase {
     for (const eleve of elevesClasse) {
       const notesEleve = notesDeClasse.filter((n) =>
         n.studentId === eleve.id &&
-        (n.validationStatus === 'VALIDATED' || n.validationStatus === 'LOCKED')
+        n.validationStatus === 'LOCKED'
       );
 
       const moyenneBrute = calculateAverageScoreOn20(
@@ -240,7 +240,7 @@ export class GenererBulletinUseCase {
       // Construire les lignes matière depuis notesDeClasse (classId garanti correct)
       const notesEleve = notesDeClasse.filter((n) =>
         n.studentId === eleve.id &&
-        (n.validationStatus === 'VALIDATED' || n.validationStatus === 'LOCKED') &&
+        n.validationStatus === 'LOCKED' &&
         n.sequenceAverage !== undefined
       );
 
@@ -322,7 +322,7 @@ export class GenererBulletinUseCase {
         await this.bulletinRepository.save(bulletin);
       }
 
-      // Loi 6 — verrouiller les notes VALIDATED après génération du bulletin
+      // Loi 6 — verrouiller les notes LOCKED après génération du bulletin
       await this.noteRepository.verrouillerNotesValidees(
         eleve.id,
         commande.classId,

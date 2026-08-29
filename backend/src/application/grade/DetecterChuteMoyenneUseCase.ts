@@ -91,7 +91,7 @@ export class DetecterChuteMoyenneUseCase {
     // Use repository for grade queries (hexagonal) — post-filter by schoolId + validation status
     const noteActuelle = await this.noteRepository.findByEleveEtMatiere(commande.studentId, commande.subjectId, commande.sequenceId);
     if (!noteActuelle || noteActuelle.schoolId !== commande.schoolId) return null;
-    if (noteActuelle.validationStatus !== 'VALIDATED' && noteActuelle.validationStatus !== 'LOCKED') return null;
+    if (noteActuelle.validationStatus !== 'LOCKED') return null;
     if (noteActuelle.sequenceAverage == null) return null;
 
     const precedente = await trouverSequencePrecedente(this.anneeRepository, commande.sequenceId, commande.schoolId);
@@ -99,7 +99,7 @@ export class DetecterChuteMoyenneUseCase {
 
     const noteAvant = await this.noteRepository.findByEleveEtMatiere(commande.studentId, commande.subjectId, precedente.id);
     if (!noteAvant || noteAvant.schoolId !== commande.schoolId) return null;
-    if (noteAvant.validationStatus !== 'VALIDATED' && noteAvant.validationStatus !== 'LOCKED') return null;
+    if (noteAvant.validationStatus !== 'LOCKED') return null;
     if (noteAvant.sequenceAverage == null) return null;
 
     const config = await this.schoolConfigRepository.findBySchool(commande.schoolId);

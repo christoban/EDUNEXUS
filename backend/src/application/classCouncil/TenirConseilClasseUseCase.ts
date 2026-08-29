@@ -1,7 +1,7 @@
 /**
  * APPLICATION LAYER — Use Case : Créer une session de Conseil de Classe
  *
- * Loi 5 : bloqué si une note n'est pas VALIDATED.
+ * Loi 5 : bloqué si une note n'est pas LOCKED.
  * Composition légale obligatoire (Art. 29 et 30 MINESEC).
  */
 import type { NoteRepository } from '@domain/ports/repositories/NoteRepository';
@@ -53,7 +53,7 @@ export class TenirConseilClasseUseCase {
     const classe = await this.classeRepository.findById(commande.classId);
     if (!classe) throw new Error(`Classe introuvable : ${commande.classId}`);
 
-    // 3. Loi 5 — vérifier toutes notes VALIDATED
+    // 3. Loi 5 — vérifier toutes notes LOCKED
     const notesNonValidees = await this.noteRepository.findNotesNonValideesParClasse(
       commande.classId,
       commande.academicPeriodId

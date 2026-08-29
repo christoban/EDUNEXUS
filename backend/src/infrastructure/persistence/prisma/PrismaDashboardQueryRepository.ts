@@ -27,7 +27,7 @@ export class PrismaDashboardQueryRepository implements DashboardQueryRepository 
     const [users, classes, pendingGrades, pendingInvoices] = await Promise.all([
       this.prisma.user.count({ where: { schoolId } }),
       this.prisma.class.count({ where: { schoolId } }),
-      this.prisma.grade.count({ where: { schoolId, validationStatus: 'SUBMITTED' } }),
+      this.prisma.grade.count({ where: { schoolId, validationStatus: 'DRAFT' } }),
       this.prisma.invoice.count({ where: { schoolId, status: { in: ['PENDING', 'OVERDUE'] } } }),
     ]);
     return { users, classes, pendingGrades, pendingInvoices };
@@ -51,7 +51,7 @@ export class PrismaDashboardQueryRepository implements DashboardQueryRepository 
       this.prisma.attendance.count({ where: { studentId, status: { in: ['PRESENT', 'LATE'] } } }),
       this.prisma.attendance.count({ where: { studentId } }),
       this.prisma.grade.findMany({
-        where: { studentId, validationStatus: { in: ['VALIDATED', 'LOCKED'] } },
+        where: { studentId, validationStatus: { in: ['LOCKED'] } },
         select: { sequenceAverage: true },
         take: 10,
       }),

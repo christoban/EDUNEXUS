@@ -99,7 +99,7 @@ export interface BulletinRepository {
     page: number;
     limit: number;
   }): Promise<{ items: Record<string, unknown>[]; total: number }>;
-  getStatsValidationParClasse(params: { classId: string; schoolId: string; sequenceIds: string[] }): Promise<{ total: number; DRAFT: number; SUBMITTED: number; VALIDATED: number; LOCKED: number; REJECTED: number }>;
+  getStatsValidationParClasse(params: { classId: string; schoolId: string; sequenceIds: string[] }): Promise<{ total: number; DRAFT: number; LOCKED: number }>;
 
   // Stats pour le classement
   getMoyennesClasse(

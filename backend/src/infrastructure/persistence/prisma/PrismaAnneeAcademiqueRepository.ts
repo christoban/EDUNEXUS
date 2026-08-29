@@ -247,7 +247,7 @@ export class PrismaAnneeAcademiqueRepository implements AnneeAcademiqueRepositor
     return this.prisma.grade.count({
       where: {
         academicYearId,
-        validationStatus: { notIn: ['VALIDATED', 'LOCKED'] },
+        validationStatus: { notIn: ['LOCKED'] },
       },
     });
   }

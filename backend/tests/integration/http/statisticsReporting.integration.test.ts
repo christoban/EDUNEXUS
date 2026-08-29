@@ -105,11 +105,11 @@ beforeAll(async () => {
     data: { academicPeriodId: periode.id, schoolId, name: 'Séquence 2', orderIndex: 2, type: 'COMPOSITION' },
   });
 
-  // Notes VALIDATED (séquence 1) et LOCKED (séquence 2) — comptées
+  // Notes LOCKED (séquence 1 et 2) — comptées
   await prismaTest.grade.createMany({
     data: [
-      { schoolId, studentId: studentAId, subjectId, classId: classAId, academicYearId, sequenceId: seq1.id, sequenceAverage: 14, validationStatus: 'VALIDATED' },
-      { schoolId, studentId: studentBId, subjectId, classId: classBId, academicYearId, sequenceId: seq1.id, sequenceAverage: 12, validationStatus: 'VALIDATED' },
+      { schoolId, studentId: studentAId, subjectId, classId: classAId, academicYearId, sequenceId: seq1.id, sequenceAverage: 14, validationStatus: 'LOCKED' },
+      { schoolId, studentId: studentBId, subjectId, classId: classBId, academicYearId, sequenceId: seq1.id, sequenceAverage: 12, validationStatus: 'LOCKED' },
       { schoolId, studentId: studentAId, subjectId, classId: classAId, academicYearId, sequenceId: seq2.id, sequenceAverage: 16, validationStatus: 'LOCKED' },
       // DRAFT — doit être exclue de tout agrégat
       { schoolId, studentId: studentBId, subjectId, classId: classBId, academicYearId, sequenceId: seq2.id, sequenceAverage: 18, validationStatus: 'DRAFT' },

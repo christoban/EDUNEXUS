@@ -77,7 +77,7 @@ export class PrismaAIContextQueryRepository implements AIContextQueryRepository 
 
   async getRecentValidatedGrades(schoolId: string): Promise<{ sequenceAverage: number | null }[]> {
     return this.prisma.grade.findMany({
-      where: { schoolId, validationStatus: { in: ['VALIDATED', 'LOCKED'] } },
+      where: { schoolId, validationStatus: { in: ['LOCKED'] } },
       select: { sequenceAverage: true },
       take: 100,
     });
@@ -99,7 +99,7 @@ export class PrismaAIContextQueryRepository implements AIContextQueryRepository 
 
   async findRecentGradesByStudent(schoolId: string, studentId: string): Promise<{ sequenceAverage: number | null; subject: { name: string } }[]> {
     return this.prisma.grade.findMany({
-      where: { schoolId, studentId, validationStatus: { in: ['VALIDATED', 'LOCKED'] } },
+      where: { schoolId, studentId, validationStatus: { in: ['LOCKED'] } },
       include: { subject: true },
       orderBy: { createdAt: 'desc' },
       take: 5,
@@ -239,7 +239,7 @@ export class PrismaAIContextQueryRepository implements AIContextQueryRepository 
 
   async findGradesByStudent(schoolId: string, studentId: string): Promise<StudentGradeDto[]> {
     const grades = await this.prisma.grade.findMany({
-      where: { schoolId, studentId, validationStatus: { in: ['VALIDATED', 'LOCKED'] } },
+      where: { schoolId, studentId, validationStatus: { in: ['LOCKED'] } },
       include: { subject: true },
       orderBy: { createdAt: 'desc' },
       take: 20,

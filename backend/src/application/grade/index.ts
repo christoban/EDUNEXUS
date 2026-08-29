@@ -4,17 +4,11 @@
 export { SaisirNoteUseCase } from './SaisirNoteUseCase';
 export type { SaisirNoteCommande, SaisirNoteResultat } from './SaisirNoteUseCase';
 
-export { SoumettreNoteUseCase } from './SoumettreNoteUseCase';
-export type { SoumettreNoteCommande } from './SoumettreNoteUseCase';
+export { VerrouillerNoteUseCase } from './VerrouillerNoteUseCase';
+export type { VerrouillerNoteCommande, VerrouillerNoteResultat } from './VerrouillerNoteUseCase';
 
-export { ValiderNoteUseCase } from './ValiderNoteUseCase';
-export type { ValiderNoteCommande, ValiderNoteResultat } from './ValiderNoteUseCase';
-
-export { RejeterNoteUseCase } from './RejeterNoteUseCase';
-export type { RejeterNoteCommande } from './RejeterNoteUseCase';
-
-export { ValiderEnBlocUseCase } from './ValiderEnBlocUseCase';
-export type { ValiderEnBlocCommande, ValiderEnBlocResultat } from './ValiderEnBlocUseCase';
+export { VerrouillerNotesEnMasseUseCase } from './VerrouillerNotesEnMasseUseCase';
+export type { VerrouillerNotesEnMasseCommande, VerrouillerNotesEnMasseResultat } from './VerrouillerNotesEnMasseUseCase';
 
 export { ListerNotesUseCase } from './ListerNotesUseCase';
 export type { ListerNotesRequete } from './ListerNotesUseCase';

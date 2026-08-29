@@ -96,7 +96,7 @@ export class SaisirNoteUseCase {
     }
 
     // 4. Coefficient : reflète la valeur en vigueur au moment de la saisie — ne sera plus jamais
-    // recalculé une fois la note VALIDATED/LOCKED (Loi 6, verrouillage total). Un override
+    // recalculé une fois la note LOCKED (Loi 6, verrouillage total). Un override
     // explicite (ex. saisi via l'assistant IA) reste prioritaire sur celui de la matière.
     const matiere = await this.matiereRepository.findById(commande.subjectId);
     const coefficient = commande.coefficient ?? matiere?.coefficient ?? 1;

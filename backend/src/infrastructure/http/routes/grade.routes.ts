@@ -22,14 +22,11 @@ export function creerGradeRoutes(controller: GradeController): Router {
   // Saisie et modification
   router.post('/', sensitiveWriteLimiter, requireAuth, controller.saisir);
   router.post('/draft', sensitiveWriteLimiter, requireAuth, controller.draftEnMasse);
-  router.post('/submit', sensitiveWriteLimiter, requireAuth, controller.soumettreEnMasse);
   router.put('/:id', sensitiveWriteLimiter, requireAuth, controller.modifier);
 
   // Workflow de validation
-  router.patch('/:id/submit', requireAuth, controller.soumettre);
-  router.patch('/:id/validate', sensitiveWriteLimiter, requireAuth, controller.valider);
-  router.patch('/:id/reject', sensitiveWriteLimiter, requireAuth, controller.rejeter);
-  router.post('/bulk-validate', sensitiveWriteLimiter, requireAuth, controller.validerTout);
+  router.patch('/:id/lock', requireAuth, controller.verrouiller);
+  router.post('/bulk-lock', sensitiveWriteLimiter, requireAuth, controller.verrouillerEnMasse);
 
   return router;
 }

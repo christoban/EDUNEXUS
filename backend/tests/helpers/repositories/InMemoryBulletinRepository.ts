@@ -238,8 +238,8 @@ export class InMemoryBulletinRepository implements BulletinRepository {
     return { items: paged, total };
   }
 
-  async getStatsValidationParClasse(_params: { classId: string; schoolId: string; sequenceIds: string[] }): Promise<{ total: number; DRAFT: number; SUBMITTED: number; VALIDATED: number; LOCKED: number; REJECTED: number }> {
-    return { total: 0, DRAFT: 0, SUBMITTED: 0, VALIDATED: 0, LOCKED: 0, REJECTED: 0 };
+  async getStatsValidationParClasse(_params: { classId: string; schoolId: string; sequenceIds: string[] }): Promise<{ total: number; DRAFT: number; LOCKED: number }> {
+    return { total: 0, DRAFT: 0, LOCKED: 0 };
   }
 
   async findTableauHonneur(params: { classId: string; schoolId: string; academicPeriodId: string; top: number }): Promise<{ student: { firstName: string; lastName: string }; generalAverage: number; mention: string | null }[]> {

@@ -145,7 +145,7 @@ export class PrismaClassCouncilRepository implements ClassCouncilRepository {
         schoolId,
         classId,
         sequence: { academicPeriodId },
-        validationStatus: { notIn: ['VALIDATED', 'LOCKED'] },
+        validationStatus: { notIn: ['LOCKED'] },
       },
     });
   }
@@ -184,7 +184,7 @@ export class PrismaClassCouncilRepository implements ClassCouncilRepository {
       where: {
         classId,
         sequence: { academicPeriodId },
-        validationStatus: { in: ['VALIDATED', 'LOCKED'] },
+        validationStatus: { in: ['LOCKED'] },
         sequenceAverage: { not: null },
       },
       select: { studentId: true, sequenceAverage: true, coefficient: true },

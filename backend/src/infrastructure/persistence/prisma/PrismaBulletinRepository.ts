@@ -174,14 +174,14 @@ export class PrismaBulletinRepository implements BulletinRepository {
     return { items: items as unknown as Record<string, unknown>[], total };
   }
 
-  async getStatsValidationParClasse(params: { classId: string; schoolId: string; sequenceIds: string[] }): Promise<{ total: number; DRAFT: number; SUBMITTED: number; VALIDATED: number; LOCKED: number; REJECTED: number }> {
+  async getStatsValidationParClasse(params: { classId: string; schoolId: string; sequenceIds: string[] }): Promise<{ total: number; DRAFT: number; LOCKED: number }> {
     const where: Record<string, unknown> = { schoolId: params.schoolId, classId: params.classId };
     if (params.sequenceIds.length > 0) (where as Record<string, unknown>).sequenceId = { in: params.sequenceIds };
     const grades = await this.prisma.grade.findMany({ where: where as never, select: { validationStatus: true } });
-    const stats = { total: grades.length, VALIDATED: 0, LOCKED: 0, SUBMITTED: 0, DRAFT: 0, REJECTED: 0 };
+    const stats: { total: number; DRAFT: number; LOCKED: number } = { total: grades.length, DRAFT: 0, LOCKED: 0 };
     for (const g of grades) {
-      const s = g.validationStatus as keyof typeof stats;
-      if (s in stats) (stats[s] as number)++;
+      if (g.validationStatus === 'DRAFT') stats.DRAFT++;
+      else if (g.validationStatus === 'LOCKED') stats.LOCKED++;
     }
     return stats;
   }

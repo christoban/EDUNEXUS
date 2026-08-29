@@ -9,7 +9,7 @@ export class PrismaGradeOrientationRepository implements GradeOrientationReposit
     const grades = await this.prisma.grade.findMany({
       where: {
         schoolId, studentId,
-        validationStatus: { in: ['VALIDATED', 'LOCKED'] },
+        validationStatus: { in: ['LOCKED'] },
         subject: { name: { in: subjectNames } },
         sequenceAverage: { not: null },
       },
@@ -32,7 +32,7 @@ export class PrismaGradeOrientationRepository implements GradeOrientationReposit
 
   async findEarliestGradeYearStart(schoolId: string, studentId: string): Promise<Date | null> {
     const earliest = await this.prisma.grade.findFirst({
-      where: { schoolId, studentId, validationStatus: { in: ['VALIDATED', 'LOCKED'] } },
+      where: { schoolId, studentId, validationStatus: { in: ['LOCKED'] } },
       orderBy: { academicYear: { startDate: 'asc' } },
       select: { academicYear: { select: { startDate: true } } },
     });
@@ -41,7 +41,7 @@ export class PrismaGradeOrientationRepository implements GradeOrientationReposit
 
   async hasValidatedGrade(schoolId: string, studentId: string): Promise<boolean> {
     const found = await this.prisma.grade.findFirst({
-      where: { schoolId, studentId, validationStatus: { in: ['VALIDATED', 'LOCKED'] } },
+      where: { schoolId, studentId, validationStatus: { in: ['LOCKED'] } },
       select: { id: true },
     });
     return !!found;

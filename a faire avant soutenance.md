@@ -96,3 +96,6 @@ le fichier bootstrap est devenu trop long il faut le scinder en plusieurs fichiu
 
 
 ok il va falloir faire et implémenter les audit de tout ce qui se passe au niveau de l'établissement pour l'admin et les staff en fonction de leur niveau pour l'eleve des audit en ce qui lui concernedans ses fonctions, meme chose pour chaque role et maintenant l'admin a l'audit complet pour tout son etablissement et pour le super admin c'ets l'audit de toute la plateforme
+
+
+il faudra implémenter le fait de se connecter juste en mettant ses identifiants , pas beosin de choisir son role et l'etablissement, quand tu mets ton mot de passe et ton email, si tu as deux comptes dans plusieurs etablissements cà viendra après , on te demandera de choisir ou tu veux te connecter

@@ -25,10 +25,8 @@ export function creerApp(): Application {
 
   const gradeController = new GradeController(
     container.grade.saisirNote,
-    container.grade.soumettreNote,
-    container.grade.validerNote,
-    container.grade.rejeterNote,
-    container.grade.validerEnBloc,
+    container.grade.verrouillerNote,
+    container.grade.verrouillerNotesEnMasse,
     container.grade.modifierNote,
     container.grade.draftEnMasse,
     container.grade.listerNotes,
@@ -36,7 +34,6 @@ export function creerApp(): Application {
     container.grade.statutParClasse,
     container.grade.calculerMoyenne,
     container.grade.importerNotesExcel,
-    container.school.schoolRepository,
     container.school.anneeRepository,
     container.school.classeRepository,
     container.school.matiereRepository,

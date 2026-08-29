@@ -100,10 +100,11 @@ export function buildAdminAcademicGradeActions(deps: AdminActionDeps): ActionDef
       async execute(input, ctx) {
         const classe = await resolveClass(ctx, input.className);
         const sequence = await resolveCurrentSequence(ctx);
-        const r = await deps.validerNotesEnBloc.execute({
+        const r = await deps.verrouillerNotesEnMasse.execute({
           classId: classe.id,
           sequenceId: sequence.id,
-          validateurId: ctx.userId,
+          demandeurId: ctx.userId,
+          schoolId: ctx.schoolId,
         });
         return {
           resultLabel: `${classe.name} (séquence ${sequence.name}) : ${r.message}`,
@@ -425,7 +426,7 @@ export function buildAdminAcademicGradeActions(deps: AdminActionDeps): ActionDef
           where: {
             schoolId: ctx.schoolId,
             academicYearId: year.id,
-            validationStatus: { in: ['VALIDATED', 'LOCKED'] },
+            validationStatus: { in: ['LOCKED'] },
             sequenceAverage: { not: null },
             ...(classId ? { classId } : {}),
           },
@@ -486,7 +487,7 @@ export function buildAdminAcademicGradeActions(deps: AdminActionDeps): ActionDef
             schoolId: ctx.schoolId,
             academicYearId: year.id,
             classId: { in: classes.map((c) => c.id) },
-            validationStatus: { in: ['VALIDATED', 'LOCKED'] },
+            validationStatus: { in: ['LOCKED'] },
             sequenceAverage: { not: null },
           },
           select: { classId: true, sequenceAverage: true },

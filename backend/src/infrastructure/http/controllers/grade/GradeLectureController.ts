@@ -20,6 +20,15 @@ export class GradeLectureController {
       const { classId, subjectId, sequenceId, studentId, validationStatus, page = '1', limit = '50' } =
         req.query as Record<string, string>;
 
+      // Validation explicite du paramètre validationStatus
+      if (validationStatus && validationStatus !== 'DRAFT' && validationStatus !== 'LOCKED') {
+        res.status(400).json({
+          success: false,
+          message: `validationStatus invalide : '${validationStatus}'. Valeurs acceptées : 'DRAFT', 'LOCKED'`,
+        });
+        return;
+      }
+
       const pageNum = Math.max(1, parseInt(page));
       const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
 

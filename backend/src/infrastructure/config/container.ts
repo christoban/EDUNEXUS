@@ -47,10 +47,8 @@ import { SchedulingGridAdapter } from '@infrastructure/scheduling/SchedulingGrid
 
 // --- Use Cases : Notes ---
 import { SaisirNoteUseCase } from '@application/grade/SaisirNoteUseCase';
-import { SoumettreNoteUseCase } from '@application/grade/SoumettreNoteUseCase';
-import { ValiderNoteUseCase } from '@application/grade/ValiderNoteUseCase';
-import { RejeterNoteUseCase } from '@application/grade/RejeterNoteUseCase';
-import { ValiderEnBlocUseCase } from '@application/grade/ValiderEnBlocUseCase';
+import { VerrouillerNoteUseCase } from '@application/grade/VerrouillerNoteUseCase';
+import { VerrouillerNotesEnMasseUseCase } from '@application/grade/VerrouillerNotesEnMasseUseCase';
 import { ModifierNoteUseCase } from '@application/grade/ModifierNoteUseCase';
 import { DraftEnMasseUseCase } from '@application/grade/DraftEnMasseUseCase';
 import { ListerNotesUseCase } from '@application/grade/ListerNotesUseCase';
@@ -422,12 +420,8 @@ export function creerContainer() {
   const saisirNoteUseCase = new SaisirNoteUseCase(
     noteRepository, matiereRepository, userRepository, rattachementRepository
   );
-  const soumettreNoteUseCase = new SoumettreNoteUseCase(noteRepository);
-  const validerNoteUseCase = new ValiderNoteUseCase(noteRepository, userRepository);
-  const rejeterNoteUseCase = new RejeterNoteUseCase(
-    noteRepository, userRepository, notificationService
-  );
-  const validerEnBlocUseCase = new ValiderEnBlocUseCase(noteRepository, userRepository);
+  const verrouillerNoteUseCase = new VerrouillerNoteUseCase(noteRepository, matiereRepository);
+  const verrouillerNotesEnMasseUseCase = new VerrouillerNotesEnMasseUseCase(noteRepository, matiereRepository);
 
   // 5. Use Cases — Import
   const importerUtilisateursUseCase = new ImporterUtilisateursUseCase(
@@ -776,10 +770,8 @@ export function creerContainer() {
   return {
     grade: {
       saisirNote: saisirNoteUseCase,
-      soumettreNote: soumettreNoteUseCase,
-      validerNote: validerNoteUseCase,
-      rejeterNote: rejeterNoteUseCase,
-      validerEnBloc: validerEnBlocUseCase,
+      verrouillerNote: verrouillerNoteUseCase,
+      verrouillerNotesEnMasse: verrouillerNotesEnMasseUseCase,
       modifierNote: modifierNoteUseCase,
       draftEnMasse: draftEnMasseUseCase,
       listerNotes: listerNotesUseCase,

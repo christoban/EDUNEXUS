@@ -153,7 +153,7 @@ const SEQUENCE = {
   isCurrent: true,
 };
 
-function creerNoteValidee(): Note {
+function creerNoteVerrouillee(): Note {
   return Note.reconstituer({
     id: 'note-1',
     schoolId: SCHOOL_ID,
@@ -167,7 +167,7 @@ function creerNoteValidee(): Note {
     coefficient: 4,
     maxValue: 20,
     sequenceAverage: 14,
-    validationStatus: 'VALIDATED',
+    validationStatus: 'LOCKED',
     isOfflineSync: false,
     createdAt: new Date(),
   });
@@ -241,7 +241,7 @@ describe('GenererBulletinUseCase', () => {
   describe('Loi 4 — notes non validées', () => {
     it('lance BulletinBloqueError si au moins une note n\'est pas validée', async () => {
       noteRepo.setNonValidees([
-        { matiereNom: 'Mathématiques', enseignantNom: 'Dupont', statut: 'SUBMITTED' },
+        { matiereNom: 'Mathématiques', enseignantNom: 'Dupont', statut: 'DRAFT' },
       ]);
 
       await expect(useCase.execute(commandeBase())).rejects.toThrow(BulletinBloqueError);
@@ -295,7 +295,7 @@ describe('GenererBulletinUseCase', () => {
   describe('Cas nominal — génération d\'un bulletin', () => {
     it('génère un bulletin pour un élève avec une note validée', async () => {
       userRepo.ajouter(creerEleve());
-      noteRepo.ajouter(creerNoteValidee());
+      noteRepo.ajouter(creerNoteVerrouillee());
 
       const resultat = await useCase.execute(commandeBase());
 
@@ -305,7 +305,7 @@ describe('GenererBulletinUseCase', () => {
 
     it('appelle le service PDF pour chaque élève', async () => {
       userRepo.ajouter(creerEleve());
-      noteRepo.ajouter(creerNoteValidee());
+      noteRepo.ajouter(creerNoteVerrouillee());
 
       await useCase.execute(commandeBase());
 
@@ -316,7 +316,7 @@ describe('GenererBulletinUseCase', () => {
 
     it('persiste le bulletin dans le dépôt', async () => {
       userRepo.ajouter(creerEleve());
-      noteRepo.ajouter(creerNoteValidee());
+      noteRepo.ajouter(creerNoteVerrouillee());
 
       await useCase.execute(commandeBase());
 
@@ -325,7 +325,7 @@ describe('GenererBulletinUseCase', () => {
 
     it('le message final contient le bon compte', async () => {
       userRepo.ajouter(creerEleve());
-      noteRepo.ajouter(creerNoteValidee());
+      noteRepo.ajouter(creerNoteVerrouillee());
 
       const resultat = await useCase.execute(commandeBase());
 
@@ -336,7 +336,7 @@ describe('GenererBulletinUseCase', () => {
   describe('Cas — bulletin déjà généré', () => {
     it('ignore un bulletin déjà généré et l\'inclut dans bulletinsIgnores', async () => {
       userRepo.ajouter(creerEleve());
-      noteRepo.ajouter(creerNoteValidee());
+      noteRepo.ajouter(creerNoteVerrouillee());
       bulletinRepo.ajouter(creerBulletinDejaGenere());
 
       const resultat = await useCase.execute(commandeBase());

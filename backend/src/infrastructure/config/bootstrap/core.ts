@@ -210,7 +210,7 @@ export function registerCoreRoutes(app: Application, prismaParam: typeof prisma 
     affecterPEBSMasse: new AffecterPEBSEnMasseUseCase(studentAffectationRepository, anneeRepository, groupSetRepositoryLeger, groupRepositoryLeger, membershipRepositoryLeger),
     genererBulletins: c.reportCard.generer,
     envoyerBulletins: c.reportCard.envoyer,
-    validerNotesEnBloc: c.grade.validerEnBloc,
+    verrouillerNotesEnMasse: c.grade.verrouillerNotesEnMasse,
     publierEDT: c.timetable.publier,
     ouvrirConseilClasse: c.classCouncil.tenir,
     definirPeriodeCourante: c.academicYear.definirPeriode,
@@ -234,7 +234,7 @@ export function registerCoreRoutes(app: Application, prismaParam: typeof prisma 
   // ── Assistant IA EXÉCUTANT (copilot) — rôle TEACHER (Section 6.2 du chantier) ──
   const teacherActionCatalog = buildTeacherActionCatalog({
     saisirNote: c.grade.saisirNote,
-    soumettreNote: c.grade.soumettreNote,
+    verrouillerNotesEnMasse: c.grade.verrouillerNotesEnMasse,
     enregistrerPresence: c.attendance.enregistrerPresence,
     demanderRattrapage: c.timetable.demanderRattrapage,
   });

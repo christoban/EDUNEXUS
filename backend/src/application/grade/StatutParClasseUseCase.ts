@@ -35,7 +35,7 @@ export class StatutParClasseUseCase {
     const grades = result.items.map(n => n.toObject());
 
     const stats: Record<GradeValidationStatus, number> = {
-      DRAFT: 0, SUBMITTED: 0, VALIDATED: 0, LOCKED: 0, REJECTED: 0,
+      DRAFT: 0, LOCKED: 0,
     };
     for (const g of grades) {
       stats[g.validationStatus]++;
@@ -47,13 +47,12 @@ export class StatutParClasseUseCase {
         bySubject[g.subjectId] = { subjectId: g.subjectId, total: 0, validated: 0, locked: 0 };
       }
       bySubject[g.subjectId].total++;
-      if (g.validationStatus === 'VALIDATED') bySubject[g.subjectId].validated++;
       if (g.validationStatus === 'LOCKED') bySubject[g.subjectId].locked++;
     }
 
     const canGenerateReportCard =
       grades.length > 0 &&
-      grades.every(g => g.validationStatus === 'VALIDATED' || g.validationStatus === 'LOCKED');
+      grades.every(g => g.validationStatus === 'LOCKED');
 
     return { classId, stats, bySubject, canGenerateReportCard, grades };
   }

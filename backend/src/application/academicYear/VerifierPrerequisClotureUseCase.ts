@@ -21,7 +21,7 @@ export class VerifierPrerequisClotureUseCase {
     if (notesNonValidees > 0) {
       bloqueurs.push({
         type: 'UNVALIDATED_GRADES',
-        message: `${notesNonValidees} note(s) non validée(s) — toutes les notes doivent être VALIDATED ou LOCKED avant la clôture`,
+        message: `${notesNonValidees} note(s) non validée(s) — toutes les notes doivent être LOCKED avant la clôture`,
       });
     }
 

@@ -44,7 +44,7 @@ import type { AffecterPEBSEleveUseCase } from '@application/student/AffecterPEBS
 import type { AffecterPEBSEnMasseUseCase } from '@application/student/AffecterPEBSEnMasseUseCase';
 import type { GenererBulletinUseCase } from '@application/reportCard/GenererBulletinUseCase';
 import type { EnvoyerBulletinsUseCase } from '@application/reportCard/EnvoyerBulletinsUseCase';
-import type { ValiderEnBlocUseCase } from '@application/grade/ValiderEnBlocUseCase';
+import type { VerrouillerNotesEnMasseUseCase } from '@application/grade/VerrouillerNotesEnMasseUseCase';
 import type { PublierEmploiDuTempsUseCase } from '@application/timetable/PublierEmploiDuTempsUseCase';
 import type { TenirConseilClasseUseCase } from '@application/classCouncil/TenirConseilClasseUseCase';
 import type { DefinirPeriodeCouranteUseCase } from '@application/academicYear/DefinirPeriodeCouranteUseCase';
@@ -83,7 +83,7 @@ export interface AdminActionDeps {
   affecterPEBSMasse: AffecterPEBSEnMasseUseCase;
   genererBulletins: GenererBulletinUseCase;
   envoyerBulletins: EnvoyerBulletinsUseCase;
-  validerNotesEnBloc: ValiderEnBlocUseCase;
+  verrouillerNotesEnMasse: VerrouillerNotesEnMasseUseCase;
   publierEDT: PublierEmploiDuTempsUseCase;
   ouvrirConseilClasse: TenirConseilClasseUseCase;
   definirPeriodeCourante: DefinirPeriodeCouranteUseCase;

@@ -7,7 +7,7 @@ export class NoteValideeSyncError extends Error {
   constructor(noteId: string, matiereNom: string) {
     super(
       `Synchronisation rejetée : la note "${noteId}" (${matiereNom}) ` +
-      `est déjà VALIDATED et ne peut plus être modifiée hors ligne.`
+      `est déjà LOCKED et ne peut plus être modifiée hors ligne.`
     );
     this.name = 'NoteValideeSyncError';
   }

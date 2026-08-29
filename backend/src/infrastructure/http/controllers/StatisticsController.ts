@@ -2,7 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import type { StatisticsQueryRepository } from '@domain/ports/repositories/StatisticsQueryRepository';
 import type { AIActionAuditPort } from '@domain/ports/services/AIActionAuditPort';
 
-const GRADE_STATUSES_VALIDES = ['VALIDATED', 'LOCKED'] as const;
+const GRADE_STATUSES_VALIDES = ['LOCKED'] as const;
 
 export class StatisticsController {
   constructor(

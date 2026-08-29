@@ -12,7 +12,7 @@ import type {
   AttendanceRow,
 } from '@domain/ports/repositories/StatisticsQueryRepository';
 
-const GRADE_STATUSES_VALIDES = ['VALIDATED', 'LOCKED'] as const;
+const GRADE_STATUSES_VALIDES = ['LOCKED'] as const;
 
 export class PrismaStatisticsQueryRepository implements StatisticsQueryRepository {
   constructor(private readonly prisma: PrismaClient) {}

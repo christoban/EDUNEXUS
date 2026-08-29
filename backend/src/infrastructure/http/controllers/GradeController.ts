@@ -4,10 +4,8 @@ import { GradeValidationController } from './grade/GradeValidationController';
 import { GradeLectureController } from './grade/GradeLectureController';
 import { GradeExcelController } from './grade/GradeExcelController';
 import type { SaisirNoteUseCase } from '@application/grade/SaisirNoteUseCase';
-import type { SoumettreNoteUseCase } from '@application/grade/SoumettreNoteUseCase';
-import type { ValiderNoteUseCase } from '@application/grade/ValiderNoteUseCase';
-import type { RejeterNoteUseCase } from '@application/grade/RejeterNoteUseCase';
-import type { ValiderEnBlocUseCase } from '@application/grade/ValiderEnBlocUseCase';
+import type { VerrouillerNoteUseCase } from '@application/grade/VerrouillerNoteUseCase';
+import type { VerrouillerNotesEnMasseUseCase } from '@application/grade/VerrouillerNotesEnMasseUseCase';
 import type { ModifierNoteUseCase } from '@application/grade/ModifierNoteUseCase';
 import type { DraftEnMasseUseCase } from '@application/grade/DraftEnMasseUseCase';
 import type { ListerNotesUseCase } from '@application/grade/ListerNotesUseCase';
@@ -15,7 +13,6 @@ import type { ListerNotesEnAttenteUseCase } from '@application/grade/ListerNotes
 import type { StatutParClasseUseCase } from '@application/grade/StatutParClasseUseCase';
 import type { CalculerMoyenneUseCase } from '@application/grade/CalculerMoyenneUseCase';
 import type { ImporterNotesExcelUseCase } from '@application/grade/ImporterNotesExcelUseCase';
-import type { SchoolRepository } from '@domain/ports/repositories/SchoolRepository';
 import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/AnneeAcademiqueRepository';
 import type { ClasseRepository } from '@domain/ports/repositories/ClasseRepository';
 import type { MatiereRepository } from '@domain/ports/repositories/MatiereRepository';
@@ -29,7 +26,7 @@ export * from './grade/gradeErrors';
 /**
  * GradeController — Façade de composition regroupant les 4 contrôleurs spécialisés :
  * - GradeSaisieController (saisie, modification, draft en masse)
- * - GradeValidationController (soumission, validation unitaire/en bloc, rejet)
+ * - GradeValidationController (verrouillage unitaire/en bloc)
  * - GradeLectureController (listes, attente, statut par classe, moyenne élève)
  * - GradeExcelController (génération template, import fichier Excel)
  */
@@ -41,10 +38,8 @@ export class GradeController {
 
   constructor(
     saisirNote: SaisirNoteUseCase,
-    soumettreNote: SoumettreNoteUseCase,
-    validerNote: ValiderNoteUseCase,
-    rejeterNote: RejeterNoteUseCase,
-    validerEnBloc: ValiderEnBlocUseCase,
+    verrouillerNote: VerrouillerNoteUseCase,
+    verrouillerNotesEnMasse: VerrouillerNotesEnMasseUseCase,
     modifierNote: ModifierNoteUseCase,
     draftEnMasseUC: DraftEnMasseUseCase,
     listerNotes: ListerNotesUseCase,
@@ -52,7 +47,6 @@ export class GradeController {
     statutParClasseUC: StatutParClasseUseCase,
     calculerMoyenneUC: CalculerMoyenneUseCase,
     importerNotesExcel: ImporterNotesExcelUseCase,
-    schoolRepository: SchoolRepository,
     anneeRepository: AnneeAcademiqueRepository,
     classeRepository: ClasseRepository,
     matiereRepository: MatiereRepository,
@@ -64,11 +58,8 @@ export class GradeController {
       anneeRepository,
     );
     this.validationController = new GradeValidationController(
-      soumettreNote,
-      validerNote,
-      rejeterNote,
-      validerEnBloc,
-      schoolRepository,
+      verrouillerNote,
+      verrouillerNotesEnMasse,
     );
     this.lectureController = new GradeLectureController(
       listerNotes,
@@ -95,20 +86,11 @@ export class GradeController {
     this.saisieController.draftEnMasse(req, res, next);
 
   // ── Validation & Workflow ───────────────────────────────────────────────────
-  soumettre = (req: Request, res: Response, next: NextFunction): Promise<void> =>
-    this.validationController.soumettre(req, res, next);
+  verrouiller = (req: Request, res: Response, next: NextFunction): Promise<void> =>
+    this.validationController.verrouiller(req, res, next);
 
-  soumettreEnMasse = (req: Request, res: Response, next: NextFunction): Promise<void> =>
-    this.validationController.soumettreEnMasse(req, res, next);
-
-  valider = (req: Request, res: Response, next: NextFunction): Promise<void> =>
-    this.validationController.valider(req, res, next);
-
-  rejeter = (req: Request, res: Response, next: NextFunction): Promise<void> =>
-    this.validationController.rejeter(req, res, next);
-
-  validerTout = (req: Request, res: Response, next: NextFunction): Promise<void> =>
-    this.validationController.validerTout(req, res, next);
+  verrouillerEnMasse = (req: Request, res: Response, next: NextFunction): Promise<void> =>
+    this.validationController.verrouillerEnMasse(req, res, next);
 
   // ── Consultation & Lecture ──────────────────────────────────────────────────
   lister = (req: Request, res: Response, next: NextFunction): Promise<void> =>

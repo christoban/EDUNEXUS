@@ -51,7 +51,7 @@ export interface NoteRepository {
   findClassmatesAverages(classId: string, sequenceId: string, schoolId: string): Promise<{ studentId: string; average: number }[]>;
 
   /**
-   * Retourne les notes non encore VALIDATED pour une classe sur une période.
+   * Retourne les notes non encore LOCKED (DRAFT) pour une classe sur une période.
    * Utilisé pour Loi 4 (bulletin) et Loi 5 (conseil de classe).
    */
   findNotesNonValideesParClasse(
@@ -60,7 +60,7 @@ export interface NoteRepository {
   ): Promise<NoteNonValideeInfo[]>;
 
   /**
-   * Vérifie si toutes les notes d'une classe sont VALIDATED pour une période.
+   * Vérifie si toutes les notes d'une classe sont LOCKED pour une période.
    * Retourne true si la génération de bulletin est autorisée.
    */
   toutesNotesValideesParClasse(
@@ -77,7 +77,7 @@ export interface NoteRepository {
   findNotesEnAttenteDepuis(heures: number): Promise<Note[]>; // Pour les alertes Inngest
 
   /**
-   * Verrouille toutes les notes VALIDATED d'un élève pour une classe/période.
+   * Verrouille toutes les notes DRAFT d'un élève pour une classe/période.
    * Appelé après la génération du bulletin — Loi 6.
    */
   verrouillerNotesValidees(studentId: string, classId: string, academicPeriodId: string): Promise<void>;
@@ -88,5 +88,5 @@ export interface NoteRepository {
   // Inngest — génération bulletins
   findForBulletin(params: { schoolId: string; studentId: string; academicYearId: string; classId: string; sequenceIds: string[] }): Promise<Note[]>;
   groupMoyennesPourPeriode(params: { schoolId: string; classId: string; academicYearId: string; sequenceIds: string[] }): Promise<Array<{ studentId: string; average: number }>>;
-  getStatsValidationParClasse(classId: string, schoolId: string, sequenceIds: string[]): Promise<{ total: number; DRAFT: number; SUBMITTED: number; VALIDATED: number; LOCKED: number; REJECTED: number }>;
+  getStatsValidationParClasse(classId: string, schoolId: string, sequenceIds: string[]): Promise<{ total: number; DRAFT: number; LOCKED: number }>;
 }

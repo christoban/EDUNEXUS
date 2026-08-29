@@ -173,7 +173,7 @@ grep -rn "reduce((s, g) => s +\|reduce((s, n) => s +" src → 3 occurrences (9 �
 
 | Fichier | Lignes | Fonctions | UC/Ports |
 |---|---|---|---|
-| `reportCards.ts` | 427 → 140 | `generateReportCards`, `handleGradeValidatedDropDetection/Batch`, `handleGradeSubmitted` | `DetecterChuteMoyenneUseCase` (`NoteRepository`), `GenererBulletinsInngestUseCase`/`RelancerValidationNotesUseCase` (`User/Note/Presence/Bulletin/StaffProfileRepository`) |
+| `reportCards.ts` | 427 → 140 | `generateReportCards`, `handleGradeLockedDropDetection/Batch` | `DetecterChuteMoyenneUseCase` (`NoteRepository`), `GenererBulletinsInngestUseCase` (`User/Note/Presence/Bulletin/StaffProfileRepository`) |
 | `health.ts` | 424 → ~140 | `computeStudentHealthScores`, `handleCritical/Warning/Positive`, `sendProfessorPrincipalDigest` | `CalculerScoresSanteUseCase`, `GererAlertesSanteUseCase`, `EnvoyerDigestProfPrincipalUseCase` (`HealthJobsRepository` + `SanteEleveRepository`) |
 | `finance.ts` | 311 → ~120 | `sendPaymentReminders`, `checkAbsenceThreshold`, `markOverdueLoans` | `EnvoyerRappelsPaiementUseCase`, `VerifierSeuilAbsencesUseCase`, `MarquerRetardsPretUseCase` (`FinanceJobsRepository`) |
 | `academic.ts` | 341 → 165 | `checkAcademicEvents`, `checkOrientationCheckpoints`, `checkSuspiciousAiActionPattern`, `handleTimetableSeancesAppliquees` | `VerifierEvenementsAcademiquesUseCase` (`AcademicEventRepository`), `VerifierOrientationCheckpointsUseCase` (`IOrientationRepository`+`GradeOrientationRepository`), `DetecterPatternSuspicieuxUseCase` (`AIActionAuditQueryPort`) |

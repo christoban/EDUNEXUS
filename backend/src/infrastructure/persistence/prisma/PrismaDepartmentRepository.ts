@@ -50,7 +50,7 @@ export class PrismaDepartmentRepository implements DepartmentRepository {
 
   async findGradesForSubjectIds(schoolId: string, subjectIds: string[]) {
     return this.prisma.grade.findMany({
-      where: { schoolId, subjectId: { in: subjectIds }, validationStatus: { in: ['VALIDATED', 'LOCKED'] } },
+      where: { schoolId, subjectId: { in: subjectIds }, validationStatus: { in: ['LOCKED'] } },
       select: { subjectId: true, classId: true, sequenceAverage: true },
     });
   }

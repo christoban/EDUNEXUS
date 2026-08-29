@@ -21,8 +21,6 @@
 
 | # | Manque précis | Faisabilité |
 |---|---|---|
-| V0.4 | **COMPLÈTEMENT RÉSOLU** : modèle `SchoolTemplateVersion`, publication de versions avec defaults (`defaultsConfigLocalePourTemplate`), use cases et routes master-admin, seed v1/v2, ré-application en masse toutes écoles (`ProposerReapplicationToutesEcolesUseCase` / `AppliquerReapplicationToutesEcolesUseCase`), tests unitaires (28 tests). | ✅ Muse Spark |
-| V1.1 | **RÉSOLU** : Profil académique unifié (`ObtenirProfilAcademiqueUseCase`, `classifierMatiere`, port `AcademicProfileQueryPort`, adapter Prisma, controller & route RBAC sécurisée, section UI frontend & parité i18n fr/en, tests unitaires). | ✅ Muse Spark |
 | V1.4 | Mapping de colonnes figé en dur ; pas d'étape « Correction » ; scope limité à STUDENT/TEACHER (pas personnel/parents/classes). | ⚠️ Tech Lead — étape « Correction » = décision produit |
 | V1.6 | **Absents** : `AssessmentParticipation`, `AssessmentScope`, `HarmonizedAssessmentSession`, `InvigilationPolicy`, `Assessment Calendar` par rôle, `Assessment Workload`. Grade et Attendance **jamais croisés** (7/20 d'un absent = 7/20 d'un présent). | ⚠️ Tech Lead — 6 modèles à spécifier MINESEC |
 | V2.4 | LV2/PEBS en **double écriture** (`lv2SubjectId`/`pebsFiliere` restent source de vérité) — à unifier. | ⚠️ Tech Lead — unification = risque de perte de données |

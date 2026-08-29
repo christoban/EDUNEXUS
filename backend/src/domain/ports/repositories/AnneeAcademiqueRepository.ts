@@ -117,7 +117,7 @@ export interface AnneeAcademiqueRepository {
 
   // --- Vérifications pré-clôture ---
   /**
-   * Compte les notes non validées (pas VALIDATED ni LOCKED) pour toute une année.
+   * Compte les notes non validées (pas LOCKED) pour toute une année.
    */
   countNotesNonValidees(academicYearId: string): Promise<number>;
 

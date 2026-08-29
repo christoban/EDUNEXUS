@@ -13,7 +13,7 @@ export type EducationType = 'GENERAL' | 'TECHNICAL' | 'PROFESSIONAL' | 'MIXED';
 export type SchoolOwnership = 'PUBLIC' | 'PRIVATE_SECULAR' | 'PRIVATE_FAITH';
 export type SchoolLevel = 'PRESCHOOL' | 'PRIMARY' | 'SECONDARY' | 'MULTI';
 
-export type GradeValidationStatus = 'DRAFT' | 'SUBMITTED' | 'VALIDATED' | 'LOCKED' | 'REJECTED';
+export type GradeValidationStatus = 'DRAFT' | 'LOCKED';
 export type BulletinTemplate = 'FR_SECONDARY' | 'EN_SECONDARY' | 'TECHNICAL_FR' | 'PRIMARY' | 'ANNUAL' | 'MONTHLY';
 export type ReportCardStatus = 'DRAFT' | 'GENERATED' | 'SENT';
 

@@ -119,7 +119,7 @@ describe('TenirConseilClasseUseCase', () => {
     it('lance ConseilBloqueError si au moins une note n\'est pas validée', async () => {
       userRepo.ajouter(creerAdmin());
       noteRepo.setNonValidees([
-        { matiereNom: 'Mathématiques', enseignantNom: 'Dupont', statut: 'SUBMITTED' },
+        { matiereNom: 'Mathématiques', enseignantNom: 'Dupont', statut: 'DRAFT' },
       ]);
 
       await expect(useCase.execute(commandeBase())).rejects.toThrow(ConseilBloqueError);
@@ -129,7 +129,7 @@ describe('TenirConseilClasseUseCase', () => {
       userRepo.ajouter(creerAdmin());
       noteRepo.setNonValidees([
         { matiereNom: 'Français', enseignantNom: 'Martin', statut: 'DRAFT' },
-        { matiereNom: 'Physique', enseignantNom: 'Ngo', statut: 'SUBMITTED' },
+        { matiereNom: 'Physique', enseignantNom: 'Ngo', statut: 'DRAFT' },
       ]);
 
       await expect(useCase.execute(commandeBase())).rejects.toThrow('Français');
