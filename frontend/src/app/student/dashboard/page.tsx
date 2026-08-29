@@ -14,6 +14,7 @@ import SectionStudentTimetable from './_components/SectionStudentTimetable'
 import SectionStudentAttendance from './_components/SectionStudentAttendance'
 import SectionStudentLibrary from './_components/SectionStudentLibrary'
 import SectionStudentHealthTracking from './_components/SectionStudentHealthTracking'
+import SectionProfilAcademique from '@/features/student/SectionProfilAcademique'
 import HealthAlertBanner from './_components/HealthAlertBanner'
 import type { StudentSection, Toast, UserInfo } from './_types'
 import { fetchApi } from '@/lib/fetchApi'
@@ -34,7 +35,7 @@ interface SessionUser {
   permissions?: string[]
 }
 
-const STUDENT_SECTIONS: StudentSection[] = ['dashboard', 'grades', 'bulletins', 'timetable', 'attendance', 'library', 'health-tracking', 'notifications', 'babillard', 'messagerie']
+const STUDENT_SECTIONS: StudentSection[] = ['dashboard', 'grades', 'bulletins', 'timetable', 'attendance', 'library', 'health-tracking', 'notifications', 'babillard', 'messagerie', 'academic-profile']
 const STUDENT_ASSISTANT_SUGGESTIONS = [
   'Quelles sont mes dernières notes ?',
   'Quel est mon taux de présence ce mois-ci ?',
@@ -57,6 +58,7 @@ export default function StudentDashboard() {
     notifications: tnav('pageTitle.student_notifications'),
     babillard:  tnav('sidebar.babillard'),
     messagerie: tnav('sidebar.messagerie'),
+    'academic-profile': tnav('pageTitle.student_academicProfile'),
   }
   const [section, setSection] = useState<StudentSection>('dashboard')
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
@@ -178,6 +180,7 @@ export default function StudentDashboard() {
           {section === 'notifications' && <NotificationCenter />}
           {section === 'babillard' && <Babillard role={user?.role ?? 'STUDENT'} title={tnav('sidebar.babillard')} subtitle={tnav('group.communication')} />}
           {section === 'messagerie' && <Messagerie />}
+          {section === 'academic-profile' && <SectionProfilAcademique studentId={user?.id ?? ''} />}
         </main>
       </div>
 

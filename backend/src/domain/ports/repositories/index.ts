@@ -71,3 +71,9 @@ export type {
 export type { StudentRecommendationRepository, StudentRecommendationData } from './StudentRecommendationRepository';
 export type { SchoolConfigRepository } from './SchoolConfigRepository';
 export type { TeachingAssignmentRepository, TeachingAssignmentData } from './TeachingAssignmentRepository';
+export type {
+  AcademicProfileQueryPort,
+  AcademicProfileData,
+  BulletinProfil,
+  LigneMatiereProfil,
+} from './AcademicProfileQueryPort';

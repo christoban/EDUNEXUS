@@ -137,5 +137,26 @@
     "retry": "Retry",
     "error_fallback": "Error",
     "offline_badge": "Data from {date} — offline"
+  },
+  "academic": {
+    "title": "Academic Profile",
+    "loading": "Loading academic profile…",
+    "empty": "No report card available to compute the academic profile.",
+    "annual_average": "Overall annual average",
+    "strengths": "Strengths",
+    "weaknesses": "Areas for improvement",
+    "no_strengths": "No subject above the mastery threshold.",
+    "no_weaknesses": "No subject in difficulty.",
+    "subject": "Subject",
+    "annual_avg_short": "Annual avg.",
+    "status": "Status",
+    "trend": "Trend",
+    "class_force": "Mastered",
+    "class_acquis": "Passing",
+    "class_faible": "Fragile",
+    "class_critique": "Critical",
+    "trend_up": "Improving",
+    "trend_down": "Declining",
+    "trend_stable": "Stable"
   }
 }

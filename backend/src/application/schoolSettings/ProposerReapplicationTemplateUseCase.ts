@@ -4,7 +4,7 @@
  */
 import type { SchoolSettingsRepository } from '@domain/ports/repositories/SchoolSettingsRepository';
 import type { SchoolTemplateVersionRepository } from '@domain/ports/repositories/SchoolTemplateVersionRepository';
-import { fusionnerConfigLocaleTemplate, CHAMPS_CONFIG_LOCALE } from '@domain/rules/configLocaleTemplate';
+import { calculerDiffReapplication } from './calculerDiffReapplication';
 
 export interface ProposerReapplicationCommande {
   schoolId: string;
@@ -33,25 +33,17 @@ export class ProposerReapplicationTemplateUseCase {
     const configCourante = await this.settingsRepo.getParametresEffectifs(cmd.schoolId);
     const overrides = await this.settingsRepo.getChampsPersonnalises(cmd.schoolId);
 
-    const configDefaults: Record<string, unknown> = {};
-    for (const champ of CHAMPS_CONFIG_LOCALE) {
-      configDefaults[champ] = version.config[champ] ?? configCourante[champ as keyof typeof configCourante];
-    }
-
-    const configResultante = fusionnerConfigLocaleTemplate(
-      configDefaults,
+    const diff = calculerDiffReapplication(
+      version.config,
       configCourante as unknown as Record<string, unknown>,
       overrides,
     );
 
-    const champsReappliques = CHAMPS_CONFIG_LOCALE.filter((c) => !overrides.includes(c));
-    const champsPreserves = CHAMPS_CONFIG_LOCALE.filter((c) => overrides.includes(c));
-
     return {
-      avant: configCourante as unknown as Record<string, unknown>,
-      apres: configResultante,
-      champsReappliques,
-      champsPreserves,
+      avant: diff.avant,
+      apres: diff.apres,
+      champsReappliques: diff.champsReappliques,
+      champsPreserves: diff.champsPreserves,
     };
   }
 }

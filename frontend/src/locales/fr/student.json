@@ -137,5 +137,26 @@
     "retry": "Réessayer",
     "error_fallback": "Erreur",
     "offline_badge": "Données du {date} — hors-ligne"
+  },
+  "academic": {
+    "title": "Profil Académique",
+    "loading": "Chargement du profil académique…",
+    "empty": "Aucun bulletin disponible pour calculer le profil académique.",
+    "annual_average": "Moyenne générale annuelle",
+    "strengths": "Points forts",
+    "weaknesses": "Points à améliorer",
+    "no_strengths": "Aucune matière au-dessus du seuil de maîtrise.",
+    "no_weaknesses": "Aucune matière en difficulté.",
+    "subject": "Matière",
+    "annual_avg_short": "Moy. Ann.",
+    "status": "Statut",
+    "trend": "Tendance",
+    "class_force": "Maîtrise",
+    "class_acquis": "Acquis",
+    "class_faible": "Fragile",
+    "class_critique": "Critique",
+    "trend_up": "En hausse",
+    "trend_down": "En baisse",
+    "trend_stable": "Stable"
   }
 }

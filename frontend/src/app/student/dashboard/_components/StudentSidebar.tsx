@@ -1,6 +1,6 @@
 'use client'
 import { motion } from 'framer-motion'
-import { LogOut, LayoutDashboard, FileText, ScrollText, Calendar, ClipboardCheck, BookOpen, HeartPulse, X, Megaphone, MessageCircle } from 'lucide-react'
+import { LogOut, LayoutDashboard, FileText, ScrollText, Calendar, ClipboardCheck, BookOpen, HeartPulse, X, Megaphone, MessageCircle, BarChart3 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import ThemeToggle from '@/components/ThemeToggle'
 import { cn } from '@/lib/utils'
@@ -53,6 +53,7 @@ export default function StudentSidebar({ current, onChange, schoolName, logoUrl,
         { id: 'grades',    icon: FileText, label: tnav('sidebar.myGrades') },
         { id: 'bulletins', icon: ScrollText, label: tnav('sidebar.bulletins') },
         { id: 'health-tracking', icon: HeartPulse, label: tnav('sidebar.myHealthTracking') },
+        { id: 'academic-profile', icon: BarChart3, label: tnav('sidebar.academicProfile') },
       ]
     },
     {

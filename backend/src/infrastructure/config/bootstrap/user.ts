@@ -15,6 +15,14 @@ import { creerGroupAuthRoutes } from '@infrastructure/http/routes/groupAuth.rout
 import { creerGroupDashboardRoutes } from '@infrastructure/http/routes/groupDashboard.routes';
 import { creerGroupTransferRoutes } from '@infrastructure/http/routes/groupTransfer.routes';
 import { creerAdminGroupTransferRoutes } from '@infrastructure/http/routes/adminGroupTransfer.routes';
+import { SchoolTemplateAdminController } from '@infrastructure/http/controllers/SchoolTemplateAdminController';
+import { creerSchoolTemplateAdminRoutes } from '@infrastructure/http/routes/schoolTemplateAdmin.routes';
+import { PublierVersionTemplateUseCase } from '@application/schoolSettings/PublierVersionTemplateUseCase';
+import { ProposerReapplicationToutesEcolesUseCase } from '@application/schoolSettings/ProposerReapplicationToutesEcolesUseCase';
+import { AppliquerReapplicationToutesEcolesUseCase } from '@application/schoolSettings/AppliquerReapplicationToutesEcolesUseCase';
+import { PrismaSchoolTemplateVersionRepository } from '@infrastructure/persistence/prisma/PrismaSchoolTemplateVersionRepository';
+import { PrismaSchoolSettingsRepository } from '@infrastructure/persistence/prisma/PrismaSchoolSettingsRepository';
+import { PrismaTemplateReapplicationQueryRepository } from '@infrastructure/persistence/prisma/PrismaTemplateReapplicationQueryRepository';
 import { PrismaUserRepository } from '@infrastructure/persistence/prisma/PrismaUserRepository';
 import { PrismaClasseRepository } from '@infrastructure/persistence/prisma/PrismaClasseRepository';
 import { PrismaEnrollmentRepository } from '@infrastructure/persistence/prisma/PrismaEnrollmentRepository';
@@ -138,6 +146,22 @@ export function registerUserRoutes(app: Application, prismaParam: typeof prisma 
   const masterAuthController = new MasterAuthController(loginMasterUseCase, verifyMfaUseCase, masterUserAuthRepository);
   app.use('/api/v2/master/auth', creerMasterAuthRoutes(masterAuthController));
   app.use('/api/v2/master', creerMasterAdminHexRoutes(masterAdminHexController));
+
+  // V0.4 — Publication de versions + ré-application en masse (master-admin)
+  const templateVersionRepo = new PrismaSchoolTemplateVersionRepository(prisma);
+  const schoolSettingsRepoMaster = new PrismaSchoolSettingsRepository(prisma);
+  const templateReapplicationQueryRepo = new PrismaTemplateReapplicationQueryRepository(prisma);
+  const publierVersionUseCase = new PublierVersionTemplateUseCase(templateVersionRepo);
+  const proposerToutesUseCase = new ProposerReapplicationToutesEcolesUseCase(
+    templateReapplicationQueryRepo, schoolSettingsRepoMaster, templateVersionRepo,
+  );
+  const appliquerToutesUseCase = new AppliquerReapplicationToutesEcolesUseCase(
+    templateReapplicationQueryRepo, templateVersionRepo, c.schoolSettings.appliquerReapplication,
+  );
+  const schoolTemplateAdminController = new SchoolTemplateAdminController(
+    publierVersionUseCase, templateVersionRepo, proposerToutesUseCase, appliquerToutesUseCase,
+  );
+  app.use('/api/v2/master', creerSchoolTemplateAdminRoutes(schoolTemplateAdminController));
 
   const schoolGroupOwnerAuthRepository = new PrismaSchoolGroupOwnerAuthRepository(p as any);
   const groupTransferRepository = new PrismaGroupTransferRepository(p as any);

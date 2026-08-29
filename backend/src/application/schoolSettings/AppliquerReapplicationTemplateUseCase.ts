@@ -6,7 +6,7 @@
 import type { SchoolSettingsRepository, SchoolSettingsComplets } from '@domain/ports/repositories/SchoolSettingsRepository';
 import type { SchoolTemplateVersionRepository } from '@domain/ports/repositories/SchoolTemplateVersionRepository';
 import type { ActivityLogPort } from '@domain/ports/services/ActivityLogPort';
-import { fusionnerConfigLocaleTemplate, CHAMPS_CONFIG_LOCALE } from '@domain/rules/configLocaleTemplate';
+import { calculerDiffReapplication } from './calculerDiffReapplication';
 
 export interface AppliquerReapplicationCommande {
   schoolId: string;
@@ -38,26 +38,13 @@ export class AppliquerReapplicationTemplateUseCase {
     const configCourante = await this.settingsRepo.getParametresEffectifs(cmd.schoolId);
     const overrides = await this.settingsRepo.getChampsPersonnalises(cmd.schoolId);
 
-    const configDefaults: Record<string, unknown> = {};
-    for (const champ of CHAMPS_CONFIG_LOCALE) {
-      configDefaults[champ] = version.config[champ] ?? configCourante[champ as keyof typeof configCourante];
-    }
-
-    const configResultante = fusionnerConfigLocaleTemplate(
-      configDefaults,
+    const diff = calculerDiffReapplication(
+      version.config,
       configCourante as unknown as Record<string, unknown>,
       overrides,
     );
 
-    const champsReappliques = CHAMPS_CONFIG_LOCALE.filter((c) => !overrides.includes(c));
-    const champsPreserves = CHAMPS_CONFIG_LOCALE.filter((c) => overrides.includes(c));
-
-    // Vérifier si quelque chose change réellement
-    const aChangement = champsReappliques.some((c) => {
-      const avant = (configCourante as unknown as Record<string, unknown>)[c];
-      const apres = configResultante[c];
-      return avant !== apres;
-    });
+    const { aChangement, champsReappliques, champsPreserves, apres: configResultante } = diff;
 
     if (!aChangement) {
       return {

@@ -21,4 +21,10 @@ export interface SchoolTemplateVersionRepository {
 
   /** Trouve une version par code + numéro. */
   trouverParCodeEtVersion(templateCode: string, version: number): Promise<SchoolTemplateVersion | null>;
+
+  /** Publie une nouvelle version (N+1) active ; désactive les versions précédentes. */
+  publierNouvelleVersion(templateCode: string, config: Record<string, unknown>): Promise<SchoolTemplateVersion>;
+
+  /** Liste toutes les versions d'un template, de la plus récente à la plus ancienne. */
+  listerVersions(templateCode: string): Promise<SchoolTemplateVersion[]>;
 }

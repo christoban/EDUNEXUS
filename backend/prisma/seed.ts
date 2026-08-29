@@ -7,6 +7,8 @@ import { techniqueFR, TECHNIQUE_FR_TEMPLATES, professionnelFR, PROFESSIONNEL_FR_
 import { getAslEntries, ASL_TEMPLATES } from '../src/application/school/curriculum/anglophone/secondary';
 import { getTechniqueAnEntries, TECHNICAL_EN_TEMPLATES } from '../src/application/school/curriculum/anglophone/technical';
 import { primaryEN, PRIMARY_EN_TEMPLATES } from '../src/application/school/curriculum/anglophone/primary';
+import { getTemplateMeta } from '../src/application/school/schoolTemplateConfig';
+import { defaultsConfigLocalePourTemplate } from '../src/domain/rules/configLocaleTemplate';
 
 const prisma = new PrismaClient();
 // ─── LES 19 VRAIS TEMPLATES D'ÉTABLISSEMENTS CAMEROUNAIS ────────────────────
@@ -1027,18 +1029,19 @@ async function main() {
   }
   console.log(`   → ${schoolTemplates.length} templates seeded`);
 
-  // 0a-b. Version v1 (config vide, inerte) pour chaque template — V0.4 Phase 2
-  // Ré-application tant que config = {} : ne change rien par défaut en attendant
-  // qu'une vraie version soit publiée avec des defaults SchoolConfig.
+  // 0a-b. Version v1 avec defaults SchoolConfig réels pour chaque template — V0.4 Phase 2
+  // Defaults alignés sur la logique d'activation (passMark FR/EN, contributions MINESEC).
   console.log("\n🗂 Seeding SchoolTemplateVersion v1...");
   for (const t of schoolTemplates) {
+    const meta = getTemplateMeta(t.code);
+    const configDefaults = defaultsConfigLocalePourTemplate(meta) as Record<string, string | number | boolean>;
     await prisma.schoolTemplateVersion.upsert({
       where: { templateCode_version: { templateCode: t.code, version: 1 } },
-      update: {},
+      update: { config: configDefaults },
       create: {
         templateCode: t.code,
         version: 1,
-        config: {},
+        config: configDefaults,
         publishedAt: new Date(),
         active: true,
       },

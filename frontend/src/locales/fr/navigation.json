@@ -57,6 +57,7 @@
     "atRiskStudents": "Élèves à risque",
     "monSuivi": "Mes actions de suivi",
     "myHealthTracking": "Mon suivi scolaire",
+    "academicProfile": "Profil académique",
     "academicEvents": "Événements académiques",
     "syncOffline": "Synchronisation hors ligne"
   },
@@ -145,7 +146,8 @@
     "student_timetable": "Mon emploi du temps",
     "student_attendance": "Mes présences",
     "student_library": "Mes lectures",
-    "student_healthTracking": "Mon suivi scolaire"
+    "student_healthTracking": "Mon suivi scolaire",
+    "student_academicProfile": "Profil académique"
   },
   "breadcrumbs": {
     "home": "Accueil"

@@ -235,6 +235,8 @@ import { VerifierAccesEnfantUseCase } from '@application/parent/VerifierAccesEnf
 import { ObtenirParametresEcoleUseCase } from '@application/schoolSettings/ObtenirParametresEcoleUseCase';
 import { MettreAJourParametresEcoleUseCase } from '@application/schoolSettings/MettreAJourParametresEcoleUseCase';
 import { ProposerReapplicationTemplateUseCase } from '@application/schoolSettings/ProposerReapplicationTemplateUseCase';
+import { ObtenirProfilAcademiqueUseCase } from '@application/student/ObtenirProfilAcademiqueUseCase';
+import { PrismaAcademicProfileQueryRepository } from '@infrastructure/persistence/prisma/PrismaAcademicProfileQueryRepository';
 import { AppliquerReapplicationTemplateUseCase } from '@application/schoolSettings/AppliquerReapplicationTemplateUseCase';
 
 // --- Use Cases : Timetable ---
@@ -721,6 +723,12 @@ export function creerContainer() {
   const proposerReapplicationUseCase = new ProposerReapplicationTemplateUseCase(schoolSettingsRepository, new PrismaSchoolTemplateVersionRepository(prisma));
   const appliquerReapplicationUseCase = new AppliquerReapplicationTemplateUseCase(schoolSettingsRepository, new PrismaSchoolTemplateVersionRepository(prisma), activityLog);
 
+  // 15a. Use Case — Profil académique (V1.1)
+  const obtenirProfilAcademiqueUseCase = new ObtenirProfilAcademiqueUseCase(
+    new PrismaAcademicProfileQueryRepository(prisma),
+    schoolSettingsRepository,
+  );
+
   // 15b. Use Cases — Notes (suite)
   const modifierNoteUseCase = new ModifierNoteUseCase(noteRepository, matiereRepository, schoolSettingsRepository);
   const draftEnMasseUseCase = new DraftEnMasseUseCase(noteRepository, matiereRepository);
@@ -963,6 +971,9 @@ export function creerContainer() {
       mettreAJour: mettreAJourParametresUseCase,
       proposerReapplication: proposerReapplicationUseCase,
       appliquerReapplication: appliquerReapplicationUseCase,
+    },
+    academicProfile: {
+      obtenirProfil: obtenirProfilAcademiqueUseCase,
     },
     orientation: {
       creerFiche: creerFicheOrientationUseCase,

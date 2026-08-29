@@ -19,6 +19,38 @@ export class PrismaSchoolTemplateVersionRepository implements SchoolTemplateVers
     return row ? this.toDomain(row) : null;
   }
 
+  async publierNouvelleVersion(templateCode: string, config: Record<string, unknown>): Promise<SchoolTemplateVersion> {
+    return this.prisma.$transaction(async (tx) => {
+      const derniere = await tx.schoolTemplateVersion.aggregate({
+        where: { templateCode },
+        _max: { version: true },
+      });
+      const nouvelleVersion = (derniere._max.version ?? 0) + 1;
+      await tx.schoolTemplateVersion.updateMany({
+        where: { templateCode, active: true },
+        data: { active: false },
+      });
+      const row = await tx.schoolTemplateVersion.create({
+        data: {
+          templateCode,
+          version: nouvelleVersion,
+          config: config as Record<string, string | number | boolean>,
+          publishedAt: new Date(),
+          active: true,
+        },
+      });
+      return this.toDomain(row);
+    });
+  }
+
+  async listerVersions(templateCode: string): Promise<SchoolTemplateVersion[]> {
+    const rows = await this.prisma.schoolTemplateVersion.findMany({
+      where: { templateCode },
+      orderBy: { version: 'desc' },
+    });
+    return rows.map((row) => this.toDomain(row));
+  }
+
   private toDomain(row: any): SchoolTemplateVersion {
     return {
       id: row.id,

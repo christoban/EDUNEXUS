@@ -57,6 +57,7 @@
     "atRiskStudents": "At-risk students",
     "monSuivi": "My follow-up actions",
     "myHealthTracking": "My school health tracking",
+    "academicProfile": "Academic profile",
     "academicEvents": "Academic events",
     "syncOffline": "Offline sync"
   },
@@ -145,7 +146,8 @@
     "student_timetable": "My timetable",
     "student_attendance": "My attendance",
     "student_library": "My reading",
-    "student_healthTracking": "My school health tracking"
+    "student_healthTracking": "My school health tracking",
+    "student_academicProfile": "Academic profile"
   },
   "breadcrumbs": {
     "home": "Home"

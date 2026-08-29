@@ -51,3 +51,32 @@ export function fusionnerConfigLocaleTemplate<T extends Record<string, unknown>>
   }
   return result as T;
 }
+
+/**
+ * Defaults SchoolConfig par famille de template — source unique,
+ * utilisée par le seed et la publication de version (V0.4).
+ *
+ * Les valeurs sont alignées sur les @default du schéma Prisma SchoolConfig
+ * et sur les calculs d'ActiverEtablissementUseCase (passMark, schoolLanguageMode).
+ */
+export function defaultsConfigLocalePourTemplate(meta: {
+  isAnglophone: boolean;
+  isPrimaire: boolean;
+  langMode: 'francophone' | 'anglophone' | 'bilingual';
+}): Record<ChampConfigLocale, unknown> {
+  const passMark = meta.isAnglophone ? 50 : 10; // /100 EN vs /20 FR (cf. ActiverEtablissementUseCase.ts:48)
+  return {
+    schoolLanguageMode: meta.langMode,
+    passMark,
+    councilPassMark: 10,
+    maxAbsences: 10,
+    attendanceLateAsAbsence: false,
+    legalMaxContributionFirstCycle: 7500,
+    legalMaxContributionSecondCycle: 10000,
+    bulletinBlockOnUnpaidFees: false,
+    smsEnabled: false,
+    offlineModeEnabled: true,
+    aiAlertsEnabled: true,
+    messageModeration: false,
+  };
+}

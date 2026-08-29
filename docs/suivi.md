@@ -21,8 +21,8 @@
 
 | # | Manque précis | Faisabilité |
 |---|---|---|
-| V0.4 | **Phase 2 partiellement RÉSOLUE** : modèle `SchoolTemplateVersion` (migration `add_template_version_and_supplements`) + `ReapplicationTemplateUseCase` partagé (propose/apply pures) + routes `POST /api/v2/school-settings/reapply-template/{propose,apply}` + RBAC ADMIN + audit. Reste : publication d'une vraie version (config defaults) côté seed/admin, phase 3 « toutes écoles du template ». | ✅ Muse Spark (Phase 2) / ⚠️ Tech Lead (Phase 3) |
-| V1.1 | Pas de « profil académique » unifié (forces/faiblesses) au-delà du `healthScore`. | ⚠️ Tech Lead — spec produit manquante (qu'est-ce qu'un profil ?) |
+| V0.4 | **COMPLÈTEMENT RÉSOLU** : modèle `SchoolTemplateVersion`, publication de versions avec defaults (`defaultsConfigLocalePourTemplate`), use cases et routes master-admin, seed v1/v2, ré-application en masse toutes écoles (`ProposerReapplicationToutesEcolesUseCase` / `AppliquerReapplicationToutesEcolesUseCase`), tests unitaires (28 tests). | ✅ Muse Spark |
+| V1.1 | **RÉSOLU** : Profil académique unifié (`ObtenirProfilAcademiqueUseCase`, `classifierMatiere`, port `AcademicProfileQueryPort`, adapter Prisma, controller & route RBAC sécurisée, section UI frontend & parité i18n fr/en, tests unitaires). | ✅ Muse Spark |
 | V1.4 | Mapping de colonnes figé en dur ; pas d'étape « Correction » ; scope limité à STUDENT/TEACHER (pas personnel/parents/classes). | ⚠️ Tech Lead — étape « Correction » = décision produit |
 | V1.6 | **Absents** : `AssessmentParticipation`, `AssessmentScope`, `HarmonizedAssessmentSession`, `InvigilationPolicy`, `Assessment Calendar` par rôle, `Assessment Workload`. Grade et Attendance **jamais croisés** (7/20 d'un absent = 7/20 d'un présent). | ⚠️ Tech Lead — 6 modèles à spécifier MINESEC |
 | V2.4 | LV2/PEBS en **double écriture** (`lv2SubjectId`/`pebsFiliere` restent source de vérité) — à unifier. | ⚠️ Tech Lead — unification = risque de perte de données |
@@ -31,7 +31,7 @@
 | V2.14 | Recensement MINESEC : **~7 feuilles sur 17** couvertes (ajout Students_ESG_Eng, Students_ESTP_Eng, Manuels-Didactics, Themes_Tranversaux en A_AUTO/C_MANUAL). Reste : feuilles doc/réservées (NOTICE, Variables Essentielles…) hors périmètre école. | ✅ Muse Spark |
 | V3.1 | Cache miroir RBAC **absent** ; dépendance graduée par opération **absente** ; `db.messages` **non purgé** au logout. | ✅ Muse Spark pour `db.messages` (1 ligne) / ⚠️ Tech Lead pour cache RBAC gradué |
 | V3.3 | Confirmation utilisateur obligatoire = **2 actions sur ~54** seulement ; le reste s'exécute sans confirmation (undo a posteriori). | ⚠️ Tech Lead — généraliser = décision sécurité transverse |
-| V3.4 | « Forces/faiblesses par matière » = simple détection de chute, pas une vue consolidée. | ⚠️ Tech Lead — vue à spécifier |
+| V3.4 | « Forces/faiblesses par matière » — **couvert par V1.1** (`classifierMatiere` + `ObtenirProfilAcademiqueUseCase`). | ✅ Résolu par V1.1 |
 | V3.8 | Neon PITR = **6h de rétention** (plan gratuit), très sous le minimum. | ⚠️ Humain — décision infra/coût (changer de plan Neon) |
 | V3.10 | `seed.ts` ne peuple **aucune donnée réelle** ; scripts `generate-*.mjs` couvrent **1 seule famille de template** sur les 4 demandées. | ✅ Muse Spark — étendre `seed.ts` (1 famille → 4) |
 
@@ -71,10 +71,9 @@
 
 | # | Écart | Faisabilité |
 |---|---|---|
-| 1 | **V0.1 — Fuites hexagonales** : use cases `application` importent des services `infrastructure` ou prennent `PrismaClient` en constructeur (ex. `activerRessourceLiee.ts:15`, `AnalyserDiplomeUseCase.ts:1`, `ActiverEtablissementUseCase.ts:32`). | ✅ Muse Spark si port existe / ⚠️ Tech Lead si nouveau port + container |
-| 2 | **V2.6** : `inngest.send()` émis depuis les contrôleurs HTTP, pas depuis une couche « Domain Rule ». | ⚠️ Tech Lead — flux transverse, à valider en revue |
-| 3 | **V2.12** : canal de notification codé en dur par l'appelant. | ⚠️ Tech Lead — matrice à spécifier (cf. B V2.12) |
-| 4 | **V3.3** : pattern « confirmation obligatoire avant persistence » non généralisé (~54 actions, **2 seulement** confirmées). | ⚠️ Tech Lead — décision sécurité + UX |
+| 1 | **V2.6** : `inngest.send()` émis depuis les contrôleurs HTTP, pas depuis une couche « Domain Rule ». | ⚠️ Tech Lead — flux transverse, à valider en revue |
+| 2 | **V2.12** : canal de notification codé en dur par l'appelant. | ⚠️ Tech Lead — matrice à spécifier (cf. B V2.12) |
+| 3 | **V3.3** : pattern « confirmation obligatoire avant persistence » non généralisé (~54 actions, **2 seulement** confirmées). | ⚠️ Tech Lead — décision sécurité + UX |
 
 ---
 

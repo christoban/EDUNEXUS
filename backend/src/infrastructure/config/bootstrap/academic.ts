@@ -17,6 +17,10 @@ import { creerClassCouncilRoutes } from '@infrastructure/http/routes/classCounci
 import { creerAcademicYearRoutes } from '@infrastructure/http/routes/academicYear.routes';
 import { creerPedagogieRoutes } from '@infrastructure/http/routes/pedagogie.routes';
 import { creerStudentDocumentRoutes } from '@infrastructure/http/routes/studentDocument.routes';
+import { AcademicProfileController } from '@infrastructure/http/controllers/AcademicProfileController';
+import { creerAcademicProfileRoutes } from '@infrastructure/http/routes/academicProfile.routes';
+import { PrismaEnrollmentRepository } from '@infrastructure/persistence/prisma/PrismaEnrollmentRepository';
+import { PrismaAnneeAcademiqueRepository } from '@infrastructure/persistence/prisma/PrismaAnneeAcademiqueRepository';
 import { requireAuth, requireRole } from '../../http/middlewares/auth';
 
 type Container = ReturnType<typeof creerContainer>;
@@ -143,4 +147,15 @@ export function registerAcademicRoutes(app: Application, prismaParam: typeof pri
   app.use('/api/v2/onboarding', creerOnboardingRoutes(onboardingController));
   app.use('/api/v2/report-cards', creerReportCardRoutes(reportCardController));
   app.use('/api/v2/class-councils', creerClassCouncilRoutes(classCouncilController));
+
+  // V1.1 — Profil Académique (RBAC : ADMIN/STAFF, PP, parent, élève lui-même)
+    const enrollmentRepo = new PrismaEnrollmentRepository(p as any);
+  const anneeRepo = new PrismaAnneeAcademiqueRepository(p as any);
+  const academicProfileController = new AcademicProfileController(
+    c.academicProfile.obtenirProfil,
+    c.parent.verifierAcces,
+    enrollmentRepo,
+    anneeRepo,
+  );
+  app.use('/api/v2', creerAcademicProfileRoutes(academicProfileController));
 }
