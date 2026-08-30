@@ -75,6 +75,7 @@ export interface UserRepository {
     staffTitle?: string;
     specializations?: string[];
     subjectIds?: string[];
+    departmentIds?: string[];
     classeId?: string;
     dateOfBirth?: Date;
     gender?: string;

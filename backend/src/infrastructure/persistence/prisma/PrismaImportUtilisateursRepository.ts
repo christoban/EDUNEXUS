@@ -3,6 +3,7 @@ import type {
   ImportUtilisateursRepository,
   ImportContexte,
   AffectationPedagogiqueData,
+  ImportContexteValidation,
 } from '@domain/ports/repositories/ImportUtilisateursRepository';
 
 export class PrismaImportUtilisateursRepository implements ImportUtilisateursRepository {
@@ -115,8 +116,8 @@ export class PrismaImportUtilisateursRepository implements ImportUtilisateursRep
       }),
     ]);
     return [...new Set([
-      ...coefficients.map(c => c.subjectId),
-      ...overrides.map(o => o.subjectId),
+      ...coefficients.map((c) => c.subjectId),
+      ...overrides.map((o) => o.subjectId),
     ])];
   }
 
@@ -127,5 +128,104 @@ export class PrismaImportUtilisateursRepository implements ImportUtilisateursRep
       skipDuplicates: true,
     });
     return result.count;
+  }
+
+  // ── NOUVEAU (Étape 3 — support PARENT) ──────────────────────────────────
+  async findStudentsParMatricules(schoolId: string, matricules: string[]): Promise<{ matricule: string; studentProfileId: string }[]> {
+    const students = await this.prisma.studentProfile.findMany({
+      where: {
+        user: { schoolId },
+        matricule: { in: matricules },
+      },
+      select: { matricule: true, id: true },
+    });
+    return students.map((s) => ({ matricule: s.matricule, studentProfileId: s.id }));
+  }
+
+  async findStudentsParEmails(schoolId: string, emails: string[]): Promise<{ email: string; studentProfileId: string }[]> {
+    const students = await this.prisma.studentProfile.findMany({
+      where: {
+        user: {
+          schoolId,
+          email: { in: emails },
+        },
+      },
+      select: { user: { select: { email: true } }, id: true },
+    });
+    return students.map((s) => ({ email: s.user.email, studentProfileId: s.id }));
+  }
+
+  async findSectionParNom(schoolId: string, nom: string): Promise<{ id: string } | null> {
+    const section = await this.prisma.section.findFirst({
+      where: { schoolId, name: nom },
+      select: { id: true },
+    });
+    return section ? { id: section.id } : null;
+  }
+
+  async findDepartmentsParNoms(schoolId: string, noms: string[]): Promise<{ id: string; name: string }[]> {
+    return this.prisma.department.findMany({
+      where: { schoolId, name: { in: noms } },
+      select: { id: true, name: true },
+    });
+  }
+
+  async chargerContexteValidation(schoolId: string): Promise<ImportContexteValidation> {
+    const [school, classes, lv2Subjects, subjects, departments, parents, students] = await Promise.all([
+      this.prisma.school.findUnique({
+        where: { id: schoolId },
+        select: { name: true, hasPEBSFrancophone: true, hasPEBSAnglophone: true },
+      }),
+      this.prisma.class.findMany({
+        where: { schoolId },
+        select: { id: true, name: true, level: true, serie: true, filiere: true, academicYearId: true },
+      }),
+      this.prisma.subject.findMany({
+        where: { schoolId, isLV2: true },
+        select: { id: true, name: true },
+      }),
+      this.prisma.subject.findMany({
+        where: { schoolId },
+        select: { id: true, name: true },
+      }),
+      this.prisma.department.findMany({
+        where: { schoolId },
+        select: { id: true, name: true },
+      }),
+      this.prisma.user.findMany({
+        where: { schoolId, role: 'PARENT', isActive: true },
+        select: { email: true, id: true },
+      }),
+      this.prisma.studentProfile.findMany({
+        where: { user: { schoolId } },
+        select: { id: true, matricule: true, user: { select: { email: true } } },
+      }),
+    ]);
+
+    const existingParents = new Map<string, string>();
+    for (const p of parents) {
+      if (p.email) existingParents.set(p.email, p.id);
+    }
+
+    return {
+      classes: classes.map((c) => ({
+        id: c.id,
+        name: c.name,
+        level: c.level,
+        serie: c.serie,
+        filiere: c.filiere,
+        academicYearId: c.academicYearId,
+      })),
+      lv2Subjects,
+      hasPEBS: !!(school?.hasPEBSFrancophone || school?.hasPEBSAnglophone),
+      existingParents,
+      existingStudents: students.map((s) => ({
+        id: s.id,
+        matricule: s.matricule ?? undefined,
+        email: s.user?.email ?? undefined,
+      })),
+      subjects,
+      departementsAp: departments,
+    };
   }
 }

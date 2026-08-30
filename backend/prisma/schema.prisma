@@ -721,6 +721,7 @@ model TeacherProfile {
   supervisedSubjectIds String[]         @default([])
   user                 User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   teacherSubjects      TeacherSubject[]
+  teacherDepartments   TeacherDepartment[]
 }
 
 model ParentProfile {
@@ -1096,6 +1097,7 @@ model Department {
   school   School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   head     User?     @relation("DepartmentHead", fields: [headId], references: [id])
   subjects Subject[]
+  teachers TeacherDepartment[]
 
   @@unique([schoolId, name])
   @@index([schoolId])
@@ -1108,6 +1110,15 @@ model TeacherSubject {
   teacherProfile   TeacherProfile @relation(fields: [teacherProfileId], references: [id])
 
   @@id([teacherProfileId, subjectId])
+}
+
+model TeacherDepartment {
+  teacherProfileId String
+  departmentId     String
+  department       Department       @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  teacherProfile   TeacherProfile  @relation(fields: [teacherProfileId], references: [id], onDelete: Cascade)
+
+  @@id([teacherProfileId, departmentId])
 }
 
 model TeachingAssignment {

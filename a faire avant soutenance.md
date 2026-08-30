@@ -99,3 +99,22 @@ ok il va falloir faire et implémenter les audit de tout ce qui se passe au nive
 
 
 il faudra implémenter le fait de se connecter juste en mettant ses identifiants , pas beosin de choisir son role et l'etablissement, quand tu mets ton mot de passe et ton email, si tu as deux comptes dans plusieurs etablissements cà viendra après , on te demandera de choisir ou tu veux te connecter
+
+⚠️ AVANT MISE EN PRODUCTION — Nettoyage du mode dev import utilisateurs
+
+Fichier concerné : backend/src/application/user/ImporterUtilisateursUseCase.ts (ou ses handlers extraits après refactoring)
+
+Ce qu'il faut faire :
+
+Supprimer la constante DEV_PASS et toute référence à un mot de passe fixe en dur.
+Supprimer la branche conditionnelle if (isDevMode) { ... } else { ... } pour la génération du hash — ne garder QUE la génération aléatoire (randomBytes).
+Supprimer la méthode envoyerEmailDevMode() entièrement.
+Supprimer toute lecture de process.env.EMAIL_DISABLED dans ce fichier — le flux ne doit avoir qu'un seul chemin : génération aléatoire + envoi du vrai lien d'invitation, sans branche alternative possible.
+
+Ce qu'il ne faut PAS faire :
+
+Ne pas se contenter de mettre EMAIL_DISABLED=false dans le .env de production en laissant le code de la branche dev intact — le code lui-même doit disparaître, pas juste être désactivé par variable d'environnement. Une variable mal configurée un jour (erreur humaine, mauvais déploiement, .env copié par erreur) suffit à réactiver le mot de passe fixe pour de vrais comptes d'élèves/parents.
+Ne pas laisser DEV_PASS dans le code même commenté ou "juste au cas où" — un mot de passe en dur qui traîne dans l'historique Git est un risque même s'il n'est plus utilisé activement.
+Ne pas oublier de vérifier s'il existe des références similaires ailleurs dans le code (recherche globale EMAIL_DISABLED et DEV_PASS dans tout le repo, pas seulement ce fichier) — d'autres endroits du projet (ex: création de compte manuelle par un admin) pourraient avoir le même pattern.
+
+Comment vérifier que c'est fait : grep -r "EMAIL_DISABLED\|DEV_PASS" backend/src/ doit retourner zéro résultat avant le déploiement final.

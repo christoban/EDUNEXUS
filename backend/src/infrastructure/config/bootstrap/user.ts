@@ -102,6 +102,7 @@ export function registerUserRoutes(app: Application, prismaParam: typeof prisma 
     designerAPUseCase,
     c.user.importer,
     loginEmailOtpUseCase,
+    c.user.importUtilisateursRepository,
     verifierMfaConnexionUseCase,
     auditForUser,
     userRepository,

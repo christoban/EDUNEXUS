@@ -98,7 +98,7 @@ export class PrismaUserRepository implements UserRepository {
     return { user: this.toDomain(data), refreshTokenVersion: data.refreshTokenVersion };
   }
 
-  async saveAvecProfil(user: User, profilData: { passwordHash: string; staffTitle?: string; specializations?: string[]; subjectIds?: string[]; classeId?: string; dateOfBirth?: Date; gender?: string; parentOfStudentIds?: string[] }): Promise<void> {
+  async saveAvecProfil(user: User, profilData: { passwordHash: string; staffTitle?: string; specializations?: string[]; subjectIds?: string[]; departmentIds?: string[]; classeId?: string; dateOfBirth?: Date; gender?: string; parentOfStudentIds?: string[] }): Promise<void> {
     const d = user.toObject();
     await this.prisma.user.create({ data: { ...this.baseUserData(d), passwordHash: profilData.passwordHash } });
     if (d.role === 'STUDENT') {
@@ -117,6 +117,7 @@ export class PrismaUserRepository implements UserRepository {
     if (d.role === 'TEACHER') {
       const teacherProfile = await this.prisma.teacherProfile.create({ data: { userId: d.id, specialization: profilData.specializations ?? [] } });
       if (profilData.subjectIds?.length) await this.prisma.teacherSubject.createMany({ data: profilData.subjectIds.map((subjectId) => ({ teacherProfileId: teacherProfile.id, subjectId })), skipDuplicates: true });
+      if (profilData.departmentIds?.length) await this.prisma.teacherDepartment.createMany({ data: profilData.departmentIds.map((departmentId) => ({ teacherProfileId: teacherProfile.id, departmentId })), skipDuplicates: true });
     }
     if (d.role === 'PARENT') await this.prisma.parentProfile.create({ data: { userId: d.id } });
     if (d.role === 'STAFF') {

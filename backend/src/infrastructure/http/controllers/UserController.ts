@@ -8,6 +8,7 @@ import type { SupprimerUtilisateurUseCase } from '@application/user/SupprimerUti
 import type { TransfererEleveUseCase } from '@application/user/TransfererEleveUseCase';
 import type { DesignerAPUseCase } from '@application/user/DesignerAPUseCase';
 import type { ImporterUtilisateursUseCase } from '@application/user/ImporterUtilisateursUseCase';
+import type { ImportUtilisateursRepository } from '@domain/ports/repositories/ImportUtilisateursRepository';
 import type { LoginEmailOtpUseCase } from '@application/user/LoginEmailOtpUseCase';
 import type { VerifierMfaConnexionUseCase } from '@application/user/VerifierMfaConnexionUseCase';
 import type { MfaUseCase } from '@application/user/MfaUseCase';
@@ -55,6 +56,7 @@ export class UserController {
     designerAP: DesignerAPUseCase,
     importer: ImporterUtilisateursUseCase,
     loginEmailOtp: LoginEmailOtpUseCase,
+    importRepository: ImportUtilisateursRepository,
     verifierMfaConnexion: VerifierMfaConnexionUseCase,
     audit: AIActionAuditPort,
     userRepository: UserRepository,
@@ -93,7 +95,7 @@ export class UserController {
       enrollmentRepository,
     );
 
-    this.importController = new UserImportController(importer);
+    this.importController = new UserImportController(importer, importRepository);
   }
 
   // ── Auth & Session ──────────────────────────────────────────────────────────
@@ -171,4 +173,13 @@ export class UserController {
   // ── Import Excel ────────────────────────────────────────────────────────────
   importUsers = (req: Request, res: Response, next: NextFunction): Promise<void> =>
     this.importController.importUsers(req, res, next);
+
+  previewImport = (req: Request, res: Response, next: NextFunction): Promise<void> =>
+    this.importController.previewImport(req, res, next);
+
+  validateImport = (req: Request, res: Response, next: NextFunction): Promise<void> =>
+    this.importController.validateImport(req, res, next);
+
+  confirmImport = (req: Request, res: Response, next: NextFunction): Promise<void> =>
+    this.importController.confirmImport(req, res, next);
 }

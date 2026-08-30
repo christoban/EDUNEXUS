@@ -424,8 +424,25 @@ export function creerContainer() {
   const verrouillerNotesEnMasseUseCase = new VerrouillerNotesEnMasseUseCase(noteRepository, matiereRepository);
 
   // 5. Use Cases — Import
+  // creerClasseUseCase doit être déclaré AVANT car injecté dans ImporterUtilisateursUseCase
+  const messagerieRepository = new PrismaMessagerieRepository(prisma);
+  const creerClasseUseCase = new CreerClasseUseCase(
+    classeRepository,
+    anneeRepository,
+    matiereRepository,
+    new CreerCanalClasseUseCase(messagerieRepository),
+    new CreerCanalParentsUseCase(messagerieRepository),
+  );
+
   const importerUtilisateursUseCase = new ImporterUtilisateursUseCase(
-    importUtilisateursRepository, userRepository, anneeRepository, studentGroupSetRepository, studentGroupRepository, studentGroupMembershipRepository, emailService
+    importUtilisateursRepository,
+    userRepository,
+    anneeRepository,
+    studentGroupSetRepository,
+    studentGroupRepository,
+    studentGroupMembershipRepository,
+    emailService,
+    creerClasseUseCase,
   );
 
   // 6. Use Cases — Présences
@@ -539,15 +556,7 @@ export function creerContainer() {
 
   // 11. Use Cases — Classe + Matière
   const sousGroupeRepository = new PrismaSousGroupeRepository(prisma);
-  const messagerieRepository = new PrismaMessagerieRepository(prisma);
 
-  const creerClasseUseCase = new CreerClasseUseCase(
-    classeRepository,
-    anneeRepository,
-    matiereRepository,
-    new CreerCanalClasseUseCase(messagerieRepository),
-    new CreerCanalParentsUseCase(messagerieRepository),
-  );
   const modifierClasseUseCase = new ModifierClasseUseCase(classeRepository);
   const supprimerClasseUseCase = new SupprimerClasseUseCase(classeRepository);
   const assignerProfesseurUseCase = new AssignerProfesseurPrincipalUseCase(
@@ -797,6 +806,7 @@ export function creerContainer() {
       matiereRepository,
       sectionRepository,
       schoolConfigRepository,
+      departmentRepository,
     },
     reportCard: {
       generer: genererBulletinUseCase,
@@ -829,6 +839,7 @@ export function creerContainer() {
       supprimer: supprimerUtilisateurUseCase,
       transferer: transfererEleveUseCase,
       importer: importerUtilisateursUseCase,
+      importUtilisateursRepository: importUtilisateursRepository,
       mfa: mfaUseCase,
       tokenService,
       schoolRepository,

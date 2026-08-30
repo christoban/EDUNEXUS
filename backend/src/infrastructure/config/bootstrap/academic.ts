@@ -107,9 +107,13 @@ export function registerAcademicRoutes(app: Application, prismaParam: typeof pri
     c.school.classeRepository,
     c.school.schoolRepository,
     c.school.matiereRepository,
+    c.school.departmentRepository,
   );
   app.get('/api/v2/templates/import-eleves', requireAuth, requireRole('ADMIN'), templateController.importEleves);
   app.get('/api/v2/templates/import-enseignants', requireAuth, requireRole('ADMIN'), templateController.importEnseignants);
+  app.get('/api/v2/templates/import-staff', requireAuth, requireRole('ADMIN'), templateController.importStaff);
+  app.get('/api/v2/templates/import-parents', requireAuth, requireRole('ADMIN'), templateController.importParents);
+  app.get('/api/v2/templates/import-classes', requireAuth, requireRole('ADMIN'), templateController.importClasses);
 
   const studentDocumentController = new StudentDocumentController(
     c.studentDocument.studentProfileRepository,

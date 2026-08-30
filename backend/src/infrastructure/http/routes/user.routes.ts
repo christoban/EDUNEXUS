@@ -65,6 +65,11 @@ export function creerUserRoutes(controller: UserController): Router {
   // Import Excel
   router.post('/import', requireAuth, requireRole('ADMIN'), upload.single('file'), controller.importUsers);
 
+  // Import Excel — nouveaux endpoints (preview / validate / confirm)
+  router.post('/import/preview', requireAuth, requireRole('ADMIN'), upload.single('file'), controller.previewImport);
+  router.post('/import/validate', requireAuth, requireRole('ADMIN'), controller.validateImport);
+  router.post('/import/confirm', requireAuth, requireRole('ADMIN'), controller.confirmImport);
+
   // Transfert élève
   router.post('/students/:id/transfer', requireAuth, requireRole('ADMIN'), controller.transfer);
 
