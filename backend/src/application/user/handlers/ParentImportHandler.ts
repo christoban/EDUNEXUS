@@ -63,8 +63,8 @@ export async function traiterLigneParent(
   });
 
   if (isDevMode) {
-    await envoyerEmailDevMode(emailService, email || '', row.prenom.trim(), row.nom.trim(), schoolId, 'schoolName').catch(() => {});
+    await envoyerEmailDevMode(emailService, email || '', row.prenom.trim(), row.nom.trim(), schoolId, schoolName).catch(() => {});
   } else {
-    await envoyerEmailLienInvitation(emailService, parentUser.id, email || '', row.prenom.trim(), row.nom.trim(), schoolId, 'schoolName').catch(() => {});
+    await envoyerEmailLienInvitation(emailService, parentUser.id, email || '', row.prenom.trim(), row.nom.trim(), schoolId, schoolName).catch(() => {});
   }
 }

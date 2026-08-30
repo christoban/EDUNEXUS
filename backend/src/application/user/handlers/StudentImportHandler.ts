@@ -136,9 +136,9 @@ export async function traiterLigneStudent(
   }
 
   if (isDevMode) {
-    await envoyerEmailDevMode(deps.emailService, email || '', row.prenom.trim(), row.nom.trim(), 'schoolId', 'schoolName').catch(() => {});
+    await envoyerEmailDevMode(deps.emailService, email || '', row.prenom.trim(), row.nom.trim(), schoolId, schoolName).catch(() => {});
   } else {
-    await envoyerEmailLienInvitation(deps.emailService, studentUser.id, email || '', row.prenom.trim(), row.nom.trim(), 'schoolId', 'schoolName').catch(() => {});
+    await envoyerEmailLienInvitation(deps.emailService, studentUser.id, email || '', row.prenom.trim(), row.nom.trim(), schoolId, schoolName).catch(() => {});
   }
 }
 

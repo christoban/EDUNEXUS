@@ -67,9 +67,9 @@ export async function traiterLigneTeacher(
   await userRepository.saveAvecProfil(teacherUser, { passwordHash, subjectIds, departmentIds });
 
   if (isDevMode) {
-    await envoyerEmailDevMode(emailService, email, row.prenom.trim(), row.nom.trim(), schoolId, 'schoolName').catch(() => {});
+    await envoyerEmailDevMode(emailService, email, row.prenom.trim(), row.nom.trim(), schoolId, schoolName).catch(() => {});
   } else {
-    await envoyerEmailLienInvitation(emailService, teacherUser.id, email, row.prenom.trim(), row.nom.trim(), schoolId, 'schoolName').catch(() => {});
+    await envoyerEmailLienInvitation(emailService, teacherUser.id, email, row.prenom.trim(), row.nom.trim(), schoolId, schoolName).catch(() => {});
   }
 
   let ppAssigned = false;

@@ -69,8 +69,8 @@ export async function traiterLigneStaff(
   });
 
   if (isDevMode) {
-    await envoyerEmailDevMode(emailService, email, row.prenom.trim(), row.nom.trim(), schoolId, 'schoolName').catch(() => {});
+    await envoyerEmailDevMode(emailService, email, row.prenom.trim(), row.nom.trim(), schoolId, schoolName).catch(() => {});
   } else {
-    await envoyerEmailLienInvitation(deps.emailService, schoolId, email, row.prenom.trim(), row.nom.trim(), schoolId, 'schoolName').catch(() => {});
+    await envoyerEmailLienInvitation(deps.emailService, schoolId, email, row.prenom.trim(), row.nom.trim(), schoolId, schoolName).catch(() => {});
   }
 }

@@ -21,7 +21,6 @@
 
 | # | Manque précis | Faisabilité |
 |---|---|---|
-| V1.4 | Mapping de colonnes figé en dur ; pas d'étape « Correction » ; scope limité à STUDENT/TEACHER (pas personnel/parents/classes). | ⚠️ Tech Lead — étape « Correction » = décision produit |
 | V1.6 | **Absents** : `AssessmentParticipation`, `AssessmentScope`, `HarmonizedAssessmentSession`, `InvigilationPolicy`, `Assessment Calendar` par rôle, `Assessment Workload`. Grade et Attendance **jamais croisés** (7/20 d'un absent = 7/20 d'un présent). | ⚠️ Tech Lead — 6 modèles à spécifier MINESEC |
 | V2.4 | LV2/PEBS en **double écriture** (`lv2SubjectId`/`pebsFiliere` restent source de vérité) — à unifier. | ⚠️ Tech Lead — unification = risque de perte de données |
 | V2.11 | Présence enseignants : **aucun QR/GPS/photo** dans le schéma ; pas de gate de présence avant saisie du cahier de textes. | ⚠️ Tech Lead / Humain — hardware dérive, besoin calibration physique |
