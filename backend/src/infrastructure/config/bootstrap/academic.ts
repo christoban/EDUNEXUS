@@ -9,11 +9,13 @@ import { PedagogieController } from '@infrastructure/http/controllers/PedagogieC
 import { TemplateController } from '@infrastructure/http/controllers/TemplateController';
 import { StudentDocumentController } from '@infrastructure/http/controllers/StudentDocumentController';
 import { InviteOnboardingController } from '@infrastructure/http/controllers/InviteOnboardingController';
+import { BulletinValidationController } from '@infrastructure/http/controllers/BulletinValidationController';
 import { GroqIAService } from '@infrastructure/services/ai/GroqIAService';
 import { AIActionAuditAdapter } from '@infrastructure/services/ai/AIActionAuditAdapter';
 import { creerOnboardingRoutes } from '@infrastructure/http/routes/onboarding.routes';
 import { creerReportCardRoutes } from '@infrastructure/http/routes/reportCard.routes';
 import { creerClassCouncilRoutes } from '@infrastructure/http/routes/classCouncil.routes';
+import { creerBulletinValidationRoutes } from '@infrastructure/http/routes/bulletinValidation.routes';
 import { creerAcademicYearRoutes } from '@infrastructure/http/routes/academicYear.routes';
 import { creerPedagogieRoutes } from '@infrastructure/http/routes/pedagogie.routes';
 import { creerStudentDocumentRoutes } from '@infrastructure/http/routes/studentDocument.routes';
@@ -61,9 +63,23 @@ export function registerAcademicRoutes(app: Application, prismaParam: typeof pri
     c.classCouncil.ajouterDecision,
     c.classCouncil.ajouterDecisionsEnBloc,
     c.classCouncil.verrouiller,
-    c.classCouncil.publierBulletins,
+    c.reportCard.publierBulletins,
     c.classCouncil.genererPV,
     c.classCouncil.genererRapport,
+    c.school.anneeRepository,
+    c.school.schoolRepository,
+    c.school.sectionRepository,
+    c.school.classeRepository,
+  );
+
+  const bulletinValidationController = new BulletinValidationController(
+    c.reportCard.soumettreBulletins,
+    c.reportCard.validerBulletins,
+    c.reportCard.publierBulletins,
+    c.school.anneeRepository,
+    c.school.schoolRepository,
+    c.school.sectionRepository,
+    c.school.classeRepository,
   );
 
   const inviteOnboardingController = new InviteOnboardingController(
@@ -151,6 +167,7 @@ export function registerAcademicRoutes(app: Application, prismaParam: typeof pri
   app.use('/api/v2/onboarding', creerOnboardingRoutes(onboardingController));
   app.use('/api/v2/report-cards', creerReportCardRoutes(reportCardController));
   app.use('/api/v2/class-councils', creerClassCouncilRoutes(classCouncilController));
+  app.use('/api/v2/bulletin-validations', creerBulletinValidationRoutes(bulletinValidationController));
 
   // V1.1 — Profil Académique (RBAC : ADMIN/STAFF, PP, parent, élève lui-même)
     const enrollmentRepo = new PrismaEnrollmentRepository(p as any);

@@ -52,6 +52,11 @@ export class InMemoryClasseRepository implements ClasseRepository {
   async restaurer(_classeId: string) {}
   async listerSupprimes(_schoolId: string) { return []; }
   async trouverSupprime(_id: string, _schoolId: string): Promise<{ id: string } | null> { return null; }
-  async findClasseDeProfPrincipal(_teacherUserId: string) { return null; }
+  async findClasseDeProfPrincipal(teacherUserId: string) {
+    for (const c of this.store.values()) {
+      if (c.professorPrincipalId === teacherUserId) return c;
+    }
+    return null;
+  }
   async findByNameContient(_schoolId: string, _name: string) { return null; }
 }

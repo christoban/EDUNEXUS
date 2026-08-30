@@ -36,6 +36,7 @@ export class ListerNotesUseCase {
 
     if (userRole === 'STUDENT') {
       noteFilters.studentId = userId;
+      noteFilters.validationStatus = 'LOCKED';
     } else if (userRole === 'TEACHER') {
       const matieres = await this.matiereRepository.findByEnseignant(userId);
       const subjectIds = matieres.map(m => m.id);
@@ -62,6 +63,7 @@ export class ListerNotesUseCase {
       } else {
         noteFilters.studentIds = childIds;
       }
+      noteFilters.validationStatus = 'LOCKED';
     }
 
     return this.noteRepository.find(noteFilters, pagination.page, pagination.limit);

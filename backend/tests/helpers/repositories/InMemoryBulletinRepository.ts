@@ -210,7 +210,7 @@ export class InMemoryBulletinRepository implements BulletinRepository {
     this.store.delete(id);
   }
 
-  async findByEleveFiltre(params: { schoolId: string; studentId: string; academicYearId?: string }): Promise<Record<string, unknown>[]> {
+  async findByEleveFiltre(params: { schoolId: string; studentId: string; academicYearId?: string; classWorkflowStatusIn?: string[] }): Promise<Record<string, unknown>[]> {
     return [...this.store.values()]
       .filter(b => {
         const p = b.toObject();
@@ -219,7 +219,7 @@ export class InMemoryBulletinRepository implements BulletinRepository {
       .map(b => ({ ...b.toObject(), academicYear: null, academicPeriod: null } as unknown as Record<string, unknown>));
   }
 
-  async findPaginated(params: { schoolId: string; academicYearId?: string; academicPeriodId?: string; studentId?: string | { in: string[] }; classId?: string; page: number; limit: number }): Promise<{ items: Record<string, unknown>[]; total: number }> {
+  async findPaginated(params: { schoolId: string; academicYearId?: string; academicPeriodId?: string; studentId?: string | { in: string[] }; classId?: string; classWorkflowStatusIn?: string[]; page: number; limit: number }): Promise<{ items: Record<string, unknown>[]; total: number }> {
     let items = [...this.store.values()].filter(b => {
       const p = b.toObject();
       if (p.schoolId !== params.schoolId) return false;
@@ -291,5 +291,17 @@ export class InMemoryBulletinRepository implements BulletinRepository {
     else props.lignesMatiere.push(newLine);
     this.store.set(reportCardId, Bulletin.reconstituer(props));
     this.periodeStore.set(`${props.studentId}:${props.academicPeriodId}`, Bulletin.reconstituer(props));
+  }
+
+  async majStatutWorkflowParClasse(classId: string, academicPeriodId: string, schoolId: string, _status: import('@domain/types/enums').BulletinValidationStatus | null): Promise<number> {
+    // classWorkflowStatus is Prisma-only (not on BulletinProps), so we can only count matches
+    let count = 0;
+    for (const [, bulletin] of this.store) {
+      const props = bulletin.toObject();
+      if (props.schoolId === schoolId && props.academicPeriodId === academicPeriodId && this.classesParEleve.get(props.studentId) === classId) {
+        count++;
+      }
+    }
+    return count;
   }
 }

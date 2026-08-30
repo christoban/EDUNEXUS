@@ -7,6 +7,13 @@ export class InMemoryUserRepository implements UserRepository {
   private classesParEleve = new Map<string, string>();
   private parentsParEleve = new Map<string, Set<string>>();
   private utilisateursSupprimes = new Set<string>();
+  profilsSauvegardes = new Map<string, {
+    staffTitle?: string;
+    subjectIds?: string[];
+    departmentIds?: string[];
+    classeId?: string;
+    parentOfStudentIds?: string[];
+  }>();
 
   ajouter(user: User): void {
     this.store.set(user.id, user);
@@ -131,12 +138,20 @@ export class InMemoryUserRepository implements UserRepository {
     staffTitle?: string;
     specializations?: string[];
     subjectIds?: string[];
+    departmentIds?: string[];
     classeId?: string;
     dateOfBirth?: Date;
     gender?: string;
     parentOfStudentIds?: string[];
   }): Promise<void> {
     this.store.set(user.id, user);
+    this.profilsSauvegardes.set(user.id, {
+      staffTitle: profilData.staffTitle,
+      subjectIds: profilData.subjectIds,
+      departmentIds: profilData.departmentIds,
+      classeId: profilData.classeId,
+      parentOfStudentIds: profilData.parentOfStudentIds,
+    });
 
     if (profilData.classeId !== undefined) {
       this.classesParEleve.set(user.id, profilData.classeId);

@@ -6,11 +6,16 @@ import type { ObtenirSessionConseilClasseUseCase } from '@application/classCounc
 import type { AjouterDecisionConseilClasseUseCase } from '@application/classCouncil/AjouterDecisionConseilClasseUseCase';
 import type { AjouterDecisionsEnBlocUseCase } from '@application/classCouncil/AjouterDecisionsEnBlocUseCase';
 import type { VerrouillerConseilClasseUseCase } from '@application/classCouncil/VerrouillerConseilClasseUseCase';
-import type { PublierBulletinsConseilClasseUseCase } from '@application/classCouncil/PublierBulletinsConseilClasseUseCase';
+import type { PublierBulletinsClasseUseCase } from '@application/reportCard/PublierBulletinsClasseUseCase';
 import type { GenererProcesVerbalUseCase } from '@application/classCouncil/GenererProcesVerbalUseCase';
 import type { GenererRapportConseilUseCase } from '@application/classCouncil/GenererRapportConseilUseCase';
+import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/AnneeAcademiqueRepository';
+import type { SchoolRepository } from '@domain/ports/repositories/SchoolRepository';
+import type { SectionRepository } from '@domain/ports/repositories/SectionRepository';
+import type { ClasseRepository } from '@domain/ports/repositories/ClasseRepository';
 import { renderClassCouncilMinutesPdf } from '../../pdf/class-council/ClassCouncilMinutesPdfRenderer';
 import { renderClassCouncilReportPdf } from '../../pdf/class-council/ClassCouncilReportPdfRenderer';
+import { resolveLanguage } from '../../../domain/policies/LanguagePolicy';
 
 type AuthUser = { schoolId: string; userId: string; role: string; permissions?: string[] };
 
@@ -23,9 +28,13 @@ export class ClassCouncilController {
     private readonly ajouterDecision: AjouterDecisionConseilClasseUseCase,
     private readonly ajouterDecisionsEnBloc: AjouterDecisionsEnBlocUseCase,
     private readonly verrouiller: VerrouillerConseilClasseUseCase,
-    private readonly publierBulletins: PublierBulletinsConseilClasseUseCase,
+    private readonly publierBulletins: PublierBulletinsClasseUseCase,
     private readonly genererPV: GenererProcesVerbalUseCase,
     private readonly genererRapport: GenererRapportConseilUseCase,
+    private readonly anneeRepository: AnneeAcademiqueRepository,
+    private readonly schoolRepository: SchoolRepository,
+    private readonly sectionRepository: SectionRepository,
+    private readonly classeRepository: ClasseRepository,
   ) {}
 
   private user(req: Request): AuthUser {
@@ -206,17 +215,55 @@ export class ClassCouncilController {
   publicerBulletinsHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = this.user(req);
-      if (user.role.toUpperCase() !== 'ADMIN') {
-        res.status(403).json({ message: 'Réservé aux administrateurs' });
+      if (user.role.toUpperCase() !== 'ADMIN' && !this.canManage(user)) {
+        res.status(403).json({ message: 'Permission requise pour publier les bulletins' });
         return;
       }
 
-      const result = await this.publierBulletins.execute({
+      // Résoudre nomEtablissement et nomPeriode
+      const ecole = await this.schoolRepository.findById(user.schoolId);
+      const nomEtablissement = ecole?.name ?? 'Établissement';
+      const nomPeriode = req.body.nomPeriode as string ?? 'Période';
+
+      // Résoudre la langue
+      let langue: 'fr' | 'en' = 'fr';
+      const session = await this.obtenirSession.execute({
         sessionId: req.params.id as string,
         schoolId: user.schoolId,
+        userRole: user.role,
+        userId: user.userId,
       });
-      res.json({ count: result.count, message: result.message });
+      if (session?.session) {
+        const classeId = (session.session as { classId?: string }).classId;
+        if (classeId) {
+          const classe = await this.classeRepository.findById(classeId);
+          if (classe?.sectionId) {
+            const section = await this.sectionRepository.findById(classe.sectionId);
+            langue = resolveLanguage(ecole?.subsystem ?? null, section?.code ?? null);
+          }
+        }
+      }
+
+      const result = await this.publierBulletins.execute({
+        schoolId: user.schoolId,
+        sessionId: req.params.id as string,
+        demandeurId: user.userId,
+        demandeurRole: user.role,
+        demandeurPermissions: user.permissions,
+        nomEtablissement,
+        nomPeriode,
+        langue,
+      });
+      res.json({ count: result.envoiResultat.envoyes, message: `${result.envoiResultat.envoyes} bulletin(s) publié(s)` });
     } catch (error) {
+      if (error instanceof Error && (error.message.includes('introuvable') || error.message.includes('Session introuvable'))) {
+        res.status(404).json({ message: error.message });
+        return;
+      }
+      if (error instanceof Error && error.message.includes('Impossible de publier')) {
+        res.status(409).json({ message: error.message });
+        return;
+      }
       next(error);
     }
   };

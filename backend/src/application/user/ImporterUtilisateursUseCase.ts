@@ -6,7 +6,7 @@ import type { StudentGroupRepository } from '@domain/ports/repositories/StudentG
 import type { StudentGroupMembershipRepository } from '@domain/ports/repositories/StudentGroupMembershipRepository';
 import type { ImportUtilisateursRepository } from '@domain/ports/repositories/ImportUtilisateursRepository';
 import type { EmailService } from '@domain/ports/services/EmailService';
-import type { CreerClasseUseCase } from '@application/class/CreerClasseUseCase';
+import type { CreerClasseService } from '@domain/ports/services/CreerClasseService';
 import type { ImportTargetType, ImportConfirmResponse } from './dto/ImportUserDtos';
 import { traiterLigneStudent } from './handlers/StudentImportHandler';
 import { traiterLigneTeacher } from './handlers/TeacherImportHandler';
@@ -55,7 +55,7 @@ export class ImporterUtilisateursUseCase {
     private readonly groupRepository: StudentGroupRepository,
     private readonly membershipRepository: StudentGroupMembershipRepository,
     private readonly emailService: EmailService,
-    private readonly creerClasseUseCase: CreerClasseUseCase,
+    private readonly creerClasseUseCase: CreerClasseService,
   ) {}
 
   async execute(
@@ -218,6 +218,8 @@ export class ImporterUtilisateursUseCase {
                 sharedHash,
                 isDevMode,
                 'schoolName',
+                warnings,
+                ligne,
               ),
             );
             break;

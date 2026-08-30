@@ -30,6 +30,7 @@ export class ListerBulletinsUseCase {
       schoolId: input.schoolId,
       studentId: input.studentId,
       academicYearId: input.academicYearId,
+      classWorkflowStatusIn: ['SUBMITTED', 'VALIDATED', 'PUBLISHED'],
     });
     return { reportCards };
   }
@@ -40,12 +41,15 @@ export class ListerBulletinsUseCase {
     const role = input.role.toUpperCase();
 
     let studentIdFilter: string | { in: string[] } | undefined;
+    let classWorkflowStatusIn: string[] | undefined;
     if (role === 'STUDENT') {
       studentIdFilter = input.userId;
+      classWorkflowStatusIn = ['SUBMITTED', 'VALIDATED', 'PUBLISHED'];
     } else if (role === 'PARENT') {
       const childIds = await this.parentRepository.findStudentIdsByParent(input.userId);
       if (input.studentId && childIds.includes(input.studentId)) studentIdFilter = input.studentId;
       else studentIdFilter = { in: childIds };
+      classWorkflowStatusIn = ['SUBMITTED', 'VALIDATED', 'PUBLISHED'];
     } else if (input.studentId) {
       studentIdFilter = input.studentId;
     }
@@ -56,6 +60,7 @@ export class ListerBulletinsUseCase {
       academicPeriodId: input.academicPeriodId,
       studentId: studentIdFilter,
       classId: input.classId,
+      classWorkflowStatusIn,
       page,
       limit,
     });

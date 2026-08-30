@@ -2,6 +2,7 @@
  * DOMAIN LAYER — Port Repository Bulletin (ReportCard)
  */
 import type { Bulletin } from '@domain/entities/Bulletin';
+import type { BulletinValidationStatus } from '@domain/types/enums';
 import type { BulletinTemplate } from '@domain/types/enums';
 
 export interface BulletinAvecContexteClasse {
@@ -89,13 +90,14 @@ export interface BulletinRepository {
   findForPdf(bulletinId: string, schoolId: string): Promise<BulletinExportData | null>;
 
   // Listing — report-card controller (mesBulletins / lister)
-  findByEleveFiltre(params: { schoolId: string; studentId: string; academicYearId?: string }): Promise<Record<string, unknown>[]>;
+  findByEleveFiltre(params: { schoolId: string; studentId: string; academicYearId?: string; classWorkflowStatusIn?: string[] }): Promise<Record<string, unknown>[]>;
   findPaginated(params: {
     schoolId: string;
     academicYearId?: string;
     academicPeriodId?: string;
     studentId?: string | { in: string[] };
     classId?: string;
+    classWorkflowStatusIn?: string[];
     page: number;
     limit: number;
   }): Promise<{ items: Record<string, unknown>[]; total: number }>;
@@ -113,6 +115,7 @@ export interface BulletinRepository {
   updatePdfUrl(bulletinId: string, pdfUrl: string): Promise<void>;
   updateClassMasterComment(bulletinId: string, comment: string): Promise<void>;
   updateAiComment(bulletinId: string, comment: string): Promise<void>;
+  majStatutWorkflowParClasse(classId: string, academicPeriodId: string, schoolId: string, status: BulletinValidationStatus | null): Promise<number>;
   delete(id: string): Promise<void>;
 
   // ReportCardController — déport des prisma.* (1 caller, reuse port, no use case)

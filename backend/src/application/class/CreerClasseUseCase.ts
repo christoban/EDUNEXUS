@@ -6,24 +6,11 @@ import type { CreerCanalClasseUseCase } from '@application/messagerie/CreerCanal
 import type { CreerCanalParentsUseCase } from '@application/messagerie/CreerCanalParentsUseCase';
 import { CYCLE2_LEVELS, NIVEAU_MAP } from '@application/school/SubjectAssignmentHelper';
 
-export interface CreerClasseCommande {
-  schoolId: string;
-  academicYearId?: string;
-  name: string;
-  level?: string;
-  serie?: string;
-  filiere?: string;
-  sectionId?: string;
-  capacity?: number;
-}
+// Re-export pour ne casser les imports existants dans le reste du codebase
+export type { CreerClasseCommande, CreerClasseResultat } from '@domain/ports/services/CreerClasseService';
+import type { CreerClasseService, CreerClasseCommande, CreerClasseResultat } from '@domain/ports/services/CreerClasseService';
 
-export interface CreerClasseResultat {
-  classeId: string;
-  name: string;
-  nomComplet: string;
-}
-
-export class CreerClasseUseCase {
+export class CreerClasseUseCase implements CreerClasseService {
   constructor(
     private readonly classeRepository: ClasseRepository,
     private readonly anneeAcademiqueRepository?: AnneeAcademiqueRepository,

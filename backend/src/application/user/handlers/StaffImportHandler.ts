@@ -59,6 +59,7 @@ export async function traiterLigneStaff(
     phone: row.telephone?.trim() || undefined,
     firstName: row.prenom.trim(),
     lastName: row.nom.trim(),
+    staffPermissions: permissions,
     staffSectionId,
   });
 

@@ -4,6 +4,7 @@ import type { UserRepository } from '@domain/ports/repositories/UserRepository';
 import type { EmailService } from '@domain/ports/services/EmailService';
 import type { ParentImportRow } from '../dto/ImportUserDtos';
 import { envoyerEmailDevMode, envoyerEmailLienInvitation } from './importEmailNotifications';
+import type { ImportWarning } from '../ImporterUtilisateursUseCase';
 
 interface Dependencies {
   importRepository: ImportUtilisateursRepository;
@@ -18,6 +19,8 @@ export async function traiterLigneParent(
   passwordHash: string,
   isDevMode: boolean,
   schoolName: string,
+  warnings: ImportWarning[] = [],
+  ligne = 0,
 ): Promise<void> {
   const { importRepository, userRepository, emailService } = deps;
 
@@ -39,6 +42,10 @@ export async function traiterLigneParent(
     const emails = row.emailsEnfants.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
     const found = await importRepository.findStudentsParEmails(schoolId, emails);
     studentProfileIds.push(...found.map((f) => f.studentProfileId));
+  }
+
+  if ((row.matriculesEnfants?.trim() || row.emailsEnfants?.trim()) && studentProfileIds.length === 0) {
+    warnings.push({ ligne, avertissement: 'Aucun enfant trouvé pour les matricules ou emails fournis' });
   }
 
   const parentUser = User.create({

@@ -40,6 +40,22 @@ let studentBId: string;
 const authHeaders = () => ({ Cookie: `access_token=${adminToken}`, 'Content-Type': 'application/json' });
 
 beforeAll(async () => {
+  // Nettoyer les écoles de test orphelines des runs précédents
+  const oldSchools = await prismaTest.school.findMany({ where: { name: { startsWith: 'Lycée Test classCouncil' } } });
+  for (const s of oldSchools) {
+    await prismaTest.classCouncilDecision.deleteMany({ where: { session: { schoolId: s.id } } });
+    await prismaTest.classCouncilSession.deleteMany({ where: { schoolId: s.id } });
+    await prismaTest.bulletinValidationSession.deleteMany({ where: { schoolId: s.id } });
+    await prismaTest.reportCardSubjectLine.deleteMany({ where: { reportCard: { schoolId: s.id } } });
+    await prismaTest.reportCard.deleteMany({ where: { schoolId: s.id } });
+    await prismaTest.enrollment.deleteMany({ where: { schoolId: s.id } });
+    await prismaTest.studentProfile.deleteMany({ where: { user: { schoolId: s.id } } });
+    await prismaTest.class.deleteMany({ where: { schoolId: s.id } });
+    await prismaTest.academicYear.deleteMany({ where: { schoolId: s.id } });
+    await prismaTest.user.deleteMany({ where: { schoolId: s.id } });
+    await nettoyerEcole(prismaTest, s.id);
+  }
+
   const app = express();
   app.use(express.json());
   app.use(cookieParser());
@@ -82,6 +98,9 @@ afterAll(async () => {
   await new Promise<void>((resolve) => server.close(() => resolve()));
   await prismaTest.classCouncilDecision.deleteMany({ where: { session: { schoolId } } });
   await prismaTest.classCouncilSession.deleteMany({ where: { schoolId } });
+  await prismaTest.bulletinValidationSession.deleteMany({ where: { schoolId } });
+  await prismaTest.reportCardSubjectLine.deleteMany({ where: { reportCard: { schoolId } } });
+  await prismaTest.reportCard.deleteMany({ where: { schoolId } });
   await prismaTest.enrollment.deleteMany({ where: { schoolId } });
   await prismaTest.studentProfile.deleteMany({ where: { user: { schoolId } } });
   await prismaTest.academicPeriod.deleteMany({ where: { academicYearId } });
@@ -156,29 +175,105 @@ describe('ClassCouncilController — enums CouncilDecision/ReportCardStatus sans
     expect(decisionB?.observations).toBe('Moyenne insuffisante');
   });
 
-  it("POST /:id/lock verrouille la session puis POST /:id/publish-bulletins publie les bulletins GENERATED (enum ReportCardStatus)", async () => {
+  it("POST /:id/lock verrouille la session puis POST /:id/publish-bulletins échoue (pas de session BulletinValidationSession)", async () => {
     // Nécessaire pour lever le blocage "0 décision" — déjà 2 décisions en base à ce stade.
     const lockRes = await fetch(`${baseUrl}/class-councils/${sessionId}/lock`, { method: 'POST', headers: authHeaders() });
     const lockBody = await lockRes.json() as { session?: { status: string } };
     if (!lockBody.session) throw new Error(`Échec verrouillage : ${JSON.stringify(lockBody)}`);
     expect(lockBody.session.status).toBe('LOCKED');
 
-    const reportCard = await prismaTest.reportCard.create({
-      data: {
+    const reportCard = await prismaTest.reportCard.upsert({
+      where: { studentId_academicPeriodId: { studentId: studentAId, academicPeriodId } },
+      create: {
         schoolId, studentId: studentAId, academicPeriodId, academicYearId,
+        validationStatus: 'GENERATED', generalAverage: 14, rank: 1, totalStudents: 2, mention: 'Bien',
+      },
+      update: {
         validationStatus: 'GENERATED', generalAverage: 14, rank: 1, totalStudents: 2, mention: 'Bien',
       },
     });
 
+    // Pas de session BulletinValidationSession → 404 attendu (session introuvable)
     const publishRes = await fetch(`${baseUrl}/class-councils/${sessionId}/publish-bulletins`, { method: 'POST', headers: authHeaders() });
-    const publishBody = await publishRes.json() as { count?: number; message?: string };
-    if (publishBody.count === undefined) throw new Error(`Échec publication : ${JSON.stringify(publishBody)}`);
-    expect(publishRes.status).toBe(200);
-    expect(publishBody.count).toBe(1);
+    expect(publishRes.status).toBe(404);
 
-    const updated = await prismaTest.reportCard.findUnique({ where: { id: reportCard.id } });
-    expect(updated?.validationStatus).toBe('SENT');
+    await prismaTest.reportCard.delete({ where: { id: reportCard.id } });
+  });
+
+  it("Workflow complet : lock → générer → soumettre → valider → publier", async () => {
+    // 0. Nettoyer complètement les données de test
+    await prismaTest.bulletinValidationSession.deleteMany({ where: { schoolId } });
+    await prismaTest.reportCard.deleteMany({ where: { schoolId } });
+
+    // 1. Lock le conseil (déjà fait dans le test précédent, la session est LOCKED)
+
+    // 2. Créer des bulletins GENERATED pour les deux élèves du test
+    for (const sid of [studentAId, studentBId]) {
+      await prismaTest.reportCard.upsert({
+        where: { studentId_academicPeriodId: { studentId: sid, academicPeriodId } },
+        create: {
+          schoolId, studentId: sid, academicPeriodId, academicYearId,
+          validationStatus: 'GENERATED', generalAverage: 14, rank: 1, totalStudents: 2, mention: 'Bien',
+        },
+        update: {
+          validationStatus: 'GENERATED', generalAverage: 14, rank: 1, totalStudents: 2, mention: 'Bien',
+          classWorkflowStatus: null,
+        },
+      });
+    }
+
+    // Vérifier les bulletins
+    const rcs = await prismaTest.reportCard.findMany({ where: { schoolId, academicPeriodId }, select: { studentId: true } });
+    expect(rcs.map(r => r.studentId).sort()).toEqual([studentAId, studentBId].sort());
+
+    // Diagnostic: ce que findByClasse va trouver
+    const elevesParEnrollment = await prismaTest.studentProfile.findMany({
+      where: { enrollmentsYearScoped: { some: { classId, status: 'ACTIVE', academicYear: { isCurrent: true } } } },
+      select: { userId: true },
+    });
+    const userIdsFromEnrollment = elevesParEnrollment.map(p => p.userId);
+    console.log('[DIAG] studentAId:', studentAId);
+    console.log('[DIAG] studentBId:', studentBId);
+    console.log('[DIAG] userIds from enrollment:', userIdsFromEnrollment);
+    console.log('[DIAG] reportCard studentIds:', rcs.map(r => r.studentId).sort());
+    console.log('[DIAG] userIds from enrollment sorted:', userIdsFromEnrollment.sort());
+
+    // 3. Soumettre (POST /api/v2/bulletin-validations)
+    const submitRes = await fetch(`${baseUrl}/bulletin-validations`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ classId, academicPeriodId }),
+    });
+    const submitBody = await submitRes.json() as { data?: { session?: { id: string; status: string } } };
+    expect(submitRes.status).toBe(201);
+    expect(submitBody.data?.session?.status).toBe('SUBMITTED');
+    const validationSessionId = submitBody.data?.session?.id;
+    if (!validationSessionId) throw new Error('Session de validation non créée');
+
+    // 4. Valider (POST /api/v2/bulletin-validations/:id/validate)
+    const validateRes = await fetch(`${baseUrl}/bulletin-validations/${validationSessionId}/validate`, {
+      method: 'POST',
+      headers: authHeaders(),
+    });
+    const validateBody = await validateRes.json() as { data?: { session?: { status: string } } };
+    expect(validateRes.status).toBe(200);
+    expect(validateBody.data?.session?.status).toBe('VALIDATED');
+
+    // 5. Publier (POST /api/v2/bulletin-validations/:id/publish)
+    const publishRes = await fetch(`${baseUrl}/bulletin-validations/${validationSessionId}/publish`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ nomPeriode: 'Trimestre 1' }),
+    });
+    const publishBody = await publishRes.json() as { data?: { session?: { status: string } } };
+    expect(publishRes.status).toBe(200);
+    expect(publishBody.data?.session?.status).toBe('PUBLISHED');
+
+    // 6. Vérifier que classWorkflowStatus est PUBLISHED
+    const updated = await prismaTest.reportCard.findFirst({ where: { schoolId, academicPeriodId, studentId: studentAId } });
+    expect(updated?.classWorkflowStatus).toBe('PUBLISHED');
 
     await prismaTest.reportCard.deleteMany({ where: { schoolId } });
+    await prismaTest.bulletinValidationSession.deleteMany({ where: { schoolId } });
   });
 });

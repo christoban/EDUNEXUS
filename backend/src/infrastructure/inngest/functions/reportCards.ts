@@ -74,16 +74,6 @@ export const generateReportCards = inngest.createFunction(
       return { message: "No students found", generated: 0 };
     }
 
-    const { sent } = await step.run("send-notifications", async () => {
-      return genererUseCase.notifier({
-        schoolId: academicYear.schoolId,
-        academicPeriod: { id: academicPeriod.id, name: academicPeriod.name },
-        generatedStudents,
-      });
-    });
-
-    // sent est informatif, le contrat Inngest historique retournait seulement generated
-    void sent;
     return { message: "Report cards generated", generated: generatedStudents.length };
   }
 );

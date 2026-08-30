@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import { Bulletin } from '@domain/entities/Bulletin';
+import type { BulletinValidationStatus } from '@domain/types/enums';
 import type { BulletinRepository, BulletinAvecContexteClasse, BulletinEnrichi, BulletinExportData } from '@domain/ports/repositories/BulletinRepository';
 import type { BulletinTemplate, ReportCardStatus } from '@domain/types/enums';
 
@@ -130,12 +131,13 @@ export class PrismaBulletinRepository implements BulletinRepository {
     return { generalAverage: data.generalAverage ?? null };
   }
 
-  async findByEleveFiltre(params: { schoolId: string; studentId: string; academicYearId?: string }): Promise<Record<string, unknown>[]> {
+  async findByEleveFiltre(params: { schoolId: string; studentId: string; academicYearId?: string; classWorkflowStatusIn?: string[] }): Promise<Record<string, unknown>[]> {
     return this.prisma.reportCard.findMany({
       where: {
         schoolId: params.schoolId,
         studentId: params.studentId,
         ...(params.academicYearId ? { academicYearId: params.academicYearId } : {}),
+        ...(params.classWorkflowStatusIn ? { classWorkflowStatus: { in: params.classWorkflowStatusIn as BulletinValidationStatus[] } } : {}),
       },
       include: { academicYear: true, academicPeriod: true },
       orderBy: { createdAt: 'desc' },
@@ -148,6 +150,7 @@ export class PrismaBulletinRepository implements BulletinRepository {
     academicPeriodId?: string;
     studentId?: string | { in: string[] };
     classId?: string;
+    classWorkflowStatusIn?: string[];
     page: number;
     limit: number;
   }): Promise<{ items: Record<string, unknown>[]; total: number }> {
@@ -157,6 +160,7 @@ export class PrismaBulletinRepository implements BulletinRepository {
     if (params.academicPeriodId) where.academicPeriodId = params.academicPeriodId;
     if (params.classId) (where as Record<string, unknown>).student = whereElevesParClasse(params.classId);
     if (params.studentId !== undefined) where.studentId = params.studentId;
+    if (params.classWorkflowStatusIn) where.classWorkflowStatus = { in: params.classWorkflowStatusIn };
     const [total, items] = await Promise.all([
       this.prisma.reportCard.count({ where: where as never }),
       this.prisma.reportCard.findMany({
@@ -291,6 +295,29 @@ export class PrismaBulletinRepository implements BulletinRepository {
 
   async updateAiComment(bulletinId: string, comment: string): Promise<void> {
     await this.prisma.reportCard.update({ where: { id: bulletinId }, data: { aiComment: comment } });
+  }
+
+  async majStatutWorkflowParClasse(
+    classId: string,
+    academicPeriodId: string,
+    schoolId: string,
+    status: BulletinValidationStatus | null
+  ): Promise<number> {
+    const result = await this.prisma.reportCard.updateMany({
+      where: {
+        schoolId,
+        academicPeriodId,
+        student: {
+          studentProfile: {
+            enrollmentsYearScoped: {
+              some: { classId, status: 'ACTIVE', academicYear: { isCurrent: true } },
+            },
+          },
+        },
+      },
+      data: { classWorkflowStatus: status },
+    });
+    return result.count;
   }
 
   async findRecentSince(schoolId: string, academicPeriodId: string, since: Date): Promise<Array<{ studentId: string; student: { id: string; firstName: string | null; lastName: string | null } }>> {

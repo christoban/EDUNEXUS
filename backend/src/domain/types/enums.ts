@@ -16,6 +16,7 @@ export type SchoolLevel = 'PRESCHOOL' | 'PRIMARY' | 'SECONDARY' | 'MULTI';
 export type GradeValidationStatus = 'DRAFT' | 'LOCKED';
 export type BulletinTemplate = 'FR_SECONDARY' | 'EN_SECONDARY' | 'TECHNICAL_FR' | 'PRIMARY' | 'ANNUAL' | 'MONTHLY';
 export type ReportCardStatus = 'DRAFT' | 'GENERATED' | 'SENT';
+export type BulletinValidationStatus = 'SUBMITTED' | 'VALIDATED' | 'PUBLISHED';
 
 export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'ABSENT_JUSTIFIED';
 export type AttendancePeriod = 'MORNING' | 'AFTERNOON';

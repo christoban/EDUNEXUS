@@ -1,8 +1,8 @@
-import type { CreerClasseUseCase } from '@application/class/CreerClasseUseCase';
+import type { CreerClasseService } from '@domain/ports/services/CreerClasseService';
 import type { ClasseImportRow } from '../dto/ImportUserDtos';
 
 interface Dependencies {
-  creerClasseUseCase: CreerClasseUseCase;
+  creerClasseUseCase: CreerClasseService;
 }
 
 export async function traiterLigneClasse(

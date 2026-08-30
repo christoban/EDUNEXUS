@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import ImportUsersWizardModal from './ImportUsersWizardModal'
 import {
   Search, Eye, Wallet, Wrench, BookOpen, Compass, Package, School, KeyRound,
   X, GraduationCap, Presentation, Download, FileText, FolderOpen, AlertTriangle,
@@ -1462,7 +1463,7 @@ export default function SectionUsers({ onToast }: Props) {
 
       {/* ── Modal Import Excel ── */}
       {importOpen && (
-        <ImportModal
+        <ImportUsersWizardModal
           onClose={() => { setImportOpen(false) }}
           onToast={onToast}
           onSuccess={() => fetchUsers(ROLE_TABS[activeTab]?.role ?? '')}

@@ -58,8 +58,6 @@ export interface ClassCouncilRepository {
 
   verrouillerSession(sessionId: string): Promise<ClassCouncilSessionData>;
 
-  publierBulletins(sessionId: string, classId: string, schoolId: string, academicPeriodId: string): Promise<{ id: string; studentId: string; student: { firstName: string; lastName: string } }[]>;
-
   compterNotesNonValidees(schoolId: string, classId: string, academicPeriodId: string): Promise<number>;
 
   classeExiste(classId: string, schoolId: string): Promise<{ id: string; name: string } | null>;

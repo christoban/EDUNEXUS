@@ -112,33 +112,6 @@ export class PrismaClassCouncilRepository implements ClassCouncilRepository {
     }) as Promise<ClassCouncilSessionData>;
   }
 
-  async publierBulletins(_sessionId: string, classId: string, schoolId: string, academicPeriodId: string): Promise<{ id: string; studentId: string; student: { firstName: string; lastName: string } }[]> {
-    const bulletins = await this.prisma.reportCard.findMany({
-      where: {
-        schoolId,
-        academicPeriodId,
-        validationStatus: 'GENERATED',
-        student: {
-          studentProfile: {
-            enrollmentsYearScoped: {
-              some: { classId, status: 'ACTIVE', academicYear: { isCurrent: true } },
-            },
-          },
-        },
-      },
-      select: { id: true, studentId: true, student: { select: { firstName: true, lastName: true } } },
-    });
-
-    if (bulletins.length > 0) {
-      await this.prisma.reportCard.updateMany({
-        where: { id: { in: bulletins.map(b => b.id) } },
-        data: { validationStatus: 'SENT' },
-      });
-    }
-
-    return bulletins;
-  }
-
   async compterNotesNonValidees(schoolId: string, classId: string, academicPeriodId: string): Promise<number> {
     return this.prisma.grade.count({
       where: {

@@ -4,6 +4,7 @@
  */
 import type { BulletinRepository } from '@domain/ports/repositories/BulletinRepository';
 import type { UserRepository } from '@domain/ports/repositories/UserRepository';
+import type { BulletinValidationRepository } from '@domain/ports/repositories/BulletinValidationRepository';
 import type { EmailService } from '@domain/ports/services/EmailService';
 
 export interface EnvoyerBulletinsCommande {
@@ -26,9 +27,21 @@ export class EnvoyerBulletinsUseCase {
     private readonly bulletinRepository: BulletinRepository,
     private readonly userRepository: UserRepository,
     private readonly emailService: EmailService,
+    private readonly bulletinValidationRepository: BulletinValidationRepository,
   ) {}
 
   async execute(commande: EnvoyerBulletinsCommande): Promise<EnvoyerBulletinsResultat> {
+    // Vérification du workflow de validation : la session doit être PUBLISHED
+    const session = await this.bulletinValidationRepository.sessionExistante(
+      commande.classId,
+      commande.academicPeriodId,
+    );
+    if (!session || session.status !== 'PUBLISHED') {
+      throw new Error(
+        'Publication non autorisée : le workflow de validation du bulletin n\'est pas complété pour cette classe et cette période.'
+      );
+    }
+
     const bulletins = await this.bulletinRepository.findByClasse(
       commande.classId,
       commande.academicPeriodId

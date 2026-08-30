@@ -33,6 +33,7 @@ import { PrismaStudentDocumentRepository } from '@infrastructure/persistence/pri
 import { PrismaSchoolConfigRepository } from '@infrastructure/persistence/prisma/PrismaSchoolConfigRepository';
 import { PrismaTeachingAssignmentRepository } from '@infrastructure/persistence/prisma/PrismaTeachingAssignmentRepository';
 import { PrismaStudentRecommendationRepository } from '@infrastructure/persistence/prisma/PrismaStudentRecommendationRepository';
+import { PrismaBulletinValidationRepository } from '@infrastructure/persistence/prisma/PrismaBulletinValidationRepository';
 
 // --- Adapters Audit ---
 import { ActivityLogAdapter } from '@infrastructure/services/audit/ActivityLogAdapter';
@@ -73,6 +74,9 @@ import { GenererBulletinUseCase } from '@application/reportCard/GenererBulletinU
 import { EnvoyerBulletinsUseCase } from '@application/reportCard/EnvoyerBulletinsUseCase';
 import { VerifierDisponibiliteBulletinUseCase } from '@application/reportCard/VerifierDisponibiliteBulletinUseCase';
 import { ListerBulletinsUseCase } from '@application/reportCard/ListerBulletinsUseCase';
+import { SoumettreBulletinsClasseUseCase } from '@application/reportCard/SoumettreBulletinsClasseUseCase';
+import { ValiderBulletinsClasseUseCase } from '@application/reportCard/ValiderBulletinsClasseUseCase';
+import { PublierBulletinsClasseUseCase } from '@application/reportCard/PublierBulletinsClasseUseCase';
 
 // --- Use Cases : Conseil de Classe ---
 import { TenirConseilClasseUseCase } from '@application/classCouncil/TenirConseilClasseUseCase';
@@ -83,7 +87,6 @@ import { ObtenirSessionConseilClasseUseCase } from '@application/classCouncil/Ob
 import { AjouterDecisionConseilClasseUseCase } from '@application/classCouncil/AjouterDecisionConseilClasseUseCase';
 import { AjouterDecisionsEnBlocUseCase } from '@application/classCouncil/AjouterDecisionsEnBlocUseCase';
 import { VerrouillerConseilClasseUseCase } from '@application/classCouncil/VerrouillerConseilClasseUseCase';
-import { PublierBulletinsConseilClasseUseCase } from '@application/classCouncil/PublierBulletinsConseilClasseUseCase';
 import { GenererProcesVerbalUseCase } from '@application/classCouncil/GenererProcesVerbalUseCase';
 import { GenererRapportConseilUseCase } from '@application/classCouncil/GenererRapportConseilUseCase';
 
@@ -389,6 +392,7 @@ export function creerContainer() {
   const schoolConfigRepository = new PrismaSchoolConfigRepository(prisma);
   const teachingAssignmentRepository = new PrismaTeachingAssignmentRepository(prisma);
   const studentRecommendationRepository = new PrismaStudentRecommendationRepository(prisma);
+  const bulletinValidationRepository = new PrismaBulletinValidationRepository(prisma);
   const rattachementRepository = new PrismaRattachementEnseignantRepository(prisma);
   const roomRepository = new PrismaRoomRepository(prisma);
   const studentGroupSetRepository = new PrismaStudentGroupSetRepository(prisma);
@@ -478,13 +482,22 @@ export function creerContainer() {
     schoolRepository, sectionRepository, studentProfileRepository,
   );
   const envoyerBulletinsUseCase = new EnvoyerBulletinsUseCase(
-    bulletinRepository, userRepository, emailService
+    bulletinRepository, userRepository, emailService, bulletinValidationRepository
   );
   const verifierDisponibiliteUseCase = new VerifierDisponibiliteBulletinUseCase(
     anneeRepository, noteRepository, classCouncilRepository
   );
   const listerBulletinsUseCase = new ListerBulletinsUseCase(
     bulletinRepository, parentRepository
+  );
+  const soumettreBulletinsClasseUseCase = new SoumettreBulletinsClasseUseCase(
+    classeRepository, bulletinRepository, bulletinValidationRepository
+  );
+  const validerBulletinsClasseUseCase = new ValiderBulletinsClasseUseCase(
+    bulletinValidationRepository, bulletinRepository
+  );
+  const publierBulletinsClasseUseCase = new PublierBulletinsClasseUseCase(
+    bulletinValidationRepository, bulletinRepository, envoyerBulletinsUseCase
   );
 
   // 8. Use Cases — Conseil de Classe
@@ -501,7 +514,6 @@ export function creerContainer() {
   const ajouterDecisionConseilUseCase = new AjouterDecisionConseilClasseUseCase(classCouncilRepository);
   const ajouterDecisionsEnBlocUseCase = new AjouterDecisionsEnBlocUseCase(classCouncilRepository);
   const verrouillerConseilUseCase = new VerrouillerConseilClasseUseCase(classCouncilRepository, activityLog);
-  const publierBulletinsConseilUseCase = new PublierBulletinsConseilClasseUseCase(classCouncilRepository, smsNotificationAdapter);
   const genererPVConseilUseCase = new GenererProcesVerbalUseCase(classCouncilRepository);
   const genererRapportConseilUseCase = new GenererRapportConseilUseCase(classCouncilRepository);
 
@@ -813,6 +825,9 @@ export function creerContainer() {
       envoyer: envoyerBulletinsUseCase,
       verifierDisponibilite: verifierDisponibiliteUseCase,
       lister: listerBulletinsUseCase,
+      soumettreBulletins: soumettreBulletinsClasseUseCase,
+      validerBulletins: validerBulletinsClasseUseCase,
+      publierBulletins: publierBulletinsClasseUseCase,
       bulletinRepository,
       parentRepository,
       studentRecommendationRepository,
@@ -826,7 +841,6 @@ export function creerContainer() {
       ajouterDecision: ajouterDecisionConseilUseCase,
       ajouterDecisionsEnBloc: ajouterDecisionsEnBlocUseCase,
       verrouiller: verrouillerConseilUseCase,
-      publierBulletins: publierBulletinsConseilUseCase,
       genererPV: genererPVConseilUseCase,
       genererRapport: genererRapportConseilUseCase,
     },

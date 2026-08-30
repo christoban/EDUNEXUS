@@ -157,6 +157,7 @@ model School {
   attendances                  Attendance[]
   classes                      Class[]
   classCouncilSessions         ClassCouncilSession[]
+  bulletinValidationSessions   BulletinValidationSession[]
   classPromotions              ClassPromotion[]
   conversations                Conversation[]
   disciplineRecords            DisciplineRecord[]
@@ -567,6 +568,8 @@ model User {
   attendancesJustified            Attendance[]               @relation("JustifiedAttendances")
   councilDecisions                ClassCouncilDecision[]     @relation("CouncilDecisionStudent")
   councilPresided                 ClassCouncilSession[]      @relation("CouncilPresidedBy")
+  bulletinSessionsSubmitted       BulletinValidationSession[] @relation("BulletinSessionSubmittedBy")
+  bulletinSessionsValidated       BulletinValidationSession[] @relation("BulletinSessionValidatedBy")
   disciplineDecided               DisciplineRecord[]         @relation("DisciplineDecidedBy")
   disciplineRecords               DisciplineRecord[]         @relation("StudentDiscipline")
   expensesCreated                 Expense[]                  @relation("CreatedExpenses")
@@ -968,6 +971,7 @@ model AcademicPeriod {
   sequences            AcademicSequence[]
   attendances          Attendance[]
   classCouncilSessions ClassCouncilSession[]
+  bulletinValidationSessions BulletinValidationSession[]
   reportCards          ReportCard[]
 }
 
@@ -1021,6 +1025,7 @@ model Class {
   section               Section?               @relation(fields: [sectionId], references: [id])
   professorPrincipal    User?                  @relation("ClassProfessorPrincipal", fields: [professorPrincipalId], references: [id])
   classCouncilSessions  ClassCouncilSession[]
+  bulletinValidationSessions BulletinValidationSession[]
   subGroups             ClassSubGroup[]
   exams                 Exam[]
   grades                Grade[]
@@ -1262,6 +1267,7 @@ model ReportCard {
   template           BulletinTemplate        @default(FR_SECONDARY)
   totalStudents      Int?
   validationStatus   ReportCardStatus        @default(DRAFT)
+  classWorkflowStatus BulletinValidationStatus?
   sectionId          String?
   academicPeriod     AcademicPeriod          @relation(fields: [academicPeriodId], references: [id])
   academicYear       AcademicYear            @relation(fields: [academicYearId], references: [id])
@@ -1791,6 +1797,27 @@ model ClassCouncilSession {
   @@index([schoolId])
 }
 
+model BulletinValidationSession {
+  id               String                   @id @default(cuid())
+  schoolId         String
+  classId          String
+  academicPeriodId String
+  status           BulletinValidationStatus @default(SUBMITTED)
+  submittedById    String
+  submittedAt      DateTime                 @default(now())
+  validatedById    String?
+  validatedAt      DateTime?
+  publishedAt      DateTime?
+  academicPeriod   AcademicPeriod           @relation(fields: [academicPeriodId], references: [id])
+  class            Class                    @relation(fields: [classId], references: [id])
+  submittedBy      User                     @relation("BulletinSessionSubmittedBy", fields: [submittedById], references: [id])
+  validatedBy      User?                    @relation("BulletinSessionValidatedBy", fields: [validatedById], references: [id])
+  school           School                   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, academicPeriodId])
+  @@index([schoolId])
+}
+
 model ClassCouncilDecision {
   id           String              @id @default(cuid())
   sessionId    String
@@ -2183,6 +2210,12 @@ enum SequenceType {
 enum GradeValidationStatus {
   DRAFT
   LOCKED
+}
+
+enum BulletinValidationStatus {
+  SUBMITTED
+  VALIDATED
+  PUBLISHED
 }
 
 enum FeeType {
