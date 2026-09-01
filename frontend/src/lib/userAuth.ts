@@ -4,7 +4,8 @@ import { purgerCle } from '@/lib/offline/crypto'
 /**
  * Déconnecte l'utilisateur : appelle POST /api/v2/users/auth/logout (efface les cookies
  * httpOnly côté serveur), purge le stockage local complet, puis redirige vers /login.
- * Avertit si des actions non synchronisées existent (perte de données si confirmée).
+ * Avertit si des actions non synchronisées ou messages non envoyés existent (perte de
+ * données si confirmée).
  */
 export async function logoutUser(): Promise<void> {
   // Avertir si des actions ne sont pas encore synchronisées — les perdre silencieusement sur
@@ -15,6 +16,17 @@ export async function logoutUser(): Promise<void> {
   if (pendingCount > 0) {
     const confirme = window.confirm(
       `${pendingCount} action(s) non synchronisée(s) seront perdues si vous vous déconnectez maintenant. Continuer quand même ?`
+    )
+    if (!confirme) return
+  }
+
+  // Vérifier les messages non envoyés (status PENDING) avant de purger db.messages.
+  // Un message PENDING = message créé en offline mais jamais envoyé au serveur.
+  // Le supprimer silencieusement = perte de données pour l'utilisateur.
+  const unsentMessages = await db.messages.where('status').equals('PENDING').count()
+  if (unsentMessages > 0) {
+    const confirme = window.confirm(
+      `${unsentMessages} message(s) non envoyé(s) seront perdus si vous vous déconnectez. Continuer quand même ?`
     )
     if (!confirme) return
   }
