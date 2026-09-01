@@ -181,7 +181,7 @@ export const sendTransactionalEmail = async (
             schoolId, userId: input.recipientUserId, type: domainType,
             titre: input.subject, corps: input.text || input.subject,
             metadata: input.relatedEntityId ? { relatedEntityId: input.relatedEntityId } : undefined,
-            canal: 'IN_APP',
+            canal: 'IN_APP', urgency: 'LOW',
           })
           .catch((err) => console.error('[sendTransactionalEmail] persistance in-app:', err?.message));
       }

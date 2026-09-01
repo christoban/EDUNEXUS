@@ -61,7 +61,7 @@ export class DemanderRattrapageUseCase {
         corps:
           `${enseignant.nomComplet} ${lang === 'en' ? 'requests a make-up class on' : 'demande un rattrapage le'} ${dateStr}${horaire}.` +
           (commande.reason ? (lang === 'en' ? ` Reason: ${commande.reason}` : ` Motif : ${commande.reason}`) : ''),
-        canal: 'IN_APP',
+        canal: 'IN_APP', urgency: 'NORMAL',
         metadata: {
           classId: commande.classId,
           teacherId: commande.teacherId,

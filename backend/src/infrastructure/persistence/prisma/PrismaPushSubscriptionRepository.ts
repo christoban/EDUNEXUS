@@ -47,4 +47,20 @@ export class PrismaPushSubscriptionRepository implements PushSubscriptionReposit
   async deleteByUserAndEndpoint(userId: string, endpoint: string): Promise<void> {
     await this.prisma.pushSubscription.deleteMany({ where: { userId, endpoint } });
   }
+
+  async hasActiveToken(userId: string): Promise<boolean> {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const count = await this.prisma.pushSubscription.count({
+      where: { userId, lastSeenAt: { gte: thirtyDaysAgo } },
+    });
+    return count > 0;
+  }
+
+  async updateLastSeenAt(userId: string): Promise<void> {
+    await this.prisma.pushSubscription.updateMany({
+      where: { userId },
+      data: { lastSeenAt: new Date() },
+    });
+  }
 }

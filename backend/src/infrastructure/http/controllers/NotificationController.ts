@@ -9,9 +9,9 @@ import type { SocketNotificationService } from '@infrastructure/services/notific
 export class NotificationController {
   constructor(private readonly notificationService: SocketNotificationService) {}
 
-  // GET /api/v2/notifications?limit=30&page=1&type=ACADEMIC&isRead=false
-  // Sans page/type/isRead : comportement identique à avant (30 dernières, tous types) — la
-  // cloche (NotificationBell.tsx) continue de fonctionner sans changement. page/type/isRead
+  // GET /api/v2/notifications?limit=30&page=1&type=ACADEMIC&readAt=true
+  // Sans page/type/readAt : comportement identique à avant (30 dernières, tous types) — la
+  // cloche (NotificationBell.tsx) continue de fonctionner sans changement. page/type/readAt
   // sont utilisés par le centre de notifications complet (NotificationCenter.tsx).
   list = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -20,12 +20,12 @@ export class NotificationController {
       const limit = Math.min(Number(req.query['limit']) || 30, 100);
       const page = Math.max(1, Number(req.query['page']) || 1);
       const type = req.query['type'] as string | undefined;
-      const isReadParam = req.query['isRead'] as string | undefined;
+      const readAtParam = req.query['readAt'] as string | undefined;
 
       const where: Record<string, unknown> = { userId, schoolId };
       if (type) where.type = type;
-      if (isReadParam === 'true') where.isRead = true;
-      else if (isReadParam === 'false') where.isRead = false;
+      if (readAtParam === 'true') where.readAt = { not: null };
+      else if (readAtParam === 'false') where.readAt = null;
 
       const [notifications, total, unreadCount] = await Promise.all([
         prisma.notification.findMany({
@@ -35,7 +35,7 @@ export class NotificationController {
           take: limit,
         }),
         prisma.notification.count({ where }),
-        prisma.notification.count({ where: { userId, schoolId, isRead: false } }),
+        prisma.notification.count({ where: { userId, schoolId, readAt: null } }),
       ]);
 
       res.json({
@@ -73,8 +73,8 @@ export class NotificationController {
       const userId = req.user!.userId;
       const schoolId = req.user!.schoolId;
       await prisma.notification.updateMany({
-        where: { userId, schoolId, isRead: false },
-        data: { isRead: true },
+        where: { userId, schoolId, readAt: null },
+        data: { readAt: new Date() },
       });
       res.json({ success: true });
     } catch (err) { next(err); }

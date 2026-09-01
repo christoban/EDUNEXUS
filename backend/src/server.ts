@@ -41,6 +41,7 @@ import { syncCarteScolaire, relancePaiements, auditMatricules } from "./infrastr
 import { relanceOnboarding } from "./infrastructure/inngest/functions/eleveOnboardingJobs.ts";
 import { relanceProfilRH } from "./infrastructure/inngest/functions/hrSelfServiceJobs.ts";
 import { exporterOffsiteNocturne } from "./infrastructure/inngest/functions/backupOffsiteJob.ts";
+import { escaladerNotificationUrgente } from "./infrastructure/inngest/functions/notificationJobs.ts";
 import { initSocket } from "./infrastructure/socket/SocketServer.ts";
 import { bootstrapHexagonal } from './infrastructure/config/hexagonal.bootstrap';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
@@ -181,6 +182,7 @@ app.use(
       relanceOnboarding,
       relanceProfilRH,
       exporterOffsiteNocturne,
+      escaladerNotificationUrgente,
     ],
   })
 );

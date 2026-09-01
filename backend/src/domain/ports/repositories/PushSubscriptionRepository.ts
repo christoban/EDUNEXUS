@@ -18,4 +18,6 @@ export interface PushSubscriptionRepository {
   update(id: string, data: { p256dh: string; auth: string; userAgent?: string; lastSeenAt: Date }): Promise<{ id: string }>;
   create(data: { userId: string; endpoint: string; p256dh: string; auth: string; userAgent?: string }): Promise<{ id: string }>;
   deleteByUserAndEndpoint(userId: string, endpoint: string): Promise<void>;
+  hasActiveToken(userId: string): Promise<boolean>;
+  updateLastSeenAt(userId: string): Promise<void>;
 }

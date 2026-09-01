@@ -134,7 +134,7 @@ export class EnvoyerMessageUseCase {
           type: 'COMMUNICATION',
           titre: 'Nouveau message',
           corps: apercu,
-          canal: 'PUSH',
+          canal: 'PUSH', urgency: 'NORMAL',
           metadata: { conversationId: conversation.id },
         }),
       ),

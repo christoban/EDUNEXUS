@@ -11,11 +11,11 @@ export class GererAlertesSanteUseCase {
 
   private async notifierPersonnelDirect(userId: string, schoolId: string, titre: string, corps: string) {
     await this.notificationService
-      .envoyer({ schoolId, userId, type: "STUDENT_RISK_ALERT", titre, corps, canal: "IN_APP" })
+      .envoyer({ schoolId, userId, type: "STUDENT_RISK_ALERT", titre, corps, canal: "IN_APP", urgency: "HIGH" })
       .catch((err: any) => console.error("[HealthAlert] IN_APP personnel:", err?.message));
     // Push via NotificationService canal PUSH (socket service handles push internally)
     await this.notificationService
-      .envoyer({ schoolId, userId, type: "STUDENT_RISK_ALERT", titre, corps, canal: "PUSH" })
+      .envoyer({ schoolId, userId, type: "STUDENT_RISK_ALERT", titre, corps, canal: "PUSH", urgency: "HIGH" })
       .catch(() => {});
   }
 

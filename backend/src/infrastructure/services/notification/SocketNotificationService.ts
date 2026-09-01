@@ -5,6 +5,8 @@ import { getIO } from '../../socket/SocketServer.ts';
 import { notifierUtilisateurPush, notifierUtilisateurPushAvecResultat } from './PushNotificationService.ts';
 import { getParentContacts } from '../sms/SmsNotificationService.ts';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
+import { PrismaPushSubscriptionRepository } from '@infrastructure/persistence/prisma/PrismaPushSubscriptionRepository';
+import { resoudreCanal } from '@domain/policies/NotificationRoutingPolicy';
 
 /**
  * Le `NotificationType` du domaine (port NotificationService, ex. ABSENCE_ALERT,
@@ -31,25 +33,55 @@ const DOMAIN_TO_PRISMA_NOTIFICATION_TYPE: Record<DomainNotificationType, PrismaN
   SYSTEM: 'SYSTEM',
 };
 
+const pushSubscriptionRepo = new PrismaPushSubscriptionRepository(prisma);
+
 export class SocketNotificationService implements NotificationService {
   async envoyer(options: EnvoiNotificationOptions): Promise<void> {
-    if (options.canal !== 'IN_APP' && options.canal !== 'PUSH') {
-      // EMAIL/SMS gérés séparément via EmailService ou SmsService
-      console.log(`[Notification] ${options.canal} → ${options.userId} : ${options.titre}`);
+    // Rétrocompat : si canal est fourni mais urgency aussi, on log un warning
+    if (options.urgency && options.canal && options.canal !== 'IN_APP') {
+      console.warn(
+        `[Notification] ⚠️ canal '${options.canal}' et urgency '${options.urgency}' fournis simultanément — urgency prioritaire. ` +
+        `Miguer les appelants pour ne plus passer canal. userId=${options.userId}`,
+      );
+    }
+
+    // Déterminer les canaux via la matrice urgence si urgency fourni
+    let canaux: string[];
+    if (options.urgency) {
+      const hasActivePush = await pushSubscriptionRepo.hasActiveToken(options.userId);
+      canaux = resoudreCanal(options.urgency, hasActivePush);
+    } else {
+      // Rétrocompat : ancien comportement avec canal fourni
+      canaux = options.canal ? [options.canal] : ['IN_APP'];
+    }
+
+    // Canaux EMAIL/SMS sont gérés séparément — on log et on retourne
+    const hasInApp = canaux.includes('IN_APP');
+    const hasPush = canaux.includes('PUSH');
+    const hasSms = canaux.includes('SMS');
+
+    if (!hasInApp && !hasPush) {
+      console.log(`[Notification] ${canaux.join(',')} → ${options.userId} : ${options.titre}`);
       return;
     }
 
-    // canal='PUSH' persiste et émet EXACTEMENT comme canal='IN_APP', puis envoie en plus le
-    // push — jamais l'inverse. Un push sans trace in-app est un message perdu dès que
-    // l'utilisateur le rate ou l'ignore (voir NotificationBell.tsx, l'animation de la cloche
-    // n'a de sens que si toute notification poussée est aussi retrouvable ici).
-    if (options.canal === 'PUSH') {
+    // Push fire-and-forget si le canal inclut PUSH
+    if (hasPush) {
       void notifierUtilisateurPush({ userId: options.userId, title: options.titre, body: options.corps, data: options.metadata });
     }
 
-    // Persisté (table Notification) avant l'émission live — sans ça, la cloche est vide à
-    // chaque rechargement de page et pour tout utilisateur non connecté au moment de l'envoi
-    // (même pattern que relanceProfilRH, voir inngest/hrSelfServiceJobs.ts).
+    // SMS fire-and-forget si le canal inclut SMS
+    if (hasSms) {
+      const contacts = await getParentContacts(options.userId);
+      for (const contact of contacts) {
+        if (contact.phone) {
+          const { sendSMS } = await import('../sms/SmsService.ts');
+          await sendSMS(contact.phone, `${options.titre} — ${options.corps}`).catch(() => {});
+        }
+      }
+    }
+
+    // Persisté (table Notification) avant l'émission live
     let notificationId: string | null = null;
     try {
       const created = await prisma.notification.create({
@@ -57,10 +89,11 @@ export class SocketNotificationService implements NotificationService {
           schoolId: options.schoolId,
           userId: options.userId,
           type: DOMAIN_TO_PRISMA_NOTIFICATION_TYPE[options.type],
+          urgency: options.urgency ?? 'NORMAL',
           title: options.titre,
           body: options.corps,
           metadata: (options.metadata ?? {}) as Prisma.InputJsonValue,
-          channel: 'IN_APP',
+          channel: (hasPush ? 'PUSH' : 'IN_APP') as any,
         },
       });
       notificationId = created.id;
@@ -68,23 +101,35 @@ export class SocketNotificationService implements NotificationService {
       console.error('[Notification] Échec de persistance:', err);
     }
 
-    const io = getIO();
-    if (!io) {
-      console.warn(`[Notification] Socket non initialisé — notification perdue pour ${options.userId} (persistée en base si succès ci-dessus)`);
-      return;
+    // Émission Socket.io si IN_APP
+    if (hasInApp) {
+      const io = getIO();
+      if (io) {
+        io.to(`user:${options.userId}`).emit('notification', {
+          id: notificationId,
+          type: DOMAIN_TO_PRISMA_NOTIFICATION_TYPE[options.type],
+          title: options.titre,
+          body: options.corps,
+          metadata: options.metadata ?? {},
+          readAt: null,
+          createdAt: new Date().toISOString(),
+        });
+      }
     }
 
-    // Même forme que GET /api/v2/notifications (title/body/isRead) — un seul vocabulaire
-    // côté frontend entre le chargement initial (REST) et le flux live (Socket.io).
-    io.to(`user:${options.userId}`).emit('notification', {
-      id: notificationId,
-      type: DOMAIN_TO_PRISMA_NOTIFICATION_TYPE[options.type],
-      title: options.titre,
-      body: options.corps,
-      metadata: options.metadata ?? {},
-      isRead: false,
-      createdAt: new Date().toISOString(),
-    });
+    // Escalade SMS différée pour URGENT sans push actif
+    if (options.urgency === 'URGENT' && !hasPush && notificationId) {
+      try {
+        const { escaladerNotificationUrgente } = await import('../../inngest/functions/notificationJobs.ts');
+        const { inngest } = await import('../../inngest/client/index.ts');
+        await inngest.send({
+          name: 'notification/escalade-urgent',
+          data: { notificationId, userId: options.userId, schoolId: options.schoolId },
+        });
+      } catch (err) {
+        console.error('[Notification] Échec envoi job escalade SMS:', err);
+      }
+    }
   }
 
   async envoyerAuRole(
@@ -126,14 +171,14 @@ export class SocketNotificationService implements NotificationService {
       type: DOMAIN_TO_PRISMA_NOTIFICATION_TYPE[params.type],
       title: params.titre,
       body: params.corps,
-      isRead: false,
+      readAt: null,
       createdAt: new Date().toISOString(),
     });
   }
 
   async marquerLue(notificationId: string): Promise<void> {
     try {
-      await prisma.notification.update({ where: { id: notificationId }, data: { isRead: true } });
+      await prisma.notification.update({ where: { id: notificationId }, data: { readAt: new Date() } });
     } catch (err) {
       console.error('[Notification] Échec marquerLue:', err);
     }
@@ -149,7 +194,8 @@ export class SocketNotificationService implements NotificationService {
     try {
       const parents = await getParentContacts(opts.studentId);
       for (const parent of parents) {
-        await this.envoyer({ schoolId: opts.schoolId, userId: parent.userId, type: opts.type, titre: opts.titre, corps: opts.corps, canal: 'IN_APP' }).catch((err) => console.error('[PushFirst] IN_APP parent:', (err as any)?.message));
+        // notifierParents utilise resoudreCanal via envoyer (urgency = HIGH pour alertes parents)
+        await this.envoyer({ schoolId: opts.schoolId, userId: parent.userId, type: opts.type, titre: opts.titre, corps: opts.corps, canal: 'IN_APP', urgency: 'HIGH' }).catch((err) => console.error('[PushFirst] parent:', (err as any)?.message));
         await notifierUtilisateurPushAvecResultat({ userId: parent.userId, title: opts.titre, body: opts.corps }).catch(() => ({ delivered: false }));
       }
     } catch (err) {

@@ -25,7 +25,7 @@ export async function notifierParentsPushDabord(opts: {
 
   for (const parent of parents) {
     await notificationService
-      .envoyer({ schoolId: opts.schoolId, userId: parent.userId, type: opts.type, titre: opts.titre, corps: opts.corps, canal: 'IN_APP' })
+      .envoyer({ schoolId: opts.schoolId, userId: parent.userId, type: opts.type, titre: opts.titre, corps: opts.corps, canal: 'IN_APP', urgency: 'NORMAL' })
       .catch((err) => console.error('[PushFirstNotifier] IN_APP parent:', err?.message));
 
     const result = await notifierUtilisateurPushAvecResultat({ userId: parent.userId, title: opts.titre, body: opts.corps })

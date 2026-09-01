@@ -5,6 +5,7 @@ import { parse as parseCookie } from "cookie";
 import type { AuthPayload } from '../http/middlewares/auth.ts';
 import { prisma } from "@infrastructure/persistence/prisma/prisma.client";
 import { PrismaMessagerieRepository } from "@infrastructure/persistence/prisma/PrismaMessagerieRepository";
+import { PrismaPushSubscriptionRepository } from "@infrastructure/persistence/prisma/PrismaPushSubscriptionRepository";
 
 let io: Server | null = null;
 
@@ -44,6 +45,13 @@ export const initSocket = (httpServer: HttpServer, origin?: string) => {
     if (auth) {
       socket.join(`user:${auth.userId}`);
       socket.join(`school:${auth.schoolId}:role:${auth.role}`);
+
+      // Marquer les subscriptions push de cet utilisateur comme actives (seuil 30 jours
+      // utilisé par PushSubscriptionRepository.hasActiveToken pour le routage des
+      // notifications URGENT → PUSH vs SMS). Fire-and-forget : ne bloque pas la connexion.
+      void new PrismaPushSubscriptionRepository(prisma)
+        .updateLastSeenAt(auth.userId)
+        .catch(() => {});
     }
 
     // Room jointe à la demande (pas à la connexion) — pas de coût de room pour des

@@ -1750,20 +1750,23 @@ model MessageReadStatus {
 }
 
 model Notification {
-  id        String              @id @default(cuid())
-  schoolId  String
-  userId    String
-  type      NotificationType
-  title     String
-  body      String
-  metadata  Json?
-  isRead    Boolean             @default(false)
-  channel   NotificationChannel
-  createdAt DateTime            @default(now())
-  school    School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  user      User                @relation("UserNotifications", fields: [userId], references: [id])
+  id          String              @id @default(cuid())
+  schoolId    String
+  userId      String
+  type        NotificationType
+  urgency     NotificationUrgency @default(NORMAL)
+  title       String
+  body        String
+  metadata    Json?
+  readAt      DateTime?
+  deliveredAt DateTime?
+  confirmedAt DateTime?
+  channel     NotificationChannel
+  createdAt   DateTime            @default(now())
+  school      School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user        User                @relation("UserNotifications", fields: [userId], references: [id])
 
-  @@index([schoolId, userId, isRead])
+  @@index([schoolId, userId, readAt])
 }
 
 model NotificationPreference {
@@ -2335,6 +2338,13 @@ enum NotificationChannel {
   SMS
   EMAIL
   IN_APP
+}
+
+enum NotificationUrgency {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
 }
 
 enum DisciplineType {

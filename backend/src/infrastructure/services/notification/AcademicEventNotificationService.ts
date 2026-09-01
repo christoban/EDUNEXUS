@@ -23,7 +23,7 @@ export async function notifierEvenementAcademique(
   const socketService = new SocketNotificationService();
   for (const d of destinataires) {
     await socketService
-      .envoyer({ schoolId, userId: d.id, type: 'ACADEMIC_EVENT', titre, corps, canal: 'IN_APP' })
+      .envoyer({ schoolId, userId: d.id, type: 'ACADEMIC_EVENT', titre, corps, canal: 'IN_APP', urgency: 'NORMAL' })
       .catch(() => {});
     await notifierUtilisateurPush({ userId: d.id, title: titre, body: corps }).catch(() => {});
   }

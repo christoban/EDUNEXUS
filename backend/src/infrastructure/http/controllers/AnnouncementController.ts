@@ -55,7 +55,7 @@ export class AnnouncementController {
             type: 'COMMUNICATION',
             titre: annonce.title,
             corps: annonce.content,
-            canal: 'PUSH',
+            canal: 'PUSH', urgency: 'NORMAL',
             metadata: {
               announcementId: annonce.id,
               authorId: annonce.authorId,
