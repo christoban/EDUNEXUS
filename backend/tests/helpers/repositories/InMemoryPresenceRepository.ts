@@ -67,7 +67,7 @@ export class InMemoryPresenceRepository implements PresenceRepository {
   }
 
   async countAbsencesEtRetards(schoolId: string, studentId: string, academicPeriodId: string): Promise<number> {
-    return [...this.store.values()].filter(p => p.schoolId === schoolId && p.studentId === studentId && p.toObject().academicPeriodId === academicPeriodId && (p.status === 'ABSENT' || p.status === 'LATE')).length;
+    return [...this.store.values()].filter(p => p.schoolId === schoolId && p.studentId === studentId && p.toObject().academicPeriodId === academicPeriodId && (p.status === 'ABSENT' || p.status === 'ABSENT_JUSTIFIED')).length;
   }
 
   async countAbsencesConsecutives(studentId: string): Promise<number> {
@@ -101,7 +101,7 @@ export class InMemoryPresenceRepository implements PresenceRepository {
 
     const total = presences.length;
     const presents = presences.filter(p => p.status === 'PRESENT').length;
-    const absents = presences.filter(p => p.status === 'ABSENT').length;
+    const absents = presences.filter(p => p.status === 'ABSENT' || p.status === 'ABSENT_JUSTIFIED').length;
     const retards = presences.filter(p => p.status === 'LATE').length;
 
     return {
@@ -109,7 +109,7 @@ export class InMemoryPresenceRepository implements PresenceRepository {
       joursPresent: presents,
       joursAbsent: absents,
       joursRetard: retards,
-      tauxPresence: total > 0 ? Math.round((presents / total) * 100) : 100,
+      tauxPresence: total > 0 ? Math.round(((presents + retards) / total) * 100) : 100,
     };
   }
 

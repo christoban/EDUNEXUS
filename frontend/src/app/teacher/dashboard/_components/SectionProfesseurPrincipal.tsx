@@ -18,7 +18,7 @@ interface StudentRow {
   lastName: string
   rang: number
   moyenne: number | null
-  tauxPresence: number | null
+  tauxPresence: number
 }
 
 interface AttendanceRecord {
@@ -148,7 +148,7 @@ export default function SectionProfesseurPrincipal({ user: _user, classeId, clas
                           </span>
                         </td>
                         <td style={{ padding: '12px 16px', fontSize: 14, color: 'var(--text2)', fontWeight: 600 }}>
-                          {s.tauxPresence !== null ? `${s.tauxPresence}%` : '—'}
+                          {s.tauxPresence}%
                         </td>
                         <td style={{ padding: '12px 16px' }}>
                           {s.moyenne !== null && (

@@ -137,8 +137,8 @@ export function buildParentActionCatalog(deps: ParentActionDeps): ActionDefiniti
         if (records.length === 0) {
           return { resultLabel: `Aucun enregistrement de présence pour ${enfant.name} depuis le ${depuis.toLocaleDateString('fr-FR')}.`, section: 'attendance' };
         }
-        const present = records.filter((r) => r.status === 'PRESENT').length;
-        const absences = records.filter((r) => r.status === 'ABSENT').length;
+        const present = records.filter((r) => r.status === 'PRESENT' || r.status === 'LATE').length;
+        const absences = records.filter((r) => r.status === 'ABSENT' || r.status === 'ABSENT_JUSTIFIED').length;
         const taux = Math.round((present / records.length) * 10000) / 100;
         return {
           resultLabel: `${enfant.name} : taux de présence de ${taux}% depuis le ${depuis.toLocaleDateString('fr-FR')} (${absences} absence(s) sur ${records.length} enregistrement(s)).`,

@@ -261,7 +261,7 @@ export function buildTeacherActionCatalog(deps: TeacherActionDeps): ActionDefini
         if (records.length === 0) {
           return { resultLabel: `Aucun enregistrement de présence pour ${classe.name} depuis le ${depuis.toLocaleDateString('fr-FR')}.`, section: 'attendance' };
         }
-        const present = records.filter((r) => r.status === 'PRESENT').length;
+        const present = records.filter((r) => r.status === 'PRESENT' || r.status === 'LATE').length;
         const taux = Math.round((present / records.length) * 10000) / 100;
         return {
           resultLabel: `${classe.name} : taux de présence de ${taux}% depuis le ${depuis.toLocaleDateString('fr-FR')} (${records.length} enregistrement(s)).`,

@@ -95,7 +95,7 @@ export class PrismaPresenceRepository implements PresenceRepository {
 
   async countAbsencesEtRetards(schoolId: string, studentId: string, academicPeriodId: string): Promise<number> {
     return this.prisma.attendance.count({
-      where: { schoolId, studentId, academicPeriodId, status: { in: ['ABSENT', 'LATE'] as any } },
+      where: { schoolId, studentId, academicPeriodId, status: { in: ['ABSENT', 'ABSENT_JUSTIFIED'] as any } },
     });
   }
 
@@ -127,7 +127,7 @@ export class PrismaPresenceRepository implements PresenceRepository {
 
     const total = toutes.length;
     const presents = toutes.filter(p => p.status === 'PRESENT').length;
-    const absents = toutes.filter(p => p.status === 'ABSENT').length;
+    const absents = toutes.filter(p => p.status === 'ABSENT' || p.status === 'ABSENT_JUSTIFIED').length;
     const retards = toutes.filter(p => p.status === 'LATE').length;
 
     return {
@@ -135,7 +135,7 @@ export class PrismaPresenceRepository implements PresenceRepository {
       joursPresent: presents,
       joursAbsent: absents,
       joursRetard: retards,
-      tauxPresence: total > 0 ? Math.round((presents / total) * 100) : 100,
+      tauxPresence: total > 0 ? Math.round(((presents + retards) / total) * 100) : 100,
     };
   }
 

@@ -14,7 +14,7 @@ export interface EleveClasseDto {
   firstName: string;
   lastName: string;
   moyenne: number | null;
-  tauxPresence: number | null;
+  tauxPresence: number;
   rang: number;
 }
 
@@ -65,8 +65,8 @@ export class ListerElevesClasseUseCase {
         : null;
 
       const att = attByStudent.get(s.id) ?? [];
-      const presents = att.filter(a => a === 'PRESENT').length;
-      const tauxPresence = att.length > 0 ? Math.round((presents / att.length) * 100) : null;
+      const presents = att.filter(a => a === 'PRESENT' || a === 'LATE').length;
+      const tauxPresence = att.length > 0 ? Math.round((presents / att.length) * 100) : 100;
 
       return { id: s.id, firstName: s.firstName, lastName: s.lastName, moyenne, tauxPresence };
     });

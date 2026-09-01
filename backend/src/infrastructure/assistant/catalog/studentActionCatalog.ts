@@ -104,8 +104,8 @@ export function buildStudentActionCatalog(): ActionDefinition[] {
         if (records.length === 0) {
           return { resultLabel: `Aucun enregistrement de présence depuis le ${depuis.toLocaleDateString('fr-FR')}.`, section: 'attendance' };
         }
-        const present = records.filter((r) => r.status === 'PRESENT').length;
-        const absences = records.filter((r) => r.status === 'ABSENT').length;
+        const present = records.filter((r) => r.status === 'PRESENT' || r.status === 'LATE').length;
+        const absences = records.filter((r) => r.status === 'ABSENT' || r.status === 'ABSENT_JUSTIFIED').length;
         const taux = Math.round((present / records.length) * 10000) / 100;
         return {
           resultLabel: `Votre taux de présence depuis le ${depuis.toLocaleDateString('fr-FR')} : ${taux}% (${absences} absence(s) sur ${records.length} enregistrement(s)).`,

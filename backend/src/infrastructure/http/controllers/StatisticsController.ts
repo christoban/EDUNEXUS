@@ -230,7 +230,7 @@ export class StatisticsController {
         : [];
 
       const tauxPresence = attendances.length > 0
-        ? Math.round((attendances.filter((a) => a.status === 'PRESENT').length / attendances.length) * 10000) / 100
+        ? Math.round((attendances.filter((a) => a.status === 'PRESENT' || a.status === 'LATE').length / attendances.length) * 10000) / 100
         : null;
 
       const seancesEnregistrees = new Set(
