@@ -38,6 +38,7 @@ import SectionMinedubStatistics from './_components/SectionMinedubStatistics'
 import SectionAdminPebsExams from './_components/SectionAdminPebsExams'
 import SectionAdminAcademicEvents from './_components/SectionAdminAcademicEvents'
 import SectionAdminGroupTransfers from './_components/SectionAdminGroupTransfers'
+import SectionTasks from './_components/SectionTasks'
 import EventCenterWidget from '@/features/communication/EventCenterWidget'
 import AdminToast from './_components/AdminToast'
 import AssistantWidget from './_components/AssistantWidget'
@@ -57,7 +58,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   'attendance', 'grades', 'bulletins', 'timetable',
   'council', 'academic-year', 'academic-events', 'finance', 'ai', 'statistics', 'communications', 'babillard', 'messagerie', 'settings', 'corbeille', 'sync-offline',
   'bulletin-validation',
-  'pedagogie', 'rh', 'lv2-choice', 'entrance-exams', 'pebs-exams', 'matricules', 'school-payments', 'eleve-onboarding', 'minesec-stats', 'minedub-stats', 'group-transfers',
+  'pedagogie', 'rh', 'lv2-choice', 'entrance-exams', 'pebs-exams', 'matricules', 'school-payments', 'eleve-onboarding', 'minesec-stats', 'minedub-stats', 'group-transfers', 'tasks',
 ]
 
 const PLACEHOLDERS: Partial<Record<AdminSection, { icon: string; desc: string }>> = {}
@@ -220,6 +221,7 @@ export default function AdminDashboard() {
           {section === 'pebs-exams'    && <SectionAdminPebsExams    onToast={showToast} />}
           {section === 'lv2-choice'    && <SectionAdminLV2Choice    onToast={showToast} />}
           {section === 'group-transfers' && <SectionAdminGroupTransfers onToast={showToast} />}
+          {section === 'tasks' && <SectionTasks onToast={showToast} />}
           {section === 'notifications' && <NotificationCenter />}
           {section === 'settings'      && <SectionSettings      onToast={showToast} schoolInfo={schoolInfo} onLogoUpdate={url => setSchoolInfo(s => s ? { ...s, logoUrl: url } : null)} />}
           {section === 'corbeille'     && <SectionCorbeille     onToast={showToast} />}

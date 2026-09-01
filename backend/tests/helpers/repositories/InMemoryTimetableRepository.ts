@@ -18,6 +18,10 @@ export class InMemoryTimetableRepository implements TimetableRepository {
   private sallesInfos = new Map<string, { nom: string }>();
   private sousGroupesValides = new Set<string>(); // "subGroupId:classId"
 
+  slotsEnseignantJour: SlotEnseignantJour[] = [];
+  slotActuel: ((roomId: string, teacherId: string, now: Date) => { id: string; dayOfWeek: number; startTime: string; endTime: string; subjectId: string | null; subjectName: string | null; classId: string; className: string | null } | null) | null = null;
+  roomIdParSlot = new Map<string, string>();
+
   ajouterEDT(edt: EmploiDuTemps): void { this.edts.set(edt.id, edt); }
   ajouterCreneau(c: CreneauHoraire): void { this.creneaux.set(c.id, c); }
   definirEnseignant(id: string, nom: string, estAP: boolean): void {
@@ -204,6 +208,13 @@ export class InMemoryTimetableRepository implements TimetableRepository {
   async compterSalles(_ids: string[], _schoolId: string): Promise<number> { return 0; }
   async compterMatieres(_ids: string[], _schoolId: string): Promise<number> { return 0; }
   async findClassIdsAvecEdtPublie(_schoolId: string, _academicYearId: string): Promise<string[]> { return []; }
-  async findSlotsEnseignantJour(_teacherId: string, _dayOfWeek: number, _schoolId: string, _academicYearId?: string): Promise<SlotEnseignantJour[]> { return []; }
+  async findSlotsEnseignantJour(_teacherId: string, _dayOfWeek: number, _schoolId: string, _academicYearId?: string): Promise<SlotEnseignantJour[]> { return this.slotsEnseignantJour ?? []; }
   async findContexteAdjustIA(_timetableId: string, _schoolId: string): Promise<ContexteAdjustIA | null> { return null; }
+  async findSlotActuelParSalleEtEnseignant(roomId: string, teacherId: string, _schoolId: string, now: Date) {
+    if (!this.slotActuel) return null;
+    return this.slotActuel(roomId, teacherId, now);
+  }
+  async findRoomIdDeSlot(slotId: string): Promise<string | null> {
+    return this.roomIdParSlot?.get(slotId) ?? null;
+  }
 }

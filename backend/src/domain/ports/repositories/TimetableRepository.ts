@@ -213,6 +213,17 @@ export interface TimetableRepository {
   /** Contexte complet d'un créneau (timetable + subject) pour résoudre ses participants. */
   findSlotAvecContexte(slotId: string): Promise<SlotContexte | null>;
 
+  /** Créneau CLASS courant d'une salle pour un enseignant à une heure donnée (croisement QR pointage V2.11). */
+  findSlotActuelParSalleEtEnseignant(
+    roomId: string,
+    teacherId: string,
+    schoolId: string,
+    now: Date,
+  ): Promise<{ id: string; dayOfWeek: number; startTime: string; endTime: string; subjectId: string | null; subjectName: string | null; classId: string; className: string | null } | null>;
+
+  /** roomId d'un créneau (gate cahier de textes V2.11 — savoir si un QR salle était configuré). */
+  findRoomIdDeSlot(slotId: string): Promise<string | null>;
+
   /** Élèves actifs d'une classe avec profil LV2/A-Level, ordonnés par nom. */
   findElevesClasseAvecProfils(schoolId: string, classId: string): Promise<EleveClasseAvecProfil[]>;
 

@@ -118,6 +118,8 @@ function timetableRepositoryStub(edt: EmploiDuTemps, occupation: CreneauOccupe[]
     findClassIdsAvecEdtPublie: async () => [],
     findSlotsEnseignantJour: async () => [],
     findContexteAdjustIA: async () => null,
+    findSlotActuelParSalleEtEnseignant: async () => null,
+    findRoomIdDeSlot: async () => null,
   };
 }
 

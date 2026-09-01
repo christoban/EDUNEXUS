@@ -5,7 +5,7 @@ import {
   ScrollText, Calendar, GraduationCap, NotebookPen, Briefcase, CalendarDays,
   Smartphone, IdCard, Wallet, ClipboardEdit, UserPlus, BarChart3, ClipboardList,
   Globe, Languages, Bot, Megaphone, Settings, CalendarClock, X, ArrowRightLeft, Trash2,
-  RefreshCw, MessageCircle,
+  RefreshCw, MessageCircle, ListChecks,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -96,6 +96,7 @@ export default function AdminSidebar({ current, onChange, schoolName, logoUrl, b
         { id: 'bulletin-validation', icon: ClipboardCheck, label: tnav('sidebar.bulletinValidation') },
         { id: 'pedagogie',  icon: NotebookPen, label: tnav('sidebar.pedagogie') },
         { id: 'rh',         icon: Briefcase, label: tnav('sidebar.rh') },
+        { id: 'tasks',      icon: ListChecks, label: tnav('sidebar.tasks') },
       ]
     },
     {

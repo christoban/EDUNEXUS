@@ -17,6 +17,7 @@ import { creerReportCardRoutes } from '@infrastructure/http/routes/reportCard.ro
 import { creerClassCouncilRoutes } from '@infrastructure/http/routes/classCouncil.routes';
 import { creerBulletinValidationRoutes } from '@infrastructure/http/routes/bulletinValidation.routes';
 import { creerAssessmentRoutes } from '@infrastructure/http/routes/assessment.routes';
+import { creerTaskRoutes } from '@infrastructure/http/routes/task.routes';
 import { creerAcademicYearRoutes } from '@infrastructure/http/routes/academicYear.routes';
 import { creerPedagogieRoutes } from '@infrastructure/http/routes/pedagogie.routes';
 import { creerStudentDocumentRoutes } from '@infrastructure/http/routes/studentDocument.routes';
@@ -175,6 +176,11 @@ export function registerAcademicRoutes(app: Application, prismaParam: typeof pri
     c.assessment.planifierSession,
     c.assessment.enregistrerParticipation,
     c.assessment.enregistrerParticipationEnLot,
+  ));
+  app.use('/api/v2/tasks', creerTaskRoutes(
+    c.task.creer,
+    c.task.lister,
+    c.task.mettreAJourStatut,
   ));
 
   // V1.1 — Profil Académique (RBAC : ADMIN/STAFF, PP, parent, élève lui-même)

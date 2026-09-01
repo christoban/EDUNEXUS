@@ -181,6 +181,7 @@ model School {
   schoolSettings               SchoolSettings?
   schoolNotificationSettings   SchoolNotificationSettings?
   configurationForm            SchoolConfigurationForm?
+  staffAttendanceSettings      StaffAttendanceSettings?
   sections                     Section[]
   smsLogs                      SmsLog[]
   staffProfiles                StaffProfile[]
@@ -226,6 +227,7 @@ model School {
   assessmentScopes             AssessmentScope[]
   assessmentSessions           HarmonizedAssessmentSession[]
   assessmentParticipations     AssessmentParticipation[]
+  tasks                        Task[]
 }
 
 model SchoolInvite {
@@ -632,6 +634,8 @@ model User {
    enrollmentsCreated              Enrollment[]               @relation("EnrollmentBy")
   assessmentStudent               AssessmentParticipation[]   @relation("AssessmentStudent")
   assessmentRecordedBy            AssessmentParticipation[]   @relation("AssessmentRecordedBy")
+  tasksAssignedBy                 Task[]                      @relation("TaskAssignedBy")
+  tasksAssignedTo                 Task[]                      @relation("TaskAssignedTo")
 
   @@unique([schoolId, email])
   @@unique([schoolId, phone])
@@ -1457,12 +1461,14 @@ model Room {
   status               RoomStatus            @default(ACTIVE)
   capacity             Int                   @default(30)
   equipment            String[]              @default([])
+  qrEnabled            Boolean               @default(false)
   createdAt            DateTime              @default(now())
   deletedAt            DateTime?
   deletedById          String?
   school               School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   slots                TimetableSlot[]
   classRoomAssignments ClassRoomAssignment[]
+  staffAttendances     StaffAttendance[]
 
   @@index([schoolId])
   @@index([deletedAt])
@@ -1566,6 +1572,7 @@ model TimetableSlot {
   subject        Subject?       @relation(fields: [subjectId], references: [id])
   teacher        User?          @relation("TeacherSlots", fields: [teacherId], references: [id])
   timetable      Timetable      @relation(fields: [timetableId], references: [id], onDelete: Cascade)
+  staffAttendances StaffAttendance[]
 }
 
 model FeePlan {
@@ -2111,21 +2118,50 @@ enum StaffAttendanceStatus {
   PRESENT
   ABSENT
   RETARD
+  A_VERIFIER
+}
+
+enum StaffAttendanceMode {
+  QR
+  GPS
+  MANUEL
 }
 
 model StaffAttendance {
-  id        String                @id @default(cuid())
-  userId    String
-  schoolId  String
-  date      DateTime
-  statut    StaffAttendanceStatus @default(PRESENT)
-  note      String?
-  createdAt DateTime              @default(now())
-  user      User                  @relation("StaffAttendanceUser", fields: [userId], references: [id], onDelete: Cascade)
-  school    School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  id               String                 @id @default(cuid())
+  userId           String
+  schoolId         String
+  date             DateTime
+  statut           StaffAttendanceStatus  @default(PRESENT)
+  note             String?
+  mode             StaffAttendanceMode?
+  roomId           String?
+  timetableSlotId  String?
+  qrToken          String?
+  latitude         Float?
+  longitude        Float?
+  verifiedById     String?
+  verifiedAt       DateTime?
+  createdAt        DateTime               @default(now())
+  user             User                   @relation("StaffAttendanceUser", fields: [userId], references: [id], onDelete: Cascade)
+  school           School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  room             Room?                  @relation(fields: [roomId], references: [id])
+  timetableSlot    TimetableSlot?         @relation(fields: [timetableSlotId], references: [id])
 
   @@unique([userId, date])
   @@index([schoolId])
+}
+
+model StaffAttendanceSettings {
+  id            String   @id @default(cuid())
+  schoolId      String   @unique
+  gpsRadiusMeters Int     @default(75)
+  qrTokenTtlSeconds Int  @default(120)
+  schoolLatitude  Float?
+  schoolLongitude Float?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  school        School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 }
 
 enum LeaveType {
@@ -2191,6 +2227,34 @@ model MissionOrder {
 
   @@index([userId])
   @@index([schoolId])
+}
+
+enum TaskStatus {
+  A_FAIRE
+  EN_COURS
+  TERMINE
+  VALIDE
+}
+
+model Task {
+  id           String     @id @default(cuid())
+  schoolId     String
+  title        String
+  description  String?
+  assignedById String
+  assignedToId String
+  dueDate      DateTime?
+  status       TaskStatus @default(A_FAIRE)
+  attachments  String[]   @default([])
+  comments     Json       @default("[]")
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  school     School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  assignedBy User   @relation("TaskAssignedBy", fields: [assignedById], references: [id])
+  assignedTo User   @relation("TaskAssignedTo", fields: [assignedToId], references: [id])
+
+  @@index([schoolId, assignedToId, status])
 }
 
 model MasterAuthAudit {

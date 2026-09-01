@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
 import { Users, Palmtree, CheckCircle2, FileText, AlertTriangle } from 'lucide-react'
+import SectionStaffAttendanceAVerifier from './SectionStaffAttendanceAVerifier'
 
 interface OnToast { (msg: string, type?: 'success' | 'error' | 'info' | 'warning'): void }
 
@@ -718,6 +719,13 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
                 </div>
               ))}
               {employees.length === 0 && <div style={{ padding: 24, textAlign: 'center', color: 'var(--text3)' }}>{t('rh.loadStaffFirst')}</div>}
+            </div>
+          </div>
+
+          <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
+            <div className="text-[14px] md:text-[16px] px-[14px] py-[12px] md:px-[20px] md:py-[16px]" style={{ borderBottom: '1px solid var(--border)', fontWeight: 800, color: 'var(--text)' }}>{t('rh.aVerifier')}</div>
+            <div style={{ padding: 16 }}>
+              <SectionStaffAttendanceAVerifier onToast={onToast} />
             </div>
           </div>
         </div>

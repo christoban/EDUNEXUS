@@ -51,6 +51,8 @@ import { creerTeacherUnavailabilityRoutes } from '@infrastructure/http/routes/te
 import { creerStudentGroupRoutes } from '@infrastructure/http/routes/studentGroup.routes';
 import { creerHrRoutes } from '@infrastructure/http/routes/hr.routes';
 import { creerHrSelfServiceRoutes } from '@infrastructure/http/routes/hrSelfService.routes';
+import { StaffAttendanceController } from '@infrastructure/http/controllers/StaffAttendanceController';
+import { creerStaffAttendanceRoutes } from '@infrastructure/http/routes/staffAttendance.routes';
 import { creerParentRoutes } from '@infrastructure/http/routes/parent.routes';
 import { creerSchoolSettingsRoutes } from '@infrastructure/http/routes/schoolSettings.routes';
 import { creerSchoolConfigRoutes } from '@infrastructure/http/routes/school-config.routes';
@@ -185,6 +187,14 @@ export function registerHrRoutes(app: Application, prismaParam: typeof prisma = 
   // ── Module RH — self-service employé (accès ADMIN/STAFF/TEACHER, scopé à soi-même) ──
   const hrSelfServiceController = new HRSelfServiceController(c.hr.employeeFileRepository);
   app.use('/api/v2/hr-self-service', creerHrSelfServiceRoutes(hrSelfServiceController));
+
+  // ── V2.11 — Pointage présence enseignants (QR / GPS / manuel + RH requalification) ──
+  const staffAttendanceController = new StaffAttendanceController(
+    c.staffAttendance.pointerPresenceEnseignant,
+    c.staffAttendance.staffAttendanceRepository,
+    new AIActionAuditAdapter(p as any),
+  );
+  app.use('/api/v2/staff-attendance', creerStaffAttendanceRoutes(staffAttendanceController));
 
 
 }

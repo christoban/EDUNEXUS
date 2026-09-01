@@ -37,6 +37,7 @@ import { PrismaBulletinValidationRepository } from '@infrastructure/persistence/
 import { PrismaAssessmentScopeRepository } from '@infrastructure/persistence/prisma/PrismaAssessmentScopeRepository';
 import { PrismaHarmonizedAssessmentSessionRepository } from '@infrastructure/persistence/prisma/PrismaHarmonizedAssessmentSessionRepository';
 import { PrismaAssessmentParticipationRepository } from '@infrastructure/persistence/prisma/PrismaAssessmentParticipationRepository';
+import { PrismaTaskRepository } from '@infrastructure/persistence/prisma/PrismaTaskRepository';
 
 // --- Adapters Audit ---
 import { ActivityLogAdapter } from '@infrastructure/services/audit/ActivityLogAdapter';
@@ -376,11 +377,21 @@ import { PlanifierAssessmentSessionUseCase } from '@application/assessment/Plani
 import { EnregistrerParticipationUseCase } from '@application/assessment/EnregistrerParticipationUseCase';
 import { EnregistrerParticipationEnLotUseCase } from '@application/assessment/EnregistrerParticipationEnLotUseCase';
 
+// --- Use Cases : Tâches ---
+import { CreerTaskUseCase } from '@application/task/CreerTaskUseCase';
+import { ListerTasksUseCase } from '@application/task/ListerTasksUseCase';
+import { MettreAJourStatutTaskUseCase } from '@application/task/MettreAJourStatutTaskUseCase';
+
 // --- Use Cases : LV2 / PEBS ---
 import { AffecterLV2EleveUseCase } from '@application/student/AffecterLV2EleveUseCase';
 import { AffecterLV2EnMasseUseCase } from '@application/student/AffecterLV2EnMasseUseCase';
 import { AffecterPEBSEleveUseCase } from '@application/student/AffecterPEBSEleveUseCase';
 import { AffecterPEBSEnMasseUseCase } from '@application/student/AffecterPEBSEnMasseUseCase';
+
+// --- Use Cases : Staff Attendance (V2.11) ---
+import { PointerPresenceEnseignantUseCase } from '@application/staffAttendance/PointerPresenceEnseignantUseCase';
+import { VerifierPresenceAvantCahierDeTexte } from '@application/staffAttendance/VerifierPresenceAvantCahierDeTexte';
+import { JwtQrTokenService } from '@infrastructure/services/qr/QrTokenService';
 
 // ─────────────────────────────────────────────
 // Factory principale
@@ -432,6 +443,7 @@ export function creerContainer() {
   const assessmentScopeRepository = new PrismaAssessmentScopeRepository(prisma);
   const assessmentSessionRepository = new PrismaHarmonizedAssessmentSessionRepository(prisma);
   const assessmentParticipationRepository = new PrismaAssessmentParticipationRepository(prisma);
+  const taskRepository = new PrismaTaskRepository(prisma);
 
   // 3. Services (adaptateurs réels)
   const emailService = new NodemailerEmailService();
@@ -709,8 +721,25 @@ export function creerContainer() {
   const departmentRepository = new PrismaDepartmentRepository(prisma);
   const listerProgrammeUseCase = new ListerProgrammeUseCase(programmeRepository);
   const gererProgrammeUseCase = new GererProgrammeUseCase(programmeRepository, anneeRepository);
-  const gererChapitreUseCase = new GererChapitreUseCase(chapitreRepository, programmeRepository);
-  const gererCahierUseCase = new GererCahierDeTexteUseCase(cahierDeTexteRepository, anneeRepository, rattachementRepository);
+    const gererChapitreUseCase = new GererChapitreUseCase(chapitreRepository, programmeRepository);
+
+  // V2.11 — Pointage présence enseignants (QR/GPS) + gate cahier de textes
+  const verifierPresenceAvantCahier = new VerifierPresenceAvantCahierDeTexte(
+    staffAttendanceRepository,
+    timetableRepository,
+  );
+  const pointerPresenceEnseignantUseCase = new PointerPresenceEnseignantUseCase(
+    staffAttendanceRepository,
+    timetableRepository,
+    userRepository,
+    new JwtQrTokenService(),
+  );
+  const gererCahierUseCase = new GererCahierDeTexteUseCase(
+    cahierDeTexteRepository,
+    anneeRepository,
+    rattachementRepository,
+    verifierPresenceAvantCahier,
+  );
   const calculerProgressionUseCase = new CalculerProgressionProgrammeUseCase(programmeRepository, cahierDeTexteRepository, classeRepository, anneeRepository);
   const obtenirSlotUseCase = new ObtenirSlotDuJourUseCase(timetableRepository, anneeRepository);
   const genererRapportUseCase = new GenererRapportPedagogieUseCase(cahierDeTexteRepository, departmentRepository, anneeRepository);
@@ -811,6 +840,11 @@ export function creerContainer() {
   const planifierAssessmentSessionUseCase = new PlanifierAssessmentSessionUseCase(assessmentSessionRepository);
   const enregistrerParticipationUseCase = new EnregistrerParticipationUseCase(assessmentParticipationRepository);
   const enregistrerParticipationEnLotUseCase = new EnregistrerParticipationEnLotUseCase(assessmentParticipationRepository);
+
+  // 18bis. Use Cases — Tâches
+  const creerTaskUseCase = new CreerTaskUseCase(taskRepository, userRepository);
+  const listerTasksUseCase = new ListerTasksUseCase(taskRepository);
+  const mettreAJourStatutTaskUseCase = new MettreAJourStatutTaskUseCase(taskRepository);
 
   // 19. Use Cases — LV2 / PEBS (sync StudentGroupMembership)
   const affecterLV2EleveUseCase = new AffecterLV2EleveUseCase(studentAffectationRepository, anneeRepository, studentGroupSetRepository, studentGroupRepository, studentGroupMembershipRepository);
@@ -935,6 +969,11 @@ export function creerContainer() {
       careerEventRepository,
       staffAttendanceRepository,
       missionOrderRepository,
+    },
+    staffAttendance: {
+      pointerPresenceEnseignant: pointerPresenceEnseignantUseCase,
+      verifierPresenceAvantCahier: verifierPresenceAvantCahier,
+      staffAttendanceRepository,
     },
     subject: {
       creer: creerMatiereUseCase,
@@ -1123,6 +1162,11 @@ export function creerContainer() {
       planifierSession: planifierAssessmentSessionUseCase,
       enregistrerParticipation: enregistrerParticipationUseCase,
       enregistrerParticipationEnLot: enregistrerParticipationEnLotUseCase,
+    },
+    task: {
+      creer: creerTaskUseCase,
+      lister: listerTasksUseCase,
+      mettreAJourStatut: mettreAJourStatutTaskUseCase,
     },
     lv2pebs: {
       affecterLV2Eleve: affecterLV2EleveUseCase,

@@ -152,6 +152,7 @@
       "pedagogie": "Pedagogy Management",
       "academic-year": "Academic Year",
       "academic-events": "Academic Events",
+      "tasks": "Administrative tasks",
       "finance": "Mobile Money",
       "ai": "AI School Health",
       "statistics": "Statistics",
@@ -1315,6 +1316,10 @@
     "statusByEmployee": "Status by employee",
     "optionalNote": "Optional note",
     "loadStaffFirst": "Load the staff list first.",
+    "aVerifier": "Attendance to verify (A_VERIFIER)",
+    "noAVerifier": "No attendance to verify.",
+    "requalifyPresent": "Present",
+    "requalifyAbsent": "Absent",
     "generateDoc": "Generate a document",
     "employee": "Employee",
     "choose": "— Choose —",
@@ -1997,5 +2002,38 @@
     "type_attendance": "Attendance",
     "type_grade": "Grades",
     "action_count": "{count} action(s) pending"
+  },
+  "tasks": {
+    "title": "Administrative tasks",
+    "subtitle": "Assign internal tasks to staff — replaces informal WhatsApp exchanges",
+    "newTask": "New task",
+    "retry": "Retry",
+    "emptyTitle": "No tasks",
+    "emptySub": "Create your first administrative task to replace informal WhatsApp exchanges",
+    "assignedTo": "Assigned to:",
+    "due": "Due:",
+    "create": "Create task",
+    "formTitle": "Title",
+    "formDescription": "Description",
+    "formAssignee": "Assignee",
+    "formAssigneePlaceholder": "Choose a staff member",
+    "formDueDate": "Due date",
+    "toastTitleRequired": "Title is required",
+    "toastAssigneeRequired": "Choose an assignee",
+    "toastCreated": "Task created",
+    "toastStatusUpdated": "Status updated",
+    "errorLoad": "Error loading tasks",
+    "status": {
+      "A_FAIRE": "To do",
+      "EN_COURS": "In progress",
+      "TERMINE": "Done",
+      "VALIDE": "Validated"
+    },
+    "actions": {
+      "A_FAIRE": "Mark to do",
+      "EN_COURS": "Move to in progress",
+      "TERMINE": "Mark done",
+      "VALIDE": "Validate"
+    }
   }
 }

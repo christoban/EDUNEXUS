@@ -21,7 +21,6 @@
 
 | # | Manque précis | Faisabilité |
 |---|---|---|
-| V2.11 | Présence enseignants : **aucun QR/GPS/photo** dans le schéma ; pas de gate de présence avant saisie du cahier de textes. | ⚠️ Tech Lead / Humain — hardware dérive, besoin calibration physique |
 | V2.14 | Recensement MINESEC : **~7 feuilles sur 17** couvertes (ajout Students_ESG_Eng, Students_ESTP_Eng, Manuels-Didactics, Themes_Tranversaux en A_AUTO/C_MANUAL). Reste : feuilles doc/réservées (NOTICE, Variables Essentielles…) hors périmètre école. | ✅ Muse Spark |
 | V3.3 | Confirmation utilisateur obligatoire = **2 actions sur ~54** seulement ; le reste s'exécute sans confirmation (undo a posteriori). | ⚠️ Tech Lead — généraliser = décision sécurité transverse |
 | V3.8 | Neon PITR = **6h de rétention** (plan gratuit), très sous le minimum. | ⚠️ Humain — décision infra/coût (changer de plan Neon) |

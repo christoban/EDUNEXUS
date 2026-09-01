@@ -229,6 +229,52 @@ export class PrismaTimetableRepository implements TimetableRepository {
     return { schoolId: slot.timetable.schoolId, classId: slot.timetable.classId, academicYearId: slot.timetable.academicYearId, subjectId: slot.subjectId, groupId: slot.groupId, isLV2Slot: slot.isLV2Slot, isElectiveSlot: slot.isElectiveSlot, subjectName: slot.subject?.name ?? null, restrictedToGroupId: slot.subject?.restrictedToGroupId ?? null };
   }
 
+  async findSlotActuelParSalleEtEnseignant(
+    roomId: string,
+    teacherId: string,
+    schoolId: string,
+    now: Date,
+  ): Promise<{ id: string; dayOfWeek: number; startTime: string; endTime: string; subjectId: string | null; subjectName: string | null; classId: string; className: string | null } | null> {
+    const dayOfWeek = (now.getDay() + 6) % 7; // lundi=0 … dimanche=6
+    const nowHHMM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const slot = await this.prisma.timetableSlot.findFirst({
+      where: {
+        roomId,
+        teacherId,
+        dayOfWeek,
+        kind: 'CLASS',
+        timetable: { schoolId },
+        startTime: { lte: nowHHMM },
+        endTime: { gt: nowHHMM },
+      },
+      select: {
+        id: true,
+        dayOfWeek: true,
+        startTime: true,
+        endTime: true,
+        subjectId: true,
+        subject: { select: { name: true } },
+        timetable: { select: { classId: true, class: { select: { name: true } } } },
+      },
+    });
+    if (!slot) return null;
+    return {
+      id: slot.id,
+      dayOfWeek: slot.dayOfWeek,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      subjectId: slot.subjectId,
+      subjectName: slot.subject?.name ?? null,
+      classId: slot.timetable?.classId ?? '',
+      className: slot.timetable?.class?.name ?? null,
+    };
+  }
+
+    async findRoomIdDeSlot(slotId: string): Promise<string | null> {
+    const slot = await this.prisma.timetableSlot.findUnique({ where: { id: slotId }, select: { roomId: true } });
+    return slot?.roomId ?? null;
+  }
+
   async findElevesClasseAvecProfils(schoolId: string, classId: string): Promise<EleveClasseAvecProfil[]> {
     const eleves = await (this.prisma.user.findMany as any)({ where: { schoolId, role: 'STUDENT', isActive: true, studentProfile: { enrollmentsYearScoped: { some: { classId, status: 'ACTIVE', academicYear: { isCurrent: true } } } } }, select: this.eleveSelect, orderBy: this.eleveOrder });
     return eleves.map(e => ({ id: e.id, firstName: e.firstName, lastName: e.lastName, studentProfileId: e.studentProfile?.id ?? null, lv2SubjectId: e.studentProfile?.lv2SubjectId ?? null, alevelSubjectIds: e.studentProfile?.alevelSubjects.map(a => a.subjectId) ?? [] }));

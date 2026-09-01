@@ -2,6 +2,7 @@ import type { CahierDeTexteRepository, CahierDeTexteProps } from '@domain/ports/
 import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/AnneeAcademiqueRepository';
 import type { RattachementEnseignantRepository } from '@domain/ports/repositories/RattachementEnseignantRepository';
 import { PedagogieForbiddenError, PedagogieValidationError } from './errors';
+import type { VerifierPresenceAvantCahierDeTexte } from '@application/staffAttendance/VerifierPresenceAvantCahierDeTexte';
 
 export interface CreerCahierDeTexteInput {
   schoolId: string;
@@ -33,11 +34,29 @@ export class GererCahierDeTexteUseCase {
     private readonly cahierRepository: CahierDeTexteRepository,
     private readonly anneeRepository: AnneeAcademiqueRepository,
     private readonly rattachementRepository: RattachementEnseignantRepository,
+    private readonly verifierPresence?: VerifierPresenceAvantCahierDeTexte,
   ) {}
 
   async creer(input: CreerCahierDeTexteInput): Promise<CahierDeTexteProps> {
     if (!input.classId || !input.subjectId || (!input.contenuRealise?.trim() && !input.contenuLibre?.trim())) {
       throw new PedagogieValidationError('classId, subjectId et au moins un contenu (contenuRealise ou contenuLibre) sont requis');
+    }
+
+    // V2.11 — Gate présence enseignant (scope TEACHER uniquement) avant saisie du cahier de textes.
+    // Non bloquante : ne bloque que si un mode fiable (QR configuré non scanné) était disponible.
+    if (input.role === 'TEACHER' && this.verifierPresence) {
+      try {
+        await this.verifierPresence.execute({
+          teacherId: input.teacherId,
+          schoolId: input.schoolId,
+          now: input.date ? new Date(input.date) : undefined,
+        });
+      } catch (err) {
+        if (err instanceof Error && err.message.includes('poin')) {
+          throw new PedagogieForbiddenError(err.message);
+        }
+        throw err;
+      }
     }
 
     if (input.role === 'TEACHER') {
