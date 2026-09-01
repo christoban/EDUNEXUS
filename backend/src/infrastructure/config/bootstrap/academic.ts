@@ -80,6 +80,7 @@ export function registerAcademicRoutes(app: Application, prismaParam: typeof pri
     c.school.schoolRepository,
     c.school.sectionRepository,
     c.school.classeRepository,
+    c.reportCard.bulletinValidationRepository,
   );
 
   const inviteOnboardingController = new InviteOnboardingController(

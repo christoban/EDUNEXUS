@@ -222,7 +222,10 @@ model School {
   statisticalSupplement        SchoolStatisticalSupplement?
   minedubSupplement            MinedubSchoolSupplement?
   minedubReports               MinedubStatisticalReport[]
-  studentFollowUpActions       StudentFollowUpAction[]
+   studentFollowUpActions       StudentFollowUpAction[]
+  assessmentScopes             AssessmentScope[]
+  assessmentSessions           HarmonizedAssessmentSession[]
+  assessmentParticipations     AssessmentParticipation[]
 }
 
 model SchoolInvite {
@@ -626,7 +629,9 @@ model User {
   followUpActionsCreated          StudentFollowUpAction[]    @relation("FollowUpCreatedBy")
   followUpActionsAssigned         StudentFollowUpAction[]    @relation("FollowUpAssignedTo")
   followUpActionsClosed           StudentFollowUpAction[]    @relation("FollowUpClosedBy")
-  enrollmentsCreated              Enrollment[]               @relation("EnrollmentBy")
+   enrollmentsCreated              Enrollment[]               @relation("EnrollmentBy")
+  assessmentStudent               AssessmentParticipation[]   @relation("AssessmentStudent")
+  assessmentRecordedBy            AssessmentParticipation[]   @relation("AssessmentRecordedBy")
 
   @@unique([schoolId, email])
   @@unique([schoolId, phone])
@@ -953,7 +958,8 @@ model AcademicYear {
   teachingAssignments  TeachingAssignment[]
   groupMemberships     StudentGroupMembership[]
   classRoomAssignments ClassRoomAssignment[]
-  enrollments          Enrollment[]
+   enrollments          Enrollment[]
+  assessmentScopes     AssessmentScope[]
 
   @@index([schoolId])
 }
@@ -987,7 +993,8 @@ model AcademicSequence {
   isCurrent        Boolean        @default(false)
   academicPeriod   AcademicPeriod @relation(fields: [academicPeriodId], references: [id], onDelete: Cascade)
   school           School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  grades           Grade[]
+   grades           Grade[]
+  assessmentSessions HarmonizedAssessmentSession[]
 
   @@unique([academicPeriodId, orderIndex])
   @@index([schoolId])
@@ -1040,7 +1047,8 @@ model Class {
   cahierDeTexte         CahierDeTexte[]
   studentOnboardings    StudentOnboarding[]
   roomAssignments       ClassRoomAssignment[]
-  enrollments           Enrollment[]
+   enrollments           Enrollment[]
+  assessmentSessions    HarmonizedAssessmentSession[]
 
   @@index([schoolId])
   @@index([deletedAt])
@@ -1078,6 +1086,7 @@ model Subject {
   classSubjectOverrides  ClassSubjectOverride[]
   teacherSubjects        TeacherSubject[]
   timetableSlots         TimetableSlot[]
+  assessmentSessions     HarmonizedAssessmentSession[]
   teachingAssignments    TeachingAssignment[]
   department             Department?             @relation(fields: [departmentId], references: [id])
   programmes             Programme[]
@@ -1239,6 +1248,9 @@ model Grade {
   student              User                  @relation("StudentGrades", fields: [studentId], references: [id])
   subject              Subject               @relation(fields: [subjectId], references: [id])
   validatedBy          User?                 @relation("ValidatedGrades", fields: [validatedById], references: [id])
+  harmonizedAssessmentSessionId String?
+  isAbsentGrade                   Boolean     @default(false)
+  harmonizedAssessmentSession     HarmonizedAssessmentSession? @relation(fields: [harmonizedAssessmentSessionId], references: [id])
 
   @@unique([studentId, subjectId, sequenceId])
   @@index([schoolId, classId, sequenceId])
@@ -1345,6 +1357,65 @@ model Submission {
   school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@unique([examId, studentId])
+}
+
+model AssessmentScope {
+  id              String   @id @default(cuid())
+  schoolId        String
+  academicYearId  String
+  name            String
+  sequenceType    SequenceType
+  subjectIds      String[]
+  classIds        String[]
+  createdAt       DateTime @default(now())
+
+  school          School      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  academicYear    AcademicYear @relation(fields: [academicYearId], references: [id])
+  sessions        HarmonizedAssessmentSession[]
+
+  @@index([schoolId, academicYearId])
+}
+
+model HarmonizedAssessmentSession {
+  id                  String   @id @default(cuid())
+  schoolId            String
+  assessmentScopeId   String
+  subjectId           String
+  classId             String
+  academicSequenceId  String?
+  scheduledDate       DateTime
+  durationMinutes     Int?
+  status              AssessmentSessionStatus @default(PLANNED)
+  createdAt           DateTime @default(now())
+
+  school              School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  assessmentScope     AssessmentScope     @relation(fields: [assessmentScopeId], references: [id])
+  subject             Subject             @relation(fields: [subjectId], references: [id])
+  class               Class               @relation(fields: [classId], references: [id])
+  academicSequence    AcademicSequence?   @relation(fields: [academicSequenceId], references: [id])
+  participations      AssessmentParticipation[]
+  grades              Grade[]
+
+  @@index([schoolId, classId, scheduledDate])
+  @@index([schoolId, subjectId])
+}
+
+model AssessmentParticipation {
+  id                                String   @id @default(cuid())
+  schoolId                          String
+  harmonizedAssessmentSessionId    String
+  studentId                         String
+  status                            AttendanceStatus @default(PRESENT)
+  recordedById                      String?
+  createdAt                         DateTime @default(now())
+
+  school                            School                          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  session                           HarmonizedAssessmentSession    @relation(fields: [harmonizedAssessmentSessionId], references: [id])
+  student                           User                            @relation("AssessmentStudent", fields: [studentId], references: [id])
+  recordedBy                        User?                           @relation("AssessmentRecordedBy", fields: [recordedById], references: [id])
+
+  @@unique([harmonizedAssessmentSessionId, studentId])
+  @@index([schoolId, studentId])
 }
 
 model Timetable {
@@ -2338,6 +2409,13 @@ enum AttendanceStatus {
 enum TimetableStatus {
   DRAFT
   PUBLISHED
+}
+
+enum AssessmentSessionStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
 }
 
 enum SlotKind {

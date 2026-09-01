@@ -29,8 +29,6 @@
 | V3.1 | Cache miroir RBAC **absent** ; dépendance graduée par opération **absente** ; `db.messages` **non purgé** au logout. | ✅ Muse Spark pour `db.messages` (1 ligne) / ⚠️ Tech Lead pour cache RBAC gradué |
 | V3.3 | Confirmation utilisateur obligatoire = **2 actions sur ~54** seulement ; le reste s'exécute sans confirmation (undo a posteriori). | ⚠️ Tech Lead — généraliser = décision sécurité transverse |
 | V3.8 | Neon PITR = **6h de rétention** (plan gratuit), très sous le minimum. | ⚠️ Humain — décision infra/coût (changer de plan Neon) |
-| V3.10 | `seed.ts` ne peuple **aucune donnée réelle** ; scripts `generate-*.mjs` couvrent **1 seule famille de template** sur les 4 demandées. | ✅ Muse Spark — étendre `seed.ts` (1 famille → 4) |
-
 ---
 
 ## C. Fait mais NON TESTÉ (🟡) — prioritaires en couverture

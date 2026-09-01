@@ -10,6 +10,7 @@ import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/Annee
 import type { SchoolRepository } from '@domain/ports/repositories/SchoolRepository';
 import type { SectionRepository } from '@domain/ports/repositories/SectionRepository';
 import type { ClasseRepository } from '@domain/ports/repositories/ClasseRepository';
+import type { BulletinValidationRepository } from '@domain/ports/repositories/BulletinValidationRepository';
 import { resolveLanguage } from '../../../domain/policies/LanguagePolicy';
 
 type AuthUser = { schoolId: string; userId: string; role: string; permissions?: string[] };
@@ -23,11 +24,28 @@ export class BulletinValidationController {
     private readonly schoolRepository: SchoolRepository,
     private readonly sectionRepository: SectionRepository,
     private readonly classeRepository: ClasseRepository,
+    private readonly bulletinValidationRepository: BulletinValidationRepository,
   ) {}
 
   private user(req: Request): AuthUser {
     return req.user as AuthUser;
   }
+
+  // GET /api/v2/bulletin-validations
+  listerHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = this.user(req);
+      const { classId, academicPeriodId, status } = req.query as Record<string, string>;
+      const result = await this.bulletinValidationRepository.listerSessions(user.schoolId, {
+        classId: classId || undefined,
+        academicPeriodId: academicPeriodId || undefined,
+        status: status as any || undefined,
+      });
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  };
 
   // POST /api/v2/bulletin-validations
   soumettreHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {

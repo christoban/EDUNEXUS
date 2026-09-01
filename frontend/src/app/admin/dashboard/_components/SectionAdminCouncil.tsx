@@ -57,7 +57,6 @@ export default function SectionAdminCouncil({ onToast }: Props) {
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [error, setError]                 = useState<string | null>(null)
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>('all')
-  const [publishing, setPublishing]       = useState(false)
 
   const fetchSessions = useCallback(async () => {
     try {
@@ -92,24 +91,6 @@ export default function SectionAdminCouncil({ onToast }: Props) {
     } catch (err) {
       onToast(err instanceof Error ? err.message : 'Erreur de chargement', 'error')
     } finally { setLoadingDetail(false) }
-  }
-
-  const publishBulletins = async (sessionId: string) => {
-    setPublishing(true)
-    try {
-      const res = await fetchApi(`/api/v2/class-councils/${sessionId}/publish-bulletins`, {
-        method: 'POST', credentials: 'include',
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.message || 'Erreur')
-      onToast(data.count > 0
-        ? `${data.count} bulletin${data.count > 1 ? 's' : ''} publié${data.count > 1 ? 's' : ''} — SMS envoyés aux parents`
-        : 'Aucun bulletin généré à publier pour cette classe',
-        data.count > 0 ? 'success' : 'info')
-      fetchSessions()
-    } catch (err) {
-      onToast(err instanceof Error ? err.message : 'Erreur de publication', 'error')
-    } finally { setPublishing(false) }
   }
 
   // Derive unique periods from all sessions (not filtered)
@@ -232,9 +213,6 @@ export default function SectionAdminCouncil({ onToast }: Props) {
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                       {selected.status === 'LOCKED' && (
                         <>
-                          <button className={detailBtnPrimCls} style={{ ...btnPrim, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => publishBulletins(selected.id)} disabled={publishing}>
-                            {publishing ? <><Loader2 size={14} className="animate-spin" /> Publication…</> : <><Upload size={14} /> Publier les bulletins</>}
-                          </button>
                           <button className={detailBtnSecSmCls} style={{ ...btnSec, display: 'inline-flex', alignItems: 'center', gap: 6 }}
                             onClick={() => window.open(`/api/v2/class-councils/${selected.id}/pv`, '_blank')}
                             title="Procès-Verbal officiel de la délibération">
@@ -358,10 +336,8 @@ export default function SectionAdminCouncil({ onToast }: Props) {
 
 const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }
 const sSub: React.CSSProperties = { color: 'var(--text3)', marginTop: 3 }
-const detailBtnPrimCls = 'px-[10px] py-[6px] md:px-[16px] md:py-[8px] text-[12px] md:text-[15px] rounded-[8px] md:rounded-[10px]'
 const detailBtnSecCls = 'px-[10px] py-[6px] md:px-[14px] md:py-[8px] text-[12px] md:text-[15px] rounded-[8px] md:rounded-[10px]'
 const detailBtnSecSmCls = 'px-[10px] py-[6px] md:px-[14px] md:py-[8px] text-[12px] md:text-[14px] rounded-[8px] md:rounded-[10px]'
-const btnPrim: React.CSSProperties = { background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 800 }
 const btnSec: React.CSSProperties = { background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 800 }
 const btnRetry: React.CSSProperties = { padding: '6px 14px', borderRadius: 8, background: 'var(--surface)', color: 'var(--red)', border: '1.5px solid rgba(220,38,38,0.3)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }
 const thSt: React.CSSProperties = { padding: '11px 16px', textAlign: 'left', fontSize: 13, fontWeight: 800, color: 'var(--text3)', background: 'var(--bg2)', borderBottom: '1px solid var(--border)', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }

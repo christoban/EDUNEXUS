@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { addPendingAction, getPendingActions, countPendingActions, deletePendingAction, updatePendingActionStatus, setConflictData, updateCachedMessageStatus } from '@/lib/offline/db'
+import { OPERATION_RISK_LEVEL, OfflineActionRefusedError } from '@/lib/offline/actionRegistry'
 import { useOnlineStatus } from './useOnlineStatus'
 import { fetchApi } from '@/lib/fetchApi'
 
@@ -18,6 +19,9 @@ export function useSyncQueue() {
 
   const addToQueue = useCallback(
     async (action: Omit<Parameters<typeof addPendingAction>[0], 'status'>) => {
+      if (OPERATION_RISK_LEVEL[action.type] === 'FORT') {
+        throw new OfflineActionRefusedError(action.type)
+      }
       await addPendingAction(action)
       await updateCount()
     },

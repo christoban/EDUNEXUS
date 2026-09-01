@@ -14,6 +14,7 @@ type AggregateInput = {
   scoreOn20: number;
   percentage: number;
   coefficient?: number;
+  isAbsentGrade?: boolean;
 };
 
 export const clamp = (value: number, min: number, max: number) =>
@@ -75,23 +76,29 @@ export const formatGradeLabel = (scoreOn20: number, gradingScale: GradingScale) 
 
 export const calculateAverageScoreOn20 = (
   grades: AggregateInput[],
-  hasCoefficientBySubject: boolean
+  hasCoefficientBySubject: boolean,
+  excludeAbsentGrades: boolean = false,
 ) => {
-  if (!grades.length) return 0;
+  // Filtrer les notes d'absents si demandé (croisement Grade/Attendance)
+  const filteredGrades = excludeAbsentGrades
+    ? grades.filter((g) => !g.isAbsentGrade)
+    : grades;
+
+  if (!filteredGrades.length) return 0;
 
   if (!hasCoefficientBySubject) {
-    const simpleAverage = grades.reduce((sum, grade) => sum + Number(grade.scoreOn20 || 0), 0) / grades.length;
+    const simpleAverage = filteredGrades.reduce((sum, grade) => sum + Number(grade.scoreOn20 || 0), 0) / filteredGrades.length;
     return Number(clamp(simpleAverage, 0, 20).toFixed(2));
   }
 
   // `?? 1` et non `|| 1` : un coefficient explicitement à 0 (matière exclue du calcul) doit
   // rester 0, pas être silencieusement remplacé par 1 — seul un coefficient absent
   // (null/undefined) doit retomber sur la valeur par défaut 1.
-  const weightedTotal = grades.reduce(
+  const weightedTotal = filteredGrades.reduce(
     (sum, grade) => sum + Number(grade.scoreOn20 || 0) * Number(grade.coefficient ?? 1),
     0
   );
-  const coefficientTotal = grades.reduce((sum, grade) => sum + Number(grade.coefficient ?? 1), 0) || 1;
+  const coefficientTotal = filteredGrades.reduce((sum, grade) => sum + Number(grade.coefficient ?? 1), 0) || 1;
   return Number(clamp(weightedTotal / coefficientTotal, 0, 20).toFixed(2));
 };
 

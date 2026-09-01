@@ -56,6 +56,8 @@ export function creerUserRoutes(controller: UserController): Router {
   router.post('/auth/invite/complete', controller.completeInvite);
 
   // Gestion utilisateurs
+  // GET /api/v2/users/my-class — classe du professeur principal connecté
+  router.get('/my-class', requireAuth, controller.myClass);
   router.post('/', requireAuth, requireRole('ADMIN'), controller.register);
   router.put('/:id', requireAuth, controller.update);
   // Ré-authentification complète obligatoire (§1.5) — suppression d'un compte élève/parent/

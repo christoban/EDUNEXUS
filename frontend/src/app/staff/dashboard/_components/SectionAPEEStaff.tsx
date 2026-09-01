@@ -4,6 +4,7 @@ import { HandCoins, Upload, CheckCircle2, Download, Loader2, WifiOff } from 'luc
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
 import { useSyncQueue } from '@/hooks/useSyncQueue'
+import { OfflineActionRefusedError } from '@/lib/offline/actionRegistry'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -82,9 +83,13 @@ export default function SectionAPEEStaff({ onToast }: Props) {
     const payload = { type: form.type, montant, categorie: form.categorie.trim() || undefined, description: form.description.trim() || undefined }
 
     if (!isOnline) {
-      await addToQueue({ type: 'APEE_TRANSACTION', endpoint: '/api/v2/apee/transactions', method: 'POST', payload })
-      onToast(t('apee.toast.createQueued'), 'success')
-      setForm(EMPTY_FORM)
+      try {
+        await addToQueue({ type: 'APEE_TRANSACTION', endpoint: '/api/v2/apee/transactions', method: 'POST', payload })
+        onToast(t('apee.toast.createQueued'), 'success')
+        setForm(EMPTY_FORM)
+      } catch (err) {
+        onToast(err instanceof OfflineActionRefusedError ? err.message : (err instanceof Error ? err.message : t('apee.toast.createError')), 'error')
+      }
       return
     }
 

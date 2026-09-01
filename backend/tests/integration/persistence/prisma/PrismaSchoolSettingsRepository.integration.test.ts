@@ -34,7 +34,7 @@ describe('PrismaSchoolSettingsRepository — round-trip sauvegarder()/getParamet
     expect(settings.schoolLanguageMode).toBe('francophone');
     expect(settings.passMark).toBe(10);
     expect(settings.councilPassMark).toBe(10);
-    expect(settings.attendanceLateAsAbsence).toBe(false);
+    expect(settings.attendanceLateAsAbsence).toBe(true);
     expect(settings.bulletinBlockOnUnpaidFees).toBe(false);
   });
 

@@ -9,6 +9,7 @@ import { sensitiveWriteLimiter } from '../middlewares/rateLimit.ts';
 export function creerBulletinValidationRoutes(controller: BulletinValidationController): Router {
   const router = Router();
 
+  router.get('/', requireAuth, controller.listerHandler);
   router.post('/', sensitiveWriteLimiter, requireAuth, controller.soumettreHandler);
   router.post('/:id/validate', sensitiveWriteLimiter, requireAuth, controller.validerHandler);
   router.post('/:id/publish', sensitiveWriteLimiter, requireAuth, controller.publierHandler);

@@ -70,7 +70,8 @@ export function defaultsConfigLocalePourTemplate(meta: {
     passMark,
     councilPassMark: 10,
     maxAbsences: 10,
-    attendanceLateAsAbsence: false,
+    // true = un retard compte comme une absence pour le calcul de décision du conseil de classe
+    attendanceLateAsAbsence: true,
     legalMaxContributionFirstCycle: 7500,
     legalMaxContributionSecondCycle: 10000,
     bulletinBlockOnUnpaidFees: false,

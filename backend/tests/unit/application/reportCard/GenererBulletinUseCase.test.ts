@@ -168,6 +168,7 @@ function creerNoteVerrouillee(): Note {
     maxValue: 20,
     sequenceAverage: 14,
     validationStatus: 'LOCKED',
+    isAbsentGrade: false,
     isOfflineSync: false,
     createdAt: new Date(),
   });

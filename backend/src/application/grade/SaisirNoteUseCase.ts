@@ -8,6 +8,7 @@ import type { NoteRepository } from '@domain/ports/repositories/NoteRepository';
 import type { MatiereRepository } from '@domain/ports/repositories/MatiereRepository';
 import type { UserRepository } from '@domain/ports/repositories/UserRepository';
 import type { RattachementEnseignantRepository } from '@domain/ports/repositories/RattachementEnseignantRepository';
+import type { AssessmentParticipationRepository } from '@domain/ports/repositories/AssessmentParticipationRepository';
 
 export interface SaisirNoteCommande {
   schoolId: string;
@@ -30,6 +31,7 @@ export interface SaisirNoteCommande {
 
   coefficient?: number;
   maxValue?: number;
+  harmonizedAssessmentSessionId?: string;
 }
 
 export interface SaisirNoteResultat {
@@ -44,6 +46,7 @@ export class SaisirNoteUseCase {
     private readonly matiereRepository: MatiereRepository,
     private readonly userRepository: UserRepository,
     private readonly rattachementRepository: RattachementEnseignantRepository,
+    private readonly participationRepository?: AssessmentParticipationRepository,
   ) {}
 
   async execute(commande: SaisirNoteCommande): Promise<SaisirNoteResultat> {
@@ -95,13 +98,30 @@ export class SaisirNoteUseCase {
       );
     }
 
-    // 4. Coefficient : reflète la valeur en vigueur au moment de la saisie — ne sera plus jamais
+    // 4. Croisement Grade/Attendance : si un harmonizedAssessmentSessionId est fourni,
+    // vérifier le statut de participation de l'élève. Si ABSENT (non justifié), marquer
+    // la note comme isAbsentGrade pour qu'elle soit exclue du calcul de moyenne.
+    let isAbsentGrade = false;
+    let harmonizedAssessmentSessionId: string | undefined;
+    if (commande.harmonizedAssessmentSessionId && this.participationRepository) {
+      harmonizedAssessmentSessionId = commande.harmonizedAssessmentSessionId;
+      const participation = await this.participationRepository.findBySessionAndStudent(
+        commande.schoolId,
+        commande.harmonizedAssessmentSessionId,
+        commande.studentId,
+      );
+      if (participation && participation.status === 'ABSENT') {
+        isAbsentGrade = true;
+      }
+    }
+
+    // 5. Coefficient : reflète la valeur en vigueur au moment de la saisie — ne sera plus jamais
     // recalculé une fois la note LOCKED (Loi 6, verrouillage total). Un override
     // explicite (ex. saisi via l'assistant IA) reste prioritaire sur celui de la matière.
     const matiere = await this.matiereRepository.findById(commande.subjectId);
     const coefficient = commande.coefficient ?? matiere?.coefficient ?? 1;
 
-    // 5. Créer la note (la validation des bornes est dans l'entité)
+    // 6. Créer la note (la validation des bornes est dans l'entité)
     const note = Note.create({
       schoolId: commande.schoolId,
       studentId: commande.studentId,
@@ -120,9 +140,11 @@ export class SaisirNoteUseCase {
       selfDevelopmentScore: commande.selfDevelopmentScore,
       coefficient,
       maxValue: commande.maxValue,
+      harmonizedAssessmentSessionId,
+      isAbsentGrade,
     });
 
-    // 6. Sauvegarder
+    // 7. Sauvegarder
     await this.noteRepository.save(note);
 
     return {

@@ -93,6 +93,7 @@ export default function AdminSidebar({ current, onChange, schoolName, logoUrl, b
         { id: 'bulletins',  icon: ScrollText, label: tnav('sidebar.bulletins') },
         { id: 'timetable',  icon: Calendar, label: tnav('sidebar.timetable') },
         { id: 'council',    icon: GraduationCap, label: tnav('sidebar.council') },
+        { id: 'bulletin-validation', icon: ClipboardCheck, label: tnav('sidebar.bulletinValidation') },
         { id: 'pedagogie',  icon: NotebookPen, label: tnav('sidebar.pedagogie') },
         { id: 'rh',         icon: Briefcase, label: tnav('sidebar.rh') },
       ]

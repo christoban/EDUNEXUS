@@ -16,6 +16,9 @@ import { PrismaSchoolRepository } from "../../persistence/prisma/PrismaSchoolRep
 import { PrismaStaffProfileRepository } from "../../persistence/prisma/PrismaStaffProfileRepository";
 import { PrismaUserRepository } from "../../persistence/prisma/PrismaUserRepository";
 import { PrismaExamRepository } from "../../persistence/prisma/PrismaExamRepository";
+import { PrismaAssessmentScopeRepository } from "../../persistence/prisma/PrismaAssessmentScopeRepository";
+import { PrismaHarmonizedAssessmentSessionRepository } from "../../persistence/prisma/PrismaHarmonizedAssessmentSessionRepository";
+import { HarmonizedAssessmentSession } from '@domain/entities/HarmonizedAssessmentSession';
 import { VerifierEvenementsAcademiquesUseCase } from "@application/academicEvent/VerifierEvenementsAcademiquesUseCase";
 import { VerifierOrientationCheckpointsUseCase } from "@application/orientation/VerifierOrientationCheckpointsUseCase";
 import { DetecterPatternSuspicieuxUseCase } from "@application/ai/DetecterPatternSuspicieuxUseCase";
@@ -153,5 +156,58 @@ export const handleTimetableSeancesAppliquees = inngest.createFunction(
     });
 
     return { timetableId, nbSeances: (seances ?? []).length };
+  }
+);
+
+export const handleAssessmentScheduled = inngest.createFunction(
+  { id: "Handle-Assessment-Scheduled", triggers: [{ event: "assessment/scheduled" }] },
+  async ({ event, step }) => {
+    const { schoolId, examId, classId, subjectId, timetableId } = event.data as {
+      schoolId: string;
+      examId: string;
+      classId: string;
+      subjectId: string;
+      timetableId: string;
+    };
+
+    await step.run("create-assessment-session", async () => {
+      const scopeRepo = new PrismaAssessmentScopeRepository(prisma);
+      const sessionRepo = new PrismaHarmonizedAssessmentSessionRepository(prisma);
+
+      // Chercher un scope existant pour ce couple subjectId/classId/academicYearId
+      const examRepo = new PrismaExamRepository(prisma);
+      const exam = await examRepo.findById(examId);
+      if (!exam) {
+        console.log(`[Handle-Assessment-Scheduled] Exam ${examId} introuvable — skip`);
+        return;
+      }
+
+      const scopes = await scopeRepo.findBySchoolAndYear(schoolId, exam.academicYearId);
+      const matchingScope = scopes.find(
+        (s) => s.subjectIds.includes(subjectId) && s.classIds.includes(classId),
+      );
+
+      if (!matchingScope) {
+        console.log(
+          `[Handle-Assessment-Scheduled] Aucun AssessmentScope pour subjectId=${subjectId}, classId=${classId}, yearId=${exam.academicYearId} — skip`,
+        );
+        return;
+      }
+
+      // Créer la session d'évaluation harmonisée
+      const session = HarmonizedAssessmentSession.create({
+        schoolId,
+        assessmentScopeId: matchingScope.id,
+        subjectId,
+        classId,
+        scheduledDate: exam.scheduledAt ?? new Date(),
+        durationMinutes: exam.duration,
+        status: 'PLANNED',
+      });
+
+      await sessionRepo.save(session);
+    });
+
+    return { examId, subjectId, classId };
   }
 );

@@ -67,4 +67,27 @@ describe("gradingEngine", () => {
     ];
     expect(calculateAverageScoreOn20(coefficientAbsent, true)).toBe(12);
   });
+
+  // Croisement Grade/Attendance : un 7/20 d'un absent n'est plus traité comme un 7/20 d'un présent
+  test("calculateAverageScoreOn20 excludes absent grades when excludeAbsentGrades is true", () => {
+    // 2 matières : Maths = 7/20 (élève présent), Français = 14/20 (élève absent)
+    const grades = [
+      { scoreOn20: 7, percentage: 35, coefficient: 2, isAbsentGrade: false },
+      { scoreOn20: 14, percentage: 70, coefficient: 1, isAbsentGrade: true },
+    ];
+
+    // Sans exclusion : moyenne pondérée = (7*2 + 14*1) / (2+1) = 28/3 = 9.33
+    expect(calculateAverageScoreOn20(grades, true)).toBe(9.33);
+
+    // Avec exclusion : seule la note de Maths compte (7/20)
+    expect(calculateAverageScoreOn20(grades, true, true)).toBe(7);
+  });
+
+  test("calculateAverageScoreOn20 returns 0 when all grades are absent and exclusion is on", () => {
+    const grades = [
+      { scoreOn20: 7, percentage: 35, coefficient: 2, isAbsentGrade: true },
+      { scoreOn20: 14, percentage: 70, coefficient: 1, isAbsentGrade: true },
+    ];
+    expect(calculateAverageScoreOn20(grades, true, true)).toBe(0);
+  });
 });

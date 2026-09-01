@@ -23,6 +23,8 @@ export interface BulletinValidationSessionData {
 }
 
 export interface BulletinValidationRepository {
+  listerSessions(schoolId: string, filters?: { classId?: string; academicPeriodId?: string; status?: BulletinValidationStatus }): Promise<BulletinValidationSessionData[]>;
+
   sessionExistante(classId: string, academicPeriodId: string): Promise<BulletinValidationSessionData | null>;
 
   creerSession(data: {

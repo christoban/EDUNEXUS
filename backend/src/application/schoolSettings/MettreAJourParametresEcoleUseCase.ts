@@ -5,7 +5,7 @@
  * - Tous les champs sont réellement persistés en DB (fix du bug)
  * - gradesPerTerm : 2 par défaut (corrigé depuis 3)
  * - councilPassMark : 10/20 (corrigé depuis 50%)
- * - attendanceLateAsAbsence : false par défaut (retard ≠ absence)
+ * - attendanceLateAsAbsence : true par défaut (retard = absence pour le conseil de classe)
  * - Validation MINESEC : cycles, languageMode, seuils légaux
  */
 import type { SchoolSettingsRepository } from '@domain/ports/repositories/SchoolSettingsRepository';

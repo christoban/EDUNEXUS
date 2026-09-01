@@ -83,7 +83,7 @@ export interface NoteRepository {
   verrouillerNotesValidees(studentId: string, classId: string, academicPeriodId: string): Promise<void>;
 
   // Classe — liste élèves avec moyennes
-  findValideesParClasseEtEleves(schoolId: string, classId: string, studentIds: string[]): Promise<Array<{ studentId: string; sequenceAverage: number | null; coefficient: number }>>;
+  findValideesParClasseEtEleves(schoolId: string, classId: string, studentIds: string[]): Promise<Array<{ studentId: string; sequenceAverage: number | null; coefficient: number; isAbsentGrade: boolean }>>;
 
   // Inngest — génération bulletins
   findForBulletin(params: { schoolId: string; studentId: string; academicYearId: string; classId: string; sequenceIds: string[] }): Promise<Note[]>;

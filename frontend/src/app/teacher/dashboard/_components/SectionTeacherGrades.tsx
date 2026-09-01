@@ -6,6 +6,7 @@ import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
 import { useSyncQueue } from '@/hooks/useSyncQueue'
 import { getCachedData, putCachedData, deleteCachedData } from '@/lib/offline/db'
+import { OfflineActionRefusedError } from '@/lib/offline/actionRegistry'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void
@@ -232,50 +233,22 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
       studentId, value, observation: observations[studentId] || '',
     }))
 
-    if (!isOnline) {
-      const baseUpdatedAtMap: Record<string, string | null> = {}
-      for (const g of gradesPayload) {
-        const cached = await getCachedData<any[]>(`teacher:grades:${selectedClass}:${selectedSubject}:${selectedSequence}`)
-        const existing = cached?.data?.find((gg: any) => gg.studentId === g.studentId)
-        baseUpdatedAtMap[g.studentId] = existing?.updatedAt ?? null
-      }
-      // 1. Met en file d'attente la SAUVEGARDE RÉELLE des valeurs (voir CORRECTION A) — sans cette
-      // étape, l'action de soumission ci-dessous ne trouverait aucune ligne à soumettre au retour
-      // réseau. L'ordre createdAt garanti par syncQueue() assure que cette action est rejouée AVANT
-      // la soumission ci-dessous.
-      await addToQueue({
-        type: 'GRADE_DRAFT_SAVE',
-        endpoint: '/api/v2/grades/draft',
-        method: 'POST',
-        payload: { classId: selectedClass, subjectId: selectedSubject, sequenceId: selectedSequence, grades: gradesPayload },
-      })
-      // 2. Met en file d'attente la soumission — le payload inclut désormais `value`/`observation`
-      // en plus de `baseUpdatedAt`, UNIQUEMENT pour permettre l'affichage des deux versions en cas
-      // de conflit (CORRECTION C ci-dessous) — l'écriture réelle de la valeur se fait par l'action
-      // ci-dessus, pas par celle-ci.
-      await addToQueue({
-        type: 'GRADE',
-        endpoint: '/api/v2/grades/submit',
-        method: 'POST',
-        payload: {
-          classId: selectedClass,
-          subjectId: selectedSubject,
-          sequenceId: selectedSequence,
-          grades: gradesPayload.map(g => ({
-            studentId: g.studentId,
-            baseUpdatedAt: baseUpdatedAtMap[g.studentId],
-            value: g.value,
-            observation: g.observation,
-          })),
-        },
-      })
-      await deleteCachedData(draftKey)
-      onToast(t('grades_section.toast_submit_queued'), 'warning')
-      return
-    }
-
+    // Le verrouillage (DRAFT→LOCKED) est irréversible — la garde vient du registre
+    // (GRADE = FORT → addToQueue lève OfflineActionRefusedError hors-ligne), plus du composant.
+    // Le brouillon reste sauvegardé localement via saveDraft().
     setSaving(true)
     try {
+      if (!isOnline) {
+        await addToQueue({
+          type: 'GRADE',
+          endpoint: '/api/v2/grades/bulk-lock',
+          method: 'POST',
+          payload: { classId: selectedClass, sequenceId: selectedSequence },
+        })
+        onToast(t('grades_section.toast_submit_queued'), 'warning')
+        return
+      }
+
       const draftRes = await fetchApi('/api/v2/grades/draft', {
         method: 'POST',
         credentials: 'include',
@@ -287,21 +260,21 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
         return
       }
 
-      const res = await fetchApi('/api/v2/grades/submit', {
+      const res = await fetchApi('/api/v2/grades/bulk-lock', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ classId: selectedClass, subjectId: selectedSubject, sequenceId: selectedSequence }),
+        body: JSON.stringify({ classId: selectedClass, sequenceId: selectedSequence }),
       }).then(r => r.json())
       if (res.success) {
-        onToast(t('grades_section.toast_submitted').replace('{count}', String(res.data?.count ?? '?')), 'success')
+        onToast(res.data?.message || t('grades_section.toast_submitted').replace('{count}', String(res.data?.notesVerrouillees ?? '?')), 'success')
         await deleteCachedData(draftKey)
         loadGrades()
       } else {
         onToast(res.message || t('grades_section.toast_error'), 'error')
       }
-    } catch (err: any) {
-      onToast(err.message, 'error')
+    } catch (err: unknown) {
+      onToast(err instanceof OfflineActionRefusedError ? err.message : (err instanceof Error ? err.message : t('grades_section.toast_error')), 'error')
     } finally {
       setSaving(false)
     }
@@ -591,8 +564,8 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
                       {saving ? <Loader2 size={14} strokeWidth={2} className="animate-spin" /> : <Save size={14} strokeWidth={2} />}
                       {saving ? '...' : t('grades_section.draft_save')}
                     </button>
-                    <button style={{ ...btnPrim, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={submitGrades} disabled={saving}>
-                      {saving ? <Loader2 size={14} strokeWidth={2} className="animate-spin" /> : isOnline ? <Upload size={14} strokeWidth={2} /> : <WifiOff size={14} strokeWidth={2} />}
+                    <button style={{ ...btnPrim, display: 'inline-flex', alignItems: 'center', gap: 6, opacity: !isOnline ? 0.5 : 1, cursor: !isOnline ? 'not-allowed' : 'pointer' }} onClick={submitGrades} disabled={saving || !isOnline}>
+                      {!isOnline ? <WifiOff size={14} strokeWidth={2} /> : <Upload size={14} strokeWidth={2} />}
                       {saving ? '...' : isOnline ? t('grades_section.submit_online') : t('grades_section.submit_offline')}
                     </button>
                   </>

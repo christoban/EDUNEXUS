@@ -39,6 +39,9 @@ export interface NoteProps {
   rejectionReason?: string;
   observation?: string;
 
+  harmonizedAssessmentSessionId?: string | null;
+  isAbsentGrade: boolean;
+
   isOfflineSync: boolean;
   syncedAt?: Date;
   createdAt: Date;
@@ -63,6 +66,8 @@ export interface CreerNoteProps {
   professionalAttitude?: number;
   oralScore?: number;
   selfDevelopmentScore?: number;
+  harmonizedAssessmentSessionId?: string | null;
+  isAbsentGrade?: boolean;
 }
 
 export class Note {
@@ -80,6 +85,7 @@ export class Note {
       maxValue: props.maxValue ?? 20,
       sequenceAverage: props.sequenceAverage ?? props.sequenceScore,
       validationStatus: 'DRAFT',
+      isAbsentGrade: props.isAbsentGrade ?? false,
       isOfflineSync: false,
       createdAt: new Date(),
     });
@@ -103,6 +109,8 @@ export class Note {
   get maxValue(): number { return this.props.maxValue; }
   get rejectionReason(): string | undefined { return this.props.rejectionReason; }
   get isOfflineSync(): boolean { return this.props.isOfflineSync; }
+  get isAbsentGrade(): boolean { return this.props.isAbsentGrade; }
+  get harmonizedAssessmentSessionId(): string | null | undefined { return this.props.harmonizedAssessmentSessionId; }
 
   // --- Workflow de validation ---
 

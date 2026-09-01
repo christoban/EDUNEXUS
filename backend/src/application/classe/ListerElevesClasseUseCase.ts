@@ -42,7 +42,7 @@ export class ListerElevesClasseUseCase {
       this.presenceRepository.findByClasseEtEleves(cmd.classId, studentIds),
     ]);
 
-    const gradesByStudent = new Map<string, { sequenceAverage: number | null; coefficient: number }[]>();
+    const gradesByStudent = new Map<string, { sequenceAverage: number | null; coefficient: number; isAbsentGrade: boolean }[]>();
     for (const g of grades) {
       if (!gradesByStudent.has(g.studentId)) gradesByStudent.set(g.studentId, []);
       gradesByStudent.get(g.studentId)!.push(g);
@@ -58,7 +58,8 @@ export class ListerElevesClasseUseCase {
       const sg = gradesByStudent.get(s.id) ?? [];
       const moyenne = sg.length > 0
         ? calculateAverageScoreOn20(
-            sg.map(g => ({ scoreOn20: g.sequenceAverage ?? 0, percentage: 0, coefficient: g.coefficient ?? 1 })),
+            sg.map(g => ({ scoreOn20: g.sequenceAverage ?? 0, percentage: 0, coefficient: g.coefficient ?? 1, isAbsentGrade: g.isAbsentGrade })),
+            true,
             true,
           )
         : null;

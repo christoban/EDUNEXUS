@@ -164,14 +164,15 @@ export function buildTeacherActionCatalog(deps: TeacherActionDeps): ActionDefini
         const sequence = await resolveCurrentSequence(ctx);
         const grades = await ctx.prisma.grade.findMany({
           where: { schoolId: ctx.schoolId, classId: classe.id, subjectId: subject.id, sequenceId: sequence.id, sequenceAverage: { not: null } },
-          select: { sequenceAverage: true },
+          select: { sequenceAverage: true, isAbsentGrade: true },
         });
         if (grades.length === 0) {
           return { resultLabel: `Aucune note calculée pour ${subject.name} en ${classe.name} (séquence ${sequence.name}).`, section: 'grades' };
         }
         const moyenne = calculateAverageScoreOn20(
-          grades.map((g) => ({ scoreOn20: g.sequenceAverage ?? 0, percentage: 0, coefficient: 1 })),
+          grades.map((g) => ({ scoreOn20: g.sequenceAverage ?? 0, percentage: 0, coefficient: 1, isAbsentGrade: g.isAbsentGrade })),
           false,
+          true,
         );
         return {
           resultLabel: `Moyenne de ${classe.name} en ${subject.name} (séquence ${sequence.name}) : ${moyenne}/20 (${grades.length} note(s)).`,

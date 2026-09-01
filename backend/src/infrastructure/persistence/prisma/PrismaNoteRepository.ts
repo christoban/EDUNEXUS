@@ -81,6 +81,7 @@ export class PrismaNoteRepository implements NoteRepository {
         classId,
         sequenceId,
         validationStatus: 'LOCKED',
+        isAbsentGrade: false,
       },
       _avg: { sequenceAverage: true },
       orderBy: { _avg: { sequenceAverage: 'desc' } },
@@ -261,11 +262,11 @@ export class PrismaNoteRepository implements NoteRepository {
     return data.map(d => this.toDomain(d));
   }
 
-  async findValideesParClasseEtEleves(schoolId: string, classId: string, studentIds: string[]): Promise<Array<{ studentId: string; sequenceAverage: number | null; coefficient: number }>> {
+  async findValideesParClasseEtEleves(schoolId: string, classId: string, studentIds: string[]): Promise<Array<{ studentId: string; sequenceAverage: number | null; coefficient: number; isAbsentGrade: boolean }>> {
     if (studentIds.length === 0) return [];
     const data = await this.prisma.grade.findMany({
       where: { schoolId, classId, studentId: { in: studentIds }, validationStatus: 'LOCKED' },
-      select: { studentId: true, sequenceAverage: true, coefficient: true },
+      select: { studentId: true, sequenceAverage: true, coefficient: true, isAbsentGrade: true },
     });
     return data;
   }
@@ -298,6 +299,7 @@ export class PrismaNoteRepository implements NoteRepository {
         classId: params.classId,
         academicYearId: params.academicYearId,
         sequenceId: { in: params.sequenceIds },
+        isAbsentGrade: false,
       },
       _avg: { sequenceAverage: true },
       orderBy: { _avg: { sequenceAverage: 'desc' } },
@@ -343,6 +345,8 @@ export class PrismaNoteRepository implements NoteRepository {
       validatedAt: data.validatedAt ?? undefined,
       rejectionReason: data.rejectionReason ?? undefined,
       isOfflineSync: data.isOfflineSync,
+      isAbsentGrade: data.isAbsentGrade ?? false,
+      harmonizedAssessmentSessionId: data.harmonizedAssessmentSessionId ?? undefined,
       syncedAt: data.syncedAt ?? undefined,
       createdAt: data.createdAt,
     });

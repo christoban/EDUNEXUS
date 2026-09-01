@@ -128,7 +128,9 @@ export class GenererBulletinUseCase {
             scoreOn20: n.sequenceAverage!,
             percentage: n.sequenceAverage! * 5,
             coefficient: n.coefficient,
+            isAbsentGrade: n.isAbsentGrade,
           })),
+        true,
         true,
       );
       const moyenne = Number.isNaN(moyenneBrute) ? 0 : moyenneBrute === 0 ? 0 : moyenneBrute;

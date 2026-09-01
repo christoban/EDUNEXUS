@@ -56,7 +56,7 @@ export function buildStudentActionCatalog(): ActionDefinition[] {
         const sequence = await resolveCurrentSequence(ctx);
         const grades = await ctx.prisma.grade.findMany({
           where: { schoolId: ctx.schoolId, studentId: ctx.userId, sequenceId: sequence.id, sequenceAverage: { not: null } },
-          select: { sequenceAverage: true, coefficient: true },
+          select: { sequenceAverage: true, coefficient: true, isAbsentGrade: true },
         });
         if (grades.length === 0) {
           return { resultLabel: `Aucune note calculée pour la séquence ${sequence.name} pour le moment.`, section: 'grades' };
@@ -68,7 +68,9 @@ export function buildStudentActionCatalog(): ActionDefinition[] {
                   scoreOn20: g.sequenceAverage as number,
                   percentage: (g.sequenceAverage as number) * 5,
                   coefficient: g.coefficient,
+                  isAbsentGrade: g.isAbsentGrade,
                 })),
+                true,
                 true,
               )
             : null;

@@ -20,4 +20,12 @@ export class PrismaExamRepository implements ExamRepository {
     });
     return exams as ExamUpcoming[];
   }
+
+  async findById(id: string): Promise<{ id: string; academicYearId: string; scheduledAt: Date | null; duration: number | null } | null> {
+    const exam = await this.prisma.exam.findUnique({
+      where: { id },
+      select: { id: true, academicYearId: true, scheduledAt: true, duration: true },
+    });
+    return exam;
+  }
 }

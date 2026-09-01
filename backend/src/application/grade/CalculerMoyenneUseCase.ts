@@ -52,8 +52,10 @@ export class CalculerMoyenneUseCase {
           scoreOn20,
           percentage: scoreOn20 * 5,
           coefficient: g.coefficient ?? subjectCoefficients.get(g.subjectId) ?? 1,
+          isAbsentGrade: g.isAbsentGrade,
         };
       }),
+      true,
       true,
     );
 

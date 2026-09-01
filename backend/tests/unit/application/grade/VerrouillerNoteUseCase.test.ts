@@ -25,6 +25,7 @@ function creerNoteAvecIdFixe(): Note {
     coefficient: 4,
     maxValue: 20,
     validationStatus: 'DRAFT',
+    isAbsentGrade: false,
     isOfflineSync: false,
     createdAt: new Date(),
   });
@@ -121,6 +122,7 @@ describe('VerrouillerNoteUseCase', () => {
         coefficient: 4,
         maxValue: 20,
         validationStatus: 'LOCKED',
+        isAbsentGrade: false,
         isOfflineSync: false,
         createdAt: new Date(),
       });
@@ -149,6 +151,7 @@ describe('VerrouillerNoteUseCase', () => {
         coefficient: 4,
         maxValue: 20,
         validationStatus: 'DRAFT',
+        isAbsentGrade: false,
         isOfflineSync: false,
         createdAt: new Date(),
       });

@@ -8,6 +8,18 @@ import type { BulletinValidationStatus } from '@domain/types/enums';
 export class InMemoryBulletinValidationRepository implements BulletinValidationRepository {
   private store = new Map<string, BulletinValidationSessionData>();
 
+  async listerSessions(schoolId: string, filters?: { classId?: string; academicPeriodId?: string; status?: BulletinValidationStatus }): Promise<BulletinValidationSessionData[]> {
+    return [...this.store.values()]
+      .filter(s => {
+        if (s.schoolId !== schoolId) return false;
+        if (filters?.classId && s.classId !== filters.classId) return false;
+        if (filters?.academicPeriodId && s.academicPeriodId !== filters.academicPeriodId) return false;
+        if (filters?.status && s.status !== filters.status) return false;
+        return true;
+      })
+      .sort((a, b) => b.submittedAt.getTime() - a.submittedAt.getTime());
+  }
+
   async sessionExistante(classId: string, academicPeriodId: string): Promise<BulletinValidationSessionData | null> {
     for (const session of this.store.values()) {
       if (session.classId === classId && session.academicPeriodId === academicPeriodId) {

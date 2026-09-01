@@ -213,10 +213,10 @@ describe('ClassCouncilController — enums CouncilDecision/ReportCardStatus sans
         where: { studentId_academicPeriodId: { studentId: sid, academicPeriodId } },
         create: {
           schoolId, studentId: sid, academicPeriodId, academicYearId,
-          validationStatus: 'GENERATED', generalAverage: 14, rank: 1, totalStudents: 2, mention: 'Bien',
+          isGenerated: true, validationStatus: 'GENERATED', generalAverage: 14, rank: 1, totalStudents: 2, mention: 'Bien',
         },
         update: {
-          validationStatus: 'GENERATED', generalAverage: 14, rank: 1, totalStudents: 2, mention: 'Bien',
+          isGenerated: true, validationStatus: 'GENERATED', generalAverage: 14, rank: 1, totalStudents: 2, mention: 'Bien',
           classWorkflowStatus: null,
         },
       });

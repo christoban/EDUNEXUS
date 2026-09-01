@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { PenLine, Save, Loader2, Lock, ScrollText, Sparkles } from 'lucide-react'
+import { PenLine, Save, Loader2, Lock, ScrollText, Sparkles, Send, CheckCircle2, Clock, AlertTriangle } from 'lucide-react'
 import type { UserInfo } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { useSyncQueue } from '@/hooks/useSyncQueue'
@@ -14,6 +14,7 @@ interface Props {
 interface Period {
   id: string
   name: string
+  isCurrent?: boolean
 }
 
 interface ReportCard {
@@ -58,6 +59,13 @@ export default function SectionAppreciationsPP({ user: _user, classeId }: Props)
   const [aiError, setAiError] = useState<Record<string, boolean>>({})
   const { isOnline, addToQueue } = useSyncQueue()
 
+  // État soumission bulletin
+  const [myClassId, setMyClassId] = useState<string | null>(null)
+  const [currentPeriodId, setCurrentPeriodId] = useState<string | null>(null)
+  const [submissionStatus, setSubmissionStatus] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+
   // Load periods from current academic year
   useEffect(() => {
     fetchApi('/api/v2/academic-years?isCurrent=true', { credentials: 'include' })
@@ -68,10 +76,34 @@ export default function SectionAppreciationsPP({ user: _user, classeId }: Props)
         if (current?.periods?.length) {
           setPeriods(current.periods)
           setSelectedPeriodId(current.periods[0].id)
+          const currentPer = current.periods.find((p: Period) => p.isCurrent)
+          if (currentPer) setCurrentPeriodId(currentPer.id)
         }
       })
       .catch(() => {})
   }, [])
+
+  // Load PP's class
+  useEffect(() => {
+    fetchApi('/api/v2/users/my-class', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => {
+        if (d.success && d.data?.classId) setMyClassId(d.data.classId)
+      })
+      .catch(() => {})
+  }, [])
+
+  // Load submission status for current period
+  useEffect(() => {
+    if (!currentPeriodId || !classeId) return
+    fetchApi(`/api/v2/bulletin-validations?classId=${classeId}&academicPeriodId=${currentPeriodId}`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => {
+        const sessions = d.data ?? []
+        setSubmissionStatus(sessions.length > 0 ? sessions[0].status : null)
+      })
+      .catch(() => {})
+  }, [currentPeriodId, classeId])
 
   // Load report cards when period changes
   useEffect(() => {
@@ -172,6 +204,31 @@ export default function SectionAppreciationsPP({ user: _user, classeId }: Props)
 
   const isLocked = (rc: ReportCard) => rc.status === 'LOCKED' || rc.status === 'SENT'
 
+  const handleSubmit = useCallback(async () => {
+    if (!myClassId || !currentPeriodId) return
+    setSubmitting(true)
+    setSubmitError(null)
+    try {
+      const res = await fetchApi('/api/v2/bulletin-validations', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ classId: myClassId, academicPeriodId: currentPeriodId }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        // Le backend renvoie le détail des élèves manquants dans data.message
+        setSubmitError(data.message || 'Erreur lors de la soumission')
+        return
+      }
+      setSubmissionStatus('SUBMITTED')
+    } catch {
+      setSubmitError('Erreur réseau lors de la soumission')
+    } finally {
+      setSubmitting(false)
+    }
+  }, [myClassId, currentPeriodId])
+
   return (
     <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
       {/* Header */}
@@ -212,6 +269,63 @@ export default function SectionAppreciationsPP({ user: _user, classeId }: Props)
               {p.name}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Zone de soumission bulletin */}
+      {currentPeriodId && (
+        <div style={{ background: 'var(--surface)', borderRadius: 14, border: '1.5px solid var(--border)', padding: '18px 22px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 200 }}>
+            {submissionStatus === null ? (
+              <>
+                <Send size={18} strokeWidth={2} style={{ color: 'var(--amber)' }} />
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Prêt pour soumission</div>
+                  <div style={{ fontSize: 13, color: 'var(--text3)' }}>Les bulletins de la classe peuvent être soumis au censeur.</div>
+                </div>
+              </>
+            ) : submissionStatus === 'SUBMITTED' ? (
+              <>
+                <Clock size={18} strokeWidth={2} style={{ color: 'var(--amber)' }} />
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--amber)' }}>En attente de validation</div>
+                  <div style={{ fontSize: 13, color: 'var(--text3)' }}>Le censeur doit valider avant publication.</div>
+                </div>
+              </>
+            ) : submissionStatus === 'VALIDATED' ? (
+              <>
+                <CheckCircle2 size={18} strokeWidth={2} style={{ color: 'var(--green)' }} />
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--green)' }}>Validé, en attente de publication</div>
+                  <div style={{ fontSize: 13, color: 'var(--text3)' }}>L'administrateur doit publier les bulletins.</div>
+                </div>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 size={18} strokeWidth={2} style={{ color: 'var(--blue)' }} />
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--blue)' }}>Bulletins publiés</div>
+                  <div style={{ fontSize: 13, color: 'var(--text3)' }}>Les parents ont été notifiés.</div>
+                </div>
+              </>
+            )}
+          </div>
+          {submissionStatus === null && (
+            <button
+              onClick={handleSubmit}
+              disabled={submitting || !isOnline}
+              style={{ padding: '10px 22px', borderRadius: 10, fontSize: 15, fontWeight: 800, cursor: submitting || !isOnline ? 'not-allowed' : 'pointer', border: 'none', fontFamily: 'inherit',
+                background: submitting ? 'var(--border)' : 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', display: 'inline-flex', alignItems: 'center', gap: 8, opacity: !isOnline ? 0.5 : 1 }}>
+              {submitting ? <Loader2 size={16} strokeWidth={2} className="animate-spin" /> : <Send size={16} strokeWidth={2} />}
+              {submitting ? 'Envoi…' : 'Soumettre au censeur'}
+            </button>
+          )}
+        </div>
+      )}
+      {submitError && (
+        <div style={{ padding: 14, background: 'var(--red-light)', borderRadius: 10, color: 'var(--red)', fontSize: 13, fontWeight: 600, marginBottom: 16, whiteSpace: 'pre-line' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={14} strokeWidth={2} /> </span>
+          {submitError}
         </div>
       )}
 

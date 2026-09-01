@@ -110,6 +110,9 @@ afterAll(async () => {
   await prismaTest.reportCard.deleteMany({ where: { schoolId } });
   await prismaTest.classCouncilDecision.deleteMany({ where: { session: { schoolId } } });
   await prismaTest.classCouncilSession.deleteMany({ where: { schoolId } });
+  await prismaTest.assessmentParticipation.deleteMany({ where: { schoolId } });
+  await prismaTest.harmonizedAssessmentSession.deleteMany({ where: { schoolId } });
+  await prismaTest.assessmentScope.deleteMany({ where: { schoolId } });
   await prismaTest.grade.deleteMany({ where: { schoolId } });
   await prismaTest.academicSequence.deleteMany({ where: { schoolId } });
   await prismaTest.academicPeriod.deleteMany({ where: { academicYear: { schoolId } } });
@@ -506,5 +509,87 @@ describe("GradeController.importerDepuisExcel — troisième voie de saisie, sta
     const grade = await prismaTest.grade.findFirst({ where: { studentId: student.id, subjectId: subjectImport.id, sequenceId } });
     expect(grade?.coefficient).toBe(3);
     expect(grade?.sequenceScore).toBe(15);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Croisement Grade/Attendance : un absent avec note ne fausse ni moyenne ni classement
+// ═══════════════════════════════════════════════════════════════════════════════
+
+describe('Croisement Grade/Attendance — un absent avec note ne fausse ni moyenne ni classement', () => {
+  let elevePresentId: string;
+  let eleveAbsentId: string;
+  let subjectId: string;
+  let testClassId: string;
+  let testSequenceId: string;
+
+  beforeAll(async () => {
+    // Classe isolée pour ce test — sinon le classement est pollué par les élèves
+    // des tests précédents qui partagent la même classe (rank global).
+    const testClass = await prismaTest.class.create({ data: { schoolId, name: '3ème Absence', academicYearId } });
+    testClassId = testClass.id;
+    const testPeriode = await prismaTest.academicPeriod.create({
+      data: { academicYearId, name: 'Trimestre Absence', orderIndex: 90, startDate: new Date('2025-09-01'), endDate: new Date('2025-12-20') },
+    });
+    const testSequence = await prismaTest.academicSequence.create({
+      data: { academicPeriodId: testPeriode.id, schoolId, name: 'Séquence Absence', type: 'DS', orderIndex: 1 },
+    });
+    testSequenceId = testSequence.id;
+
+    // Créer 2 élèves + 1 matière
+    const elevePresent = await creerUtilisateurTest(prismaTest, schoolId, { role: 'STUDENT', suffix: 'present' });
+    elevePresentId = elevePresent.id;
+    await creerEleveAvecClasse(enrollmentRepo, { userId: elevePresent.id, classId: testClassId, enrolledById: elevePresent.id });
+
+    const eleveAbsent = await creerUtilisateurTest(prismaTest, schoolId, { role: 'STUDENT', suffix: 'absent' });
+    eleveAbsentId = eleveAbsent.id;
+    await creerEleveAvecClasse(enrollmentRepo, { userId: eleveAbsent.id, classId: testClassId, enrolledById: eleveAbsent.id });
+
+    const subject = await prismaTest.subject.create({ data: { schoolId, name: 'Maths Absence Test', coefficient: 2 } });
+    subjectId = subject.id;
+
+    // Notes DIFFÉRENTES pour prouver l'effet :
+    // - Élève présent : 14/20
+    // - Élève absent (isAbsentGrade) : 18/20 — PLUS ÉLEVÉ, pour prouver qu'un absent ne peut
+    //   pas se placer au-dessus d'un présent dans le classement.
+    await prismaTest.grade.create({
+      data: { schoolId, studentId: elevePresentId, subjectId, classId: testClassId, academicYearId, sequenceId: testSequenceId, sequenceAverage: 14, coefficient: 2, validationStatus: 'LOCKED' },
+    });
+    await prismaTest.grade.create({
+      data: { schoolId, studentId: eleveAbsentId, subjectId, classId: testClassId, academicYearId, sequenceId: testSequenceId, sequenceAverage: 18, coefficient: 2, validationStatus: 'LOCKED', isAbsentGrade: true },
+    });
+
+    // Participation : eleveAbsent est ABSENT à l'évaluation
+    const scope = await prismaTest.assessmentScope.create({
+      data: { schoolId, academicYearId, name: 'Test Scope', sequenceType: 'DS', subjectIds: [subjectId], classIds: [testClassId] },
+    });
+    const session = await prismaTest.harmonizedAssessmentSession.create({
+      data: { schoolId, assessmentScopeId: scope.id, subjectId, classId: testClassId, scheduledDate: new Date(), status: 'COMPLETED' },
+    });
+    await prismaTest.assessmentParticipation.create({
+      data: { schoolId, harmonizedAssessmentSessionId: session.id, studentId: elevePresentId, status: 'PRESENT' },
+    });
+    await prismaTest.assessmentParticipation.create({
+      data: { schoolId, harmonizedAssessmentSessionId: session.id, studentId: eleveAbsentId, status: 'ABSENT' },
+    });
+  });
+
+  it('le présent garde sa moyenne intacte (14/20) — le 18/20 de l\'absent est exclu', async () => {
+    const res = await fetch(`${baseUrl}/grades/average/${elevePresentId}?classId=${testClassId}&sequenceId=${testSequenceId}`, { headers: authHeaders() });
+    const body = await res.json() as { average: number };
+    expect(body.average).toBe(14);
+  });
+
+  it('le 18/20 de l\'absent ne le place PAS au-dessus du présent — le présent reste classé 1er', async () => {
+    // Sans l'exclusion, l'absent (18/20) serait classé 1er et le présent (14/20) 2e.
+    // Avec l'exclusion, le présent reste 1er sur le seul élève réellement présent.
+    const res = await fetch(`${baseUrl}/grades/average/${elevePresentId}?classId=${testClassId}&sequenceId=${testSequenceId}`, { headers: authHeaders() });
+    const body = await res.json() as { rank: number };
+    expect(body.rank).toBe(1);
+  });
+
+  it('l\'absent a bien isAbsentGrade=true en base', async () => {
+    const grade = await prismaTest.grade.findFirst({ where: { studentId: eleveAbsentId, subjectId, sequenceId: testSequenceId } });
+    expect(grade?.isAbsentGrade).toBe(true);
   });
 });

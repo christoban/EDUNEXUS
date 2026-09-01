@@ -828,6 +828,7 @@ export function creerContainer() {
       soumettreBulletins: soumettreBulletinsClasseUseCase,
       validerBulletins: validerBulletinsClasseUseCase,
       publierBulletins: publierBulletinsClasseUseCase,
+      bulletinValidationRepository,
       bulletinRepository,
       parentRepository,
       studentRecommendationRepository,

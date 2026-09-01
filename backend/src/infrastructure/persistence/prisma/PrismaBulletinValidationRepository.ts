@@ -1,8 +1,25 @@
 import type { PrismaClient } from '@prisma/client';
 import type { BulletinValidationRepository, BulletinValidationSessionData } from '@domain/ports/repositories/BulletinValidationRepository';
+import type { BulletinValidationStatus } from '@domain/types/enums';
 
 export class PrismaBulletinValidationRepository implements BulletinValidationRepository {
   constructor(private readonly prisma: PrismaClient) {}
+
+  async listerSessions(schoolId: string, filters?: { classId?: string; academicPeriodId?: string; status?: BulletinValidationStatus }): Promise<BulletinValidationSessionData[]> {
+    return this.prisma.bulletinValidationSession.findMany({
+      where: {
+        schoolId,
+        ...(filters?.classId ? { classId: filters.classId } : {}),
+        ...(filters?.academicPeriodId ? { academicPeriodId: filters.academicPeriodId } : {}),
+        ...(filters?.status ? { status: filters.status } : {}),
+      },
+      include: {
+        class: { select: { id: true, name: true, level: true } },
+        academicPeriod: { select: { id: true, name: true } },
+      },
+      orderBy: { submittedAt: 'desc' },
+    }) as Promise<BulletinValidationSessionData[]>;
+  }
 
   async sessionExistante(classId: string, academicPeriodId: string): Promise<BulletinValidationSessionData | null> {
     return this.prisma.bulletinValidationSession.findFirst({

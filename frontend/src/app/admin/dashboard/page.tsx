@@ -21,6 +21,7 @@ import SectionFinance from './_components/SectionFinance'
 import SectionPlaceholder from './_components/SectionPlaceholder'
 import SectionAdminAttendance from './_components/SectionAdminAttendance'
 import SectionAdminCouncil from './_components/SectionAdminCouncil'
+import SectionBulletinValidation from '../../staff/dashboard/_components/SectionBulletinValidation'
 import SectionAdminAI from './_components/SectionAdminAI'
 import SectionStatistics from './_components/SectionStatistics'
 import SectionCommunications from './_components/SectionCommunications'
@@ -55,6 +56,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   'dashboard', 'users', 'classes', 'subjects',
   'attendance', 'grades', 'bulletins', 'timetable',
   'council', 'academic-year', 'academic-events', 'finance', 'ai', 'statistics', 'communications', 'babillard', 'messagerie', 'settings', 'corbeille', 'sync-offline',
+  'bulletin-validation',
   'pedagogie', 'rh', 'lv2-choice', 'entrance-exams', 'pebs-exams', 'matricules', 'school-payments', 'eleve-onboarding', 'minesec-stats', 'minedub-stats', 'group-transfers',
 ]
 
@@ -201,6 +203,7 @@ export default function AdminDashboard() {
           {section === 'finance'       && <SectionFinance       onToast={showToast} />}
           {section === 'attendance'    && <SectionAdminAttendance onToast={showToast} />}
           {section === 'council'       && <SectionAdminCouncil  onToast={showToast} />}
+          {section === 'bulletin-validation' && <SectionBulletinValidation onToast={showToast} />}
           {section === 'ai'            && <SectionAdminAI       onToast={showToast} />}
           {section === 'statistics'    && <SectionStatistics    onToast={showToast} />}
           {section === 'communications' && <SectionCommunications onToast={showToast} />}

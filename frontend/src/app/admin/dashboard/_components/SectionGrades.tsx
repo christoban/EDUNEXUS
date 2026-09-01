@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useT } from '@/lib/i18n'
 import { fetchApi } from '@/lib/fetchApi'
 import { useCachedFetch } from '@/hooks/useCachedFetch'
-import { AlertTriangle, Loader2, Search, CheckCircle2, Check, X, Package, Inbox } from 'lucide-react'
+import { AlertTriangle, Loader2, Search, Package, Inbox } from 'lucide-react'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -70,37 +70,6 @@ export default function SectionGrades({ onToast }: Props) {
     return () => window.removeEventListener('zekoulabia:data-changed', onChanged)
   }, [fetchGrades])
 
-  const handleValidate = async (gradeId: string) => {
-    try {
-      const res = await fetchApi(`/api/v2/grades/${gradeId}/validate`, {
-        method: 'PATCH', credentials: 'include',
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.message || 'Erreur')
-      onToast('Note validée avec succès', 'success')
-      fetchGrades()
-    } catch (err) {
-      onToast(err instanceof Error ? err.message : 'Erreur de validation', 'error')
-    }
-  }
-
-  const handleBulkValidate = async () => {
-    if (!classId) { onToast('Sélectionnez une classe', 'info'); return }
-    const pending = grades.filter(g => g.validationStatus === 'SUBMITTED')
-    if (pending.length === 0) { onToast('Aucune note en attente', 'info'); return }
-    let ok = 0
-    for (const g of pending) {
-      try {
-        const res = await fetchApi(`/api/v2/grades/${g.id}/validate`, { method: 'PATCH', credentials: 'include' })
-        if (res.ok) ok++
-      } catch { /* continue */ }
-    }
-    onToast(`${ok}/${pending.length} note${ok > 1 ? 's' : ''} validée${ok > 1 ? 's' : ''}`, ok > 0 ? 'success' : 'error')
-    fetchGrades()
-  }
-
-  const pendingCount = grades.filter(g => g.validationStatus === 'SUBMITTED').length
-
   return (
     <div className="px-4 py-5 md:px-8 md:py-7" style={{ height: '100%', overflowY: 'auto' }}>
       <style>{`@keyframes edu-spin { to { transform: rotate(360deg); } }`}</style>
@@ -108,35 +77,14 @@ export default function SectionGrades({ onToast }: Props) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 26 }}>
         <div>
           <div className="text-[22px] md:text-[28px]" style={sTitle}>{t('title')}</div>
-          <div className="text-[13px] md:text-[17px]" style={sSub}>Consultation et validation des notes</div>
+          <div className="text-[13px] md:text-[17px]" style={sSub}>Consultation des notes</div>
           {fromCache && cachedAt && (
             <div style={{ background: 'var(--amber-light)', border: '1px solid var(--amber)', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: 'var(--amber)', display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
               <Package size={14} strokeWidth={2} /> {t('cacheBadge', { date: new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) })}
             </div>
           )}
         </div>
-        {pendingCount > 0 && (
-          <>
-            {/* Mobile — pilule "Valider tout" a cote du titre (maquette) */}
-            <button className="md:hidden inline-flex items-center gap-[6px] rounded-full px-[14px] py-[10px] text-[12.5px] flex-shrink-0 border-0"
-              style={{ background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}
-              onClick={handleBulkValidate}>
-              Valider tout
-            </button>
-            <div className="hidden md:flex" style={{ background: 'var(--amber-light)', border: '1.5px solid rgba(217,119,6,0.25)', borderRadius: 12, padding: '8px 16px', fontSize: 15, fontWeight: 700, color: 'var(--amber)', alignItems: 'center', gap: 6 }}>
-              <AlertTriangle size={15} strokeWidth={2} /> {pendingCount} note{pendingCount > 1 ? 's' : ''} en attente
-            </div>
-          </>
-        )}
       </div>
-
-      {/* Bandeau "en attente" — mobile uniquement, sous le titre (maquette) */}
-      {pendingCount > 0 && (
-        <div className="md:hidden" style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--amber-light)', border: '1px solid rgba(217,119,6,0.25)', borderRadius: 12, padding: '10px 14px', marginBottom: 14, marginTop: -12 }}>
-          <AlertTriangle size={16} strokeWidth={2.2} color="var(--amber)" />
-          <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--amber)' }}>{pendingCount} note{pendingCount > 1 ? 's' : ''} en attente</span>
-        </div>
-      )}
 
       <div className="rounded-none md:rounded-[16px] border-0 md:border md:border-[1.5px] md:border-[var(--border)] bg-transparent md:bg-[var(--surface)]" style={{ overflow: 'hidden' }}>
         {/* Filtres */}
@@ -160,11 +108,6 @@ export default function SectionGrades({ onToast }: Props) {
           <button className="w-full sm:w-auto" style={{ ...btnPrim, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} onClick={fetchGrades} disabled={loading}>
             {loading ? <Loader2 size={15} strokeWidth={2} className="animate-spin" /> : <Search size={15} strokeWidth={2} />} Charger
           </button>
-          {pendingCount > 0 && (
-            <button data-help-id="grades-bulk-validate" className="hidden md:inline-flex sm:col-span-1 w-full sm:w-auto" style={{ ...btnSec, color: 'var(--green)', borderColor: 'var(--green)', marginLeft: 'auto', alignItems: 'center', justifyContent: 'center', gap: 6 }} onClick={handleBulkValidate}>
-              <CheckCircle2 size={15} strokeWidth={2} /> Valider tout ({pendingCount})
-            </button>
-          )}
         </div>
 
         {loading && (
@@ -222,21 +165,6 @@ export default function SectionGrades({ onToast }: Props) {
                       <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 11.5, fontWeight: 800, background: st.bg, color: st.color }}>
                         {st.label}
                       </span>
-                      {grade.validationStatus === 'SUBMITTED' && (
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <button
-                            style={{ ...btnSecSm, color: 'var(--green)', borderColor: 'rgba(5,150,105,0.5)', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                            onClick={() => handleValidate(grade.id)}>
-                            <Check size={14} strokeWidth={2} /> Valider
-                          </button>
-                          <button
-                            className="w-[30px] h-[30px]"
-                            style={{ ...btnSecSm, padding: undefined, color: 'var(--red)', borderColor: 'rgba(220,38,38,0.4)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                            onClick={() => onToast('Saisissez un motif de rejet dans le module notes', 'info')}>
-                            <X size={14} strokeWidth={2} />
-                          </button>
-                        </div>
-                      )}
                     </div>
                   </div>
                 )
@@ -247,7 +175,7 @@ export default function SectionGrades({ onToast }: Props) {
             <div className="hidden md:block" style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 550 }}>
                 <thead>
-                  <tr>{['Élève', 'Matière', 'Note /20', 'Statut', 'Actions'].map(h => (
+                  <tr>{['Élève', 'Matière', 'Note /20', 'Statut'].map(h => (
                     <th key={h} style={thStyle}>{h}</th>
                   ))}</tr>
                 </thead>
@@ -276,22 +204,6 @@ export default function SectionGrades({ onToast }: Props) {
                             {st.label}
                           </span>
                         </td>
-                        <td style={tdStyle}>
-                          {grade.validationStatus === 'SUBMITTED' && (
-                            <div style={{ display: 'flex', gap: 6 }}>
-                              <button
-                                style={{ ...btnSecSm, color: 'var(--green)', borderColor: 'rgba(5,150,105,0.5)', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                                onClick={() => handleValidate(grade.id)}>
-                                <Check size={14} strokeWidth={2} /> Valider
-                              </button>
-                              <button
-                                style={{ ...btnSecSm, color: 'var(--red)', borderColor: 'rgba(220,38,38,0.4)', display: 'inline-flex', alignItems: 'center' }}
-                                onClick={() => onToast('Saisissez un motif de rejet dans le module notes', 'info')}>
-                                <X size={14} strokeWidth={2} />
-                              </button>
-                            </div>
-                          )}
-                        </td>
                       </tr>
                     )
                   })}
@@ -300,7 +212,7 @@ export default function SectionGrades({ onToast }: Props) {
             </div>
             <div className="text-center md:text-left px-[4px] py-[10px] md:px-[20px] md:py-[12px] md:border-t md:border-[var(--border)]">
               <span className="text-[12.5px] md:text-[14px]" style={{ color: 'var(--text3)', fontWeight: 600 }}>
-                {grades.length} note{grades.length > 1 ? 's' : ''} — dont {pendingCount} en attente
+                {grades.length} note{grades.length > 1 ? 's' : ''}
               </span>
             </div>
           </>
@@ -313,8 +225,6 @@ export default function SectionGrades({ onToast }: Props) {
 const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }
 const sSub: React.CSSProperties = { color: 'var(--text3)', marginTop: 3 }
 const btnPrim: React.CSSProperties = { padding: '10px 20px', borderRadius: 11, fontSize: 16, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }
-const btnSec: React.CSSProperties = { padding: '8px 16px', borderRadius: 10, fontSize: 15, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }
-const btnSecSm: React.CSSProperties = { padding: '5px 12px', borderRadius: 8, fontSize: 14, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }
 const filterSelectCls = 'rounded-[12px] md:rounded-[10px] px-[12px] py-[10px] md:px-[12px] md:py-[8px] text-[12.5px] md:text-[16px] font-semibold md:font-bold border-0 md:border md:border-[1.5px] md:border-[var(--border2)] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none'
 const filterSelect: React.CSSProperties = { background: 'var(--surface)', color: 'var(--text2)', cursor: 'pointer', outline: 'none', fontFamily: 'inherit' }
 const thStyle: React.CSSProperties = { padding: '11px 16px', textAlign: 'left', fontSize: 13, fontWeight: 800, color: 'var(--text3)', background: 'var(--bg2)', borderBottom: '1px solid var(--border)', textTransform: 'uppercase', letterSpacing: '0.7px' }

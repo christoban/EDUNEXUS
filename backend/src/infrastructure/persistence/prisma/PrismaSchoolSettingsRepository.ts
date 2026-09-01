@@ -44,7 +44,7 @@ export class PrismaSchoolSettingsRepository implements SchoolSettingsRepository 
       councilPassMark: config?.councilPassMark ?? MINESEC_DEFAULTS.SEUIL_PASSAGE_FR,
 
       maxAbsences: config?.maxAbsences ?? 10,
-      attendanceLateAsAbsence: config?.attendanceLateAsAbsence ?? false,
+      attendanceLateAsAbsence: config?.attendanceLateAsAbsence ?? true,
 
       legalMaxContributionFirstCycle:
         config?.legalMaxContributionFirstCycle ?? MINESEC_DEFAULTS.SEUIL_LEGAL_PREMIER_CYCLE,

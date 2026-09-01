@@ -61,7 +61,7 @@ export async function appliquerReconciliationEtFinalisation(params: Reconciliati
     termsPerYear: periodsCount,
     maxAbsences: 10,
     gradesPerTerm,
-    attendanceLateAsAbsence: false,
+    attendanceLateAsAbsence: true,
     schoolLanguageMode: langMode,
     bulletinTemplate,
   });

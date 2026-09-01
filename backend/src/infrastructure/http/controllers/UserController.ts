@@ -43,6 +43,8 @@ export class UserController {
   public readonly lifecycleController: UserLifecycleController;
   public readonly importController: UserImportController;
 
+  private readonly classeRepository: ClasseRepository;
+
   constructor(
     connecter: ConnecterUtilisateurUseCase,
     inscrire: InscrireUtilisateurUseCase,
@@ -64,6 +66,8 @@ export class UserController {
     classeRepository: ClasseRepository,
     enrollmentRepository: EnrollmentRepository,
   ) {
+    this.classeRepository = classeRepository;
+
     this.authController = new UserAuthController(
       connecter,
       loginEmailOtp,
@@ -182,4 +186,19 @@ export class UserController {
 
   confirmImport = (req: Request, res: Response, next: NextFunction): Promise<void> =>
     this.importController.confirmImport(req, res, next);
+
+  // GET /api/v2/users/my-class — classe dont l'utilisateur est professeur principal
+  myClass = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = req.user;
+      const classe = await this.classeRepository.findClasseDeProfPrincipal(user.userId);
+      if (!classe) {
+        res.status(404).json({ success: false, message: "Vous n'êtes titulaire d'aucune classe" });
+        return;
+      }
+      res.json({ success: true, data: { classId: classe.id, className: classe.name } });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

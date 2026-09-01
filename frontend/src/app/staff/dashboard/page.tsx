@@ -9,7 +9,7 @@ import StaffTopbar      from './_components/StaffTopbar'
 import StaffToast       from './_components/StaffToast'
 import SectionStaffDashboard   from './_components/SectionStaffDashboard'
 import SectionCouncil          from './_components/SectionCouncil'
-import SectionGradeValidation  from './_components/SectionGradeValidation'
+import SectionBulletinValidation  from './_components/SectionBulletinValidation'
 import SectionAttendanceStaff  from './_components/SectionAttendanceStaff'
 import SectionGrilleHoraire    from './_components/SectionGrilleHoraire'
 import SectionAffectations     from './_components/SectionAffectations'
@@ -141,7 +141,7 @@ export default function StaffDashboard() {
           )}
 
           {section === 'grades' && can('grades') && (
-            <SectionGradeValidation onToast={showToast} />
+            <SectionBulletinValidation onToast={showToast} />
           )}
 
           {section === 'attendance' && can('attendance') && (
