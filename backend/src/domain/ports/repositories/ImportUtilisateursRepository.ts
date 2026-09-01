@@ -3,6 +3,8 @@
  * Lectures/écritures de l'import massif d'utilisateurs (5 entités : STUDENT, TEACHER, STAFF, PARENT, CLASSE).
  */
 
+import type { PebsFiliere } from '@domain/types/enums';
+
 export interface ImportContexte {
   schoolName: string;
   hasPEBS: boolean;
@@ -42,8 +44,9 @@ export interface ImportUtilisateursRepository {
 
   findParentParEmail(schoolId: string, email: string): Promise<string | null>;
   findStudentProfileId(userId: string): Promise<string | null>;
-  updatePeBSFiliere(userId: string, pebsFiliere: string): Promise<void>;
+  updatePeBSFiliere(userId: string, pebsFiliere: PebsFiliere): Promise<void>;
   updateLv2Subject(userId: string, lv2SubjectId: string): Promise<void>;
+  updatePeBSAndLv2(userId: string, pebsFiliere: PebsFiliere | null, lv2SubjectId: string | null): Promise<void>;
 
   findSubjectsParNoms(schoolId: string, noms: string[]): Promise<{ id: string; name: string }[]>;
 

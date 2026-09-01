@@ -13,6 +13,7 @@ import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/Annee
 import type { StudentGroupSetRepository } from '@domain/ports/repositories/StudentGroupSetRepository';
 import type { StudentGroupRepository } from '@domain/ports/repositories/StudentGroupRepository';
 import type { StudentGroupMembershipRepository } from '@domain/ports/repositories/StudentGroupMembershipRepository';
+import type { PebsFiliere } from '@domain/types/enums';
 
 export interface SyncRepositories {
   anneeRepository: AnneeAcademiqueRepository;
@@ -50,7 +51,7 @@ export async function synchroniserAppartenanceLV2(
 
 export async function synchroniserAppartenanceProgramme(
   repos: SyncRepositories,
-  params: { schoolId: string; studentProfileId: string; pebsFiliere: string | null; academicYearId?: string }
+  params: { schoolId: string; studentProfileId: string; pebsFiliere: PebsFiliere | null; academicYearId?: string }
 ): Promise<void> {
   const academicYearId = params.academicYearId ?? await resoudreAnneeCouranteId(repos.anneeRepository, params.schoolId);
   if (!academicYearId) return;

@@ -1,6 +1,7 @@
 // src/application/shared/studentEnrollment.ts
 
 import type { EnrollmentRepository, ChangerClasseParams } from '@domain/ports/repositories/EnrollmentRepository';
+import type { PebsFiliere } from '@domain/types/enums';
 
 /**
  * Utilitaires de requête pour les inscriptions (Enrollment).
@@ -102,7 +103,7 @@ export async function creerEleveAvecClasse(
     userId: string;
     classId: string;
     enrolledById: string;
-    extraProfileData?: { matricule?: string; matriculeVerifieAt?: Date; gender?: string; dateOfBirth?: Date; pebsFiliere?: string };
+    extraProfileData?: { matricule?: string; matriculeVerifieAt?: Date; gender?: string; dateOfBirth?: Date; pebsFiliere?: PebsFiliere };
   },
 ) {
   return enrollmentRepository.creerEleveAvecClasse({

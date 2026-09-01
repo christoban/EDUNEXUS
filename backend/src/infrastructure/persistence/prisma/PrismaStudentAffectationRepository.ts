@@ -5,6 +5,7 @@ import type {
   SubjectRef,
   EleveALevelRef,
 } from '@domain/ports/repositories/StudentAffectationRepository';
+import type { PebsFiliere } from '@domain/types/enums';
 
 export class PrismaStudentAffectationRepository implements StudentAffectationRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -97,14 +98,14 @@ export class PrismaStudentAffectationRepository implements StudentAffectationRep
     return result.count;
   }
 
-  async mettreAJourPEBS(profileId: string, pebsFiliere: string | null): Promise<void> {
+  async mettreAJourPEBS(profileId: string, pebsFiliere: PebsFiliere | null): Promise<void> {
     await this.prisma.studentProfile.update({
       where: { id: profileId },
       data: { pebsFiliere },
     });
   }
 
-  async mettreAJourPEBSEnMasse(profileIds: string[], pebsFiliere: string | null): Promise<number> {
+  async mettreAJourPEBSEnMasse(profileIds: string[], pebsFiliere: PebsFiliere | null): Promise<number> {
     const result = await this.prisma.studentProfile.updateMany({
       where: { id: { in: profileIds } },
       data: { pebsFiliere },

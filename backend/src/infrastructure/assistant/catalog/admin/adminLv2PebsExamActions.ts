@@ -9,6 +9,7 @@ import {
 import { whereProfilesParClasse } from '@application/shared/studentEnrollment';
 import { resolveEntranceExamSession, resolvePebsSession } from './adminHelpers';
 import type { AdminActionDeps } from '../adminActionCatalog';
+import type { PebsFiliere } from '@domain/types/enums';
 
 export function buildAdminLv2PebsExamActions(deps: AdminActionDeps): ActionDefinition[] {
   return [
@@ -244,7 +245,7 @@ export function buildAdminLv2PebsExamActions(deps: AdminActionDeps): ActionDefin
         await deps.affecterPEBSEleve.execute({
           studentUserId: String(undoData.studentUserId),
           schoolId: ctx.schoolId,
-          pebsFiliere: (undoData.previousPebsFiliere as string | null) ?? null,
+          pebsFiliere: (undoData.previousPebsFiliere as PebsFiliere | null) ?? null,
         });
       },
     },
@@ -279,7 +280,7 @@ export function buildAdminLv2PebsExamActions(deps: AdminActionDeps): ActionDefin
         };
       },
       async undo(_params, undoData, ctx) {
-        const previous = undoData.previous as { userId: string; pebsFiliere: string | null }[];
+        const previous = undoData.previous as { userId: string; pebsFiliere: PebsFiliere | null }[];
         for (const p of previous) {
           await deps.affecterPEBSEleve.execute({ studentUserId: p.userId, schoolId: ctx.schoolId, pebsFiliere: p.pebsFiliere });
         }

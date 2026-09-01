@@ -7,6 +7,7 @@ import type { StudentGroupMembershipRepository } from '@domain/ports/repositorie
 import type { ImportUtilisateursRepository } from '@domain/ports/repositories/ImportUtilisateursRepository';
 import type { EmailService } from '@domain/ports/services/EmailService';
 import { synchroniserAppartenanceLV2, synchroniserAppartenanceProgramme } from '@application/studentGroup/syncGroupMembership';
+import type { PebsFiliere } from '@domain/types/enums';
 import { parseDateFR } from '../../../shared/date/parseDateFR';
 import type { StudentImportRow, ImportRow } from '../dto/ImportUserDtos';
 import { envoyerEmailDevMode, envoyerEmailLienInvitation } from './importEmailNotifications';
@@ -96,9 +97,6 @@ export async function traiterLigneStudent(
   const pebsVal = row.pebs?.trim().toUpperCase() ?? '';
   const lv2Val = row.lv2?.trim() ?? '';
   let importedProfileId: string | undefined;
-  if (pebsVal || lv2Val) {
-    importedProfileId = await deps.importRepository.findStudentProfileId(studentUser.id) ?? undefined;
-  }
   const syncRepos = {
     anneeRepository: deps.anneeRepository,
     groupSetRepository: deps.groupSetRepository,
@@ -106,32 +104,37 @@ export async function traiterLigneStudent(
     membershipRepository: deps.membershipRepository,
   };
 
-  if (pebsVal) {
-    if (!['FR_PEBS', 'EN_PEBS'].includes(pebsVal)) {
-      throw new Error(`Valeur PEBS invalide : "${pebsVal}" (attendu FR_PEBS ou EN_PEBS)`);
-    }
-    await deps.importRepository.updatePeBSFiliere(studentUser.id, pebsVal);
-    if (importedProfileId) {
-      const { synchroniserAppartenanceProgramme } = await import('@application/studentGroup/syncGroupMembership');
-      await synchroniserAppartenanceProgramme(
-        { anneeRepository: syncRepos.anneeRepository, groupSetRepository: syncRepos.groupSetRepository, groupRepository: syncRepos.groupRepository, membershipRepository: syncRepos.membershipRepository },
-        { schoolId: 'schoolId', studentProfileId: importedProfileId, pebsFiliere: pebsVal },
-      );
-    }
-  }
+  // Écrire PEBS et LV2 dans un seul appel (atomicité native — single UPDATE SQL)
+  if (pebsVal || lv2Val) {
+    importedProfileId = await deps.importRepository.findStudentProfileId(studentUser.id) ?? undefined;
 
-  if (lv2Val) {
-    const subjectId = lv2NameToId.get(lv2Val.toLowerCase().trim());
-    if (!subjectId) {
-      throw new Error(`Langue LV2 introuvable : "${lv2Val}" — consultez la liste des langues disponibles dans votre établissement`);
+    let resolvedPebs: PebsFiliere | null = null;
+    let resolvedLv2: string | null = null;
+
+    if (pebsVal) {
+      if (!['FR_PEBS', 'EN_PEBS'].includes(pebsVal)) {
+        throw new Error(`Valeur PEBS invalide : "${pebsVal}" (attendu FR_PEBS ou EN_PEBS)`);
+      }
+      resolvedPebs = pebsVal as PebsFiliere;
     }
-    await deps.importRepository.updateLv2Subject(studentUser.id, subjectId);
-    if (importedProfileId) {
-      const { synchroniserAppartenanceLV2 } = await import('@application/studentGroup/syncGroupMembership');
-      await synchroniserAppartenanceLV2(
-        { anneeRepository: syncRepos.anneeRepository, groupSetRepository: syncRepos.groupSetRepository, groupRepository: syncRepos.groupRepository, membershipRepository: syncRepos.membershipRepository },
-        { schoolId, studentProfileId: importedProfileId, lv2SubjectId: subjectId },
-      );
+
+    if (lv2Val) {
+      const subjectId = lv2NameToId.get(lv2Val.toLowerCase().trim());
+      if (!subjectId) {
+        throw new Error(`Langue LV2 introuvable : "${lv2Val}" — consultez la liste des langues disponibles dans votre établissement`);
+      }
+      resolvedLv2 = subjectId;
+    }
+
+    // Un seul UPDATEMany = atomicité garantie (pas de transaction nécessaire)
+    await deps.importRepository.updatePeBSAndLv2(studentUser.id, resolvedPebs, resolvedLv2);
+
+    // Sync StudentGroupMembership (opérations idempotentes, hors écriture principale)
+    if (resolvedPebs && importedProfileId) {
+      await synchroniserAppartenanceProgramme(syncRepos, { schoolId, studentProfileId: importedProfileId, pebsFiliere: resolvedPebs });
+    }
+    if (resolvedLv2 && importedProfileId) {
+      await synchroniserAppartenanceLV2(syncRepos, { schoolId, studentProfileId: importedProfileId, lv2SubjectId: resolvedLv2 });
     }
   }
 

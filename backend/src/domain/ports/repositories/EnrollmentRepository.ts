@@ -1,3 +1,5 @@
+import type { PebsFiliere } from '@domain/types/enums';
+
 export interface ClasseActuelleInfo {
   classId: string;
   className: string;
@@ -31,7 +33,7 @@ export interface CreerEleveAvecClasseParams {
   userId: string;
   classId: string;
   enrolledById: string;
-  extraProfileData?: { matricule?: string; matriculeVerifieAt?: Date; gender?: string; dateOfBirth?: Date; pebsFiliere?: string };
+  extraProfileData?: { matricule?: string; matriculeVerifieAt?: Date; gender?: string; dateOfBirth?: Date; pebsFiliere?: PebsFiliere };
 }
 
 export interface EnrollmentRepository {

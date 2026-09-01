@@ -8,34 +8,26 @@ import { PreremplirDepuisCombinaisonUseCase } from '@application/student/Preremp
 import { GetElevesParMatiereALevelUseCase } from '@application/student/GetElevesParMatiereALevelUseCase';
 import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 import { whereElevesParClasse } from '@application/shared/studentEnrollment';
+import type { PebsFiliere } from '@domain/types/enums';
 
 type Container = ReturnType<typeof creerContainer>;
 
 export function registerElectifsRoutes(app: Application, p: typeof prisma = prisma, c: Container): void {
   // ── Module LV2 — gestion langue vivante 2 par élève ──────────────────────
 
-  // PATCH /api/v2/students/:id/lv2 — affecter une LV2 à un élève
+  // PATCH /api/v2/students/:id/lv2 — affecter une LV2 à un élève (via use case pour sync StudentGroupMembership)
   app.patch('/api/v2/students/:id/lv2', requireAuth, requireRole('ADMIN', 'STAFF'), async (req, res, next) => {
     try {
       const schoolId = req.user!.schoolId;
       const studentUserId = req.params['id'] as string;
       const { lv2SubjectId } = req.body as { lv2SubjectId?: string | null };
 
-      const profile = await p.studentProfile.findFirst({
-        where: { userId: studentUserId, user: { schoolId } },
-        select: { id: true },
+      await c.lv2pebs.affecterLV2Eleve.execute({
+        studentUserId,
+        schoolId,
+        lv2SubjectId: lv2SubjectId ?? null,
       });
-      if (!profile) { res.status(404).json({ success: false, message: 'Élève introuvable' }); return; }
 
-      if (lv2SubjectId) {
-        const subj = await p.subject.findFirst({ where: { id: lv2SubjectId, schoolId }, select: { id: true } });
-        if (!subj) { res.status(404).json({ success: false, message: 'Matière introuvable' }); return; }
-      }
-
-      await p.studentProfile.update({
-        where: { id: profile.id },
-        data: { lv2SubjectId: lv2SubjectId ?? null },
-      });
       journaliserActionIA(p, {
         actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
         actionName: 'affecter_lv2_eleve', targetType: 'User', targetId: studentUserId,
@@ -53,7 +45,7 @@ export function registerElectifsRoutes(app: Application, p: typeof prisma = pris
     }
   });
 
-  // POST /api/v2/students/lv2/bulk — affecter la même LV2 à une liste d'élèves
+  // POST /api/v2/students/lv2/bulk — affecter la même LV2 à une liste d'élèves (via use case)
   app.post('/api/v2/students/lv2/bulk', requireAuth, requireRole('ADMIN', 'STAFF'), async (req, res, next) => {
     try {
       const schoolId = req.user!.schoolId;
@@ -62,26 +54,19 @@ export function registerElectifsRoutes(app: Application, p: typeof prisma = pris
       if (!Array.isArray(studentUserIds) || studentUserIds.length === 0) {
         res.status(400).json({ success: false, message: 'studentUserIds[] requis' }); return;
       }
-      if (lv2SubjectId) {
-        const subj = await p.subject.findFirst({ where: { id: lv2SubjectId, schoolId }, select: { id: true } });
-        if (!subj) { res.status(404).json({ success: false, message: 'Matière introuvable' }); return; }
-      }
 
-      const profiles = await p.studentProfile.findMany({
-        where: { userId: { in: studentUserIds }, user: { schoolId } },
-        select: { id: true },
-      });
-      const result = await p.studentProfile.updateMany({
-        where: { id: { in: profiles.map((p: any) => p.id) } },
-        data: { lv2SubjectId: lv2SubjectId ?? null },
+      const result = await c.lv2pebs.affecterLV2EnMasse.execute({
+        studentUserIds,
+        schoolId,
+        lv2SubjectId: lv2SubjectId ?? null,
       });
 
       journaliserActionIA(p, {
         actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
         actionName: 'affecter_lv2_masse', origin: 'UI_DIRECT', outcome: 'SUCCES',
-        parametersSummary: { studentUserIds, lv2SubjectId, modifies: result.count },
+        parametersSummary: { studentUserIds, lv2SubjectId, modifies: result.modifies },
       });
-      res.json({ success: true, data: { modifies: result.count } });
+      res.json({ success: true, data: { modifies: result.modifies } });
     } catch (err) {
       journaliserActionIA(p, {
         actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
@@ -151,27 +136,19 @@ export function registerElectifsRoutes(app: Application, p: typeof prisma = pris
 
   // ── Module PEBS — gestion Programme d'Éducation Bilingue Spécial par élève ──
 
-  // PATCH /api/v2/students/:id/pebs — affecter PEBS à un élève
+  // PATCH /api/v2/students/:id/pebs — affecter PEBS à un élève (via use case pour sync StudentGroupMembership)
   app.patch('/api/v2/students/:id/pebs', requireAuth, requireRole('ADMIN', 'STAFF'), async (req, res, next) => {
     try {
       const schoolId = req.user!.schoolId;
       const studentUserId = req.params['id'] as string;
-      const { pebsFiliere } = req.body as { pebsFiliere?: string | null };
+      const { pebsFiliere } = req.body as { pebsFiliere?: PebsFiliere | null };
 
-      const profile = await p.studentProfile.findFirst({
-        where: { userId: studentUserId, user: { schoolId } },
-        select: { id: true },
+      await c.lv2pebs.affecterPEBSEleve.execute({
+        studentUserId,
+        schoolId,
+        pebsFiliere: pebsFiliere ?? null,
       });
-      if (!profile) { res.status(404).json({ success: false, message: 'Élève introuvable' }); return; }
 
-      if (pebsFiliere !== null && pebsFiliere !== undefined && !['FR_PEBS', 'EN_PEBS'].includes(pebsFiliere)) {
-        res.status(400).json({ success: false, message: 'Valeur pebsFiliere invalide' }); return;
-      }
-
-      await p.studentProfile.update({
-        where: { id: profile.id },
-        data: { pebsFiliere: pebsFiliere ?? null },
-      });
       journaliserActionIA(p, {
         actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
         actionName: 'affecter_pebs_eleve', targetType: 'User', targetId: studentUserId,
@@ -189,35 +166,28 @@ export function registerElectifsRoutes(app: Application, p: typeof prisma = pris
     }
   });
 
-  // POST /api/v2/students/pebs/bulk — affecter PEBS en masse
+  // POST /api/v2/students/pebs/bulk — affecter PEBS en masse (via use case)
   app.post('/api/v2/students/pebs/bulk', requireAuth, requireRole('ADMIN', 'STAFF'), async (req, res, next) => {
     try {
       const schoolId = req.user!.schoolId;
-      const { studentUserIds, pebsFiliere } = req.body as { studentUserIds?: string[]; pebsFiliere?: string | null };
+      const { studentUserIds, pebsFiliere } = req.body as { studentUserIds?: string[]; pebsFiliere?: PebsFiliere | null };
 
       if (!Array.isArray(studentUserIds) || studentUserIds.length === 0) {
         res.status(400).json({ success: false, message: 'studentUserIds[] requis' }); return;
       }
 
-      if (pebsFiliere !== null && pebsFiliere !== undefined && !['FR_PEBS', 'EN_PEBS'].includes(pebsFiliere)) {
-        res.status(400).json({ success: false, message: 'Valeur pebsFiliere invalide' }); return;
-      }
-
-      const profiles = await p.studentProfile.findMany({
-        where: { userId: { in: studentUserIds }, user: { schoolId } },
-        select: { id: true },
-      });
-      const result = await p.studentProfile.updateMany({
-        where: { id: { in: profiles.map((p: any) => p.id) } },
-        data: { pebsFiliere: pebsFiliere ?? null },
+      const result = await c.lv2pebs.affecterPEBSEnMasse.execute({
+        studentUserIds,
+        schoolId,
+        pebsFiliere: pebsFiliere ?? null,
       });
 
       journaliserActionIA(p, {
         actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
         actionName: 'affecter_pebs_masse', origin: 'UI_DIRECT', outcome: 'SUCCES',
-        parametersSummary: { studentUserIds, pebsFiliere, modifies: result.count },
+        parametersSummary: { studentUserIds, pebsFiliere, modifies: result.modifies },
       });
-      res.json({ success: true, data: { modifies: result.count } });
+      res.json({ success: true, data: { modifies: result.modifies } });
     } catch (err) {
       journaliserActionIA(p, {
         actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,

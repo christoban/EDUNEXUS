@@ -3,6 +3,8 @@ export interface StudentProfileRef {
   userId: string;
 }
 
+import type { PebsFiliere } from '@domain/types/enums';
+
 export interface SubjectRef {
   id: string;
   name: string;
@@ -32,8 +34,8 @@ export interface StudentAffectationRepository {
   // Écriture LV2 / PEBS
   mettreAJourLV2(profileId: string, lv2SubjectId: string | null): Promise<void>;
   mettreAJourLV2EnMasse(profileIds: string[], lv2SubjectId: string | null): Promise<number>;
-  mettreAJourPEBS(profileId: string, pebsFiliere: string | null): Promise<void>;
-  mettreAJourPEBSEnMasse(profileIds: string[], pebsFiliere: string | null): Promise<number>;
+  mettreAJourPEBS(profileId: string, pebsFiliere: PebsFiliere | null): Promise<void>;
+  mettreAJourPEBSEnMasse(profileIds: string[], pebsFiliere: PebsFiliere | null): Promise<number>;
 
   // Écriture A-Level (transaction atomique de remplacement)
   remplacerMatieresALevel(profileId: string, subjectIds: string[]): Promise<void>;

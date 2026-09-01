@@ -4,11 +4,12 @@ import type { StudentGroupSetRepository } from '@domain/ports/repositories/Stude
 import type { StudentGroupRepository } from '@domain/ports/repositories/StudentGroupRepository';
 import type { StudentGroupMembershipRepository } from '@domain/ports/repositories/StudentGroupMembershipRepository';
 import { synchroniserAppartenanceProgramme } from '@application/studentGroup/syncGroupMembership';
+import type { PebsFiliere } from '@domain/types/enums';
 
 export interface AffecterPEBSEleveCommande {
   studentUserId: string;
   schoolId: string;
-  pebsFiliere: string | null;
+  pebsFiliere: PebsFiliere | null;
 }
 
 export class AffecterPEBSEleveUseCase {

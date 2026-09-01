@@ -34,6 +34,9 @@ import { PrismaSchoolConfigRepository } from '@infrastructure/persistence/prisma
 import { PrismaTeachingAssignmentRepository } from '@infrastructure/persistence/prisma/PrismaTeachingAssignmentRepository';
 import { PrismaStudentRecommendationRepository } from '@infrastructure/persistence/prisma/PrismaStudentRecommendationRepository';
 import { PrismaBulletinValidationRepository } from '@infrastructure/persistence/prisma/PrismaBulletinValidationRepository';
+import { PrismaAssessmentScopeRepository } from '@infrastructure/persistence/prisma/PrismaAssessmentScopeRepository';
+import { PrismaHarmonizedAssessmentSessionRepository } from '@infrastructure/persistence/prisma/PrismaHarmonizedAssessmentSessionRepository';
+import { PrismaAssessmentParticipationRepository } from '@infrastructure/persistence/prisma/PrismaAssessmentParticipationRepository';
 
 // --- Adapters Audit ---
 import { ActivityLogAdapter } from '@infrastructure/services/audit/ActivityLogAdapter';
@@ -367,6 +370,18 @@ import { SynchroniserMatieresEcoleUseCase } from '@application/masterAdmin/Synch
 import { ReinitialiserMfaUtilisateurUseCase } from '@application/masterAdmin/ReinitialiserMfaUtilisateurUseCase';
 import { PrismaMasterAdminQueryRepository } from '@infrastructure/persistence/prisma/PrismaMasterAdminQueryRepository';
 
+// --- Use Cases : Assessment ---
+import { CreerAssessmentScopeUseCase } from '@application/assessment/CreerAssessmentScopeUseCase';
+import { PlanifierAssessmentSessionUseCase } from '@application/assessment/PlanifierAssessmentSessionUseCase';
+import { EnregistrerParticipationUseCase } from '@application/assessment/EnregistrerParticipationUseCase';
+import { EnregistrerParticipationEnLotUseCase } from '@application/assessment/EnregistrerParticipationEnLotUseCase';
+
+// --- Use Cases : LV2 / PEBS ---
+import { AffecterLV2EleveUseCase } from '@application/student/AffecterLV2EleveUseCase';
+import { AffecterLV2EnMasseUseCase } from '@application/student/AffecterLV2EnMasseUseCase';
+import { AffecterPEBSEleveUseCase } from '@application/student/AffecterPEBSEleveUseCase';
+import { AffecterPEBSEnMasseUseCase } from '@application/student/AffecterPEBSEnMasseUseCase';
+
 // ─────────────────────────────────────────────
 // Factory principale
 // ─────────────────────────────────────────────
@@ -414,6 +429,9 @@ export function creerContainer() {
   const notifierEvenement = (schoolId: string, targetRoles: string[], titre: string, corps: string) =>
     notifierEvenementAcademique(prisma, schoolId, targetRoles, titre, corps);
   const classRoomAssignmentRepository = new PrismaClassRoomAssignmentRepository(prisma);
+  const assessmentScopeRepository = new PrismaAssessmentScopeRepository(prisma);
+  const assessmentSessionRepository = new PrismaHarmonizedAssessmentSessionRepository(prisma);
+  const assessmentParticipationRepository = new PrismaAssessmentParticipationRepository(prisma);
 
   // 3. Services (adaptateurs réels)
   const emailService = new NodemailerEmailService();
@@ -788,6 +806,18 @@ export function creerContainer() {
   const genererPaiementsMinesec = new GenererPaiementsMinesecUseCase(paiementMinesecRepository);
   const creerSqueletteOnboarding = new CreerSqueletteOnboardingUseCase(eleveOnboardingRepository, activityLog);
 
+  // 18. Use Cases — Assessment
+  const creerAssessmentScopeUseCase = new CreerAssessmentScopeUseCase(assessmentScopeRepository);
+  const planifierAssessmentSessionUseCase = new PlanifierAssessmentSessionUseCase(assessmentSessionRepository);
+  const enregistrerParticipationUseCase = new EnregistrerParticipationUseCase(assessmentParticipationRepository);
+  const enregistrerParticipationEnLotUseCase = new EnregistrerParticipationEnLotUseCase(assessmentParticipationRepository);
+
+  // 19. Use Cases — LV2 / PEBS (sync StudentGroupMembership)
+  const affecterLV2EleveUseCase = new AffecterLV2EleveUseCase(studentAffectationRepository, anneeRepository, studentGroupSetRepository, studentGroupRepository, studentGroupMembershipRepository);
+  const affecterLV2EnMasseUseCase = new AffecterLV2EnMasseUseCase(studentAffectationRepository, anneeRepository, studentGroupSetRepository, studentGroupRepository, studentGroupMembershipRepository);
+  const affecterPEBSEleveUseCase = new AffecterPEBSEleveUseCase(studentAffectationRepository, anneeRepository, studentGroupSetRepository, studentGroupRepository, studentGroupMembershipRepository);
+  const affecterPEBSEnMasseUseCase = new AffecterPEBSEnMasseUseCase(studentAffectationRepository, anneeRepository, studentGroupSetRepository, studentGroupRepository, studentGroupMembershipRepository);
+
   return {
     grade: {
       saisirNote: saisirNoteUseCase,
@@ -1084,6 +1114,21 @@ export function creerContainer() {
     },
     notification: {
       service: notificationService,
+    },
+    assessment: {
+      scopeRepository: assessmentScopeRepository,
+      sessionRepository: assessmentSessionRepository,
+      participationRepository: assessmentParticipationRepository,
+      creerScope: creerAssessmentScopeUseCase,
+      planifierSession: planifierAssessmentSessionUseCase,
+      enregistrerParticipation: enregistrerParticipationUseCase,
+      enregistrerParticipationEnLot: enregistrerParticipationEnLotUseCase,
+    },
+    lv2pebs: {
+      affecterLV2Eleve: affecterLV2EleveUseCase,
+      affecterLV2EnMasse: affecterLV2EnMasseUseCase,
+      affecterPEBSEleve: affecterPEBSEleveUseCase,
+      affecterPEBSEnMasse: affecterPEBSEnMasseUseCase,
     },
     studentDocument: {
       studentProfileRepository,

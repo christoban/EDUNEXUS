@@ -4,6 +4,7 @@ import type {
   ImportContexteValidation,
   ImportUtilisateursRepository,
 } from '@domain/ports/repositories/ImportUtilisateursRepository';
+import type { PebsFiliere } from '@domain/types/enums';
 
 type ClasseMemoire = {
   id: string;
@@ -84,6 +85,10 @@ export class InMemoryImportUtilisateursRepository implements ImportUtilisateursR
   async findStudentProfileId(userId: string): Promise<string | null> { return this.studentProfileIds.get(userId) ?? null; }
   async updatePeBSFiliere(userId: string, pebsFiliere: string): Promise<void> { this.pebsUpdates.push({ userId, pebsFiliere }); }
   async updateLv2Subject(userId: string, lv2SubjectId: string): Promise<void> { this.lv2Updates.push({ userId, lv2SubjectId }); }
+  async updatePeBSAndLv2(userId: string, pebsFiliere: PebsFiliere | null, lv2SubjectId: string | null): Promise<void> {
+    if (pebsFiliere !== null) this.pebsUpdates.push({ userId, pebsFiliere });
+    if (lv2SubjectId !== null) this.lv2Updates.push({ userId, lv2SubjectId });
+  }
 
   async findSubjectsParNoms(schoolId: string, noms: string[]): Promise<{ id: string; name: string }[]> {
     return [...this.subjects.values()].filter(s => s.schoolId === schoolId && noms.includes(s.name)).map(({ id, name }) => ({ id, name }));

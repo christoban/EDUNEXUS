@@ -16,6 +16,7 @@ import { creerOnboardingRoutes } from '@infrastructure/http/routes/onboarding.ro
 import { creerReportCardRoutes } from '@infrastructure/http/routes/reportCard.routes';
 import { creerClassCouncilRoutes } from '@infrastructure/http/routes/classCouncil.routes';
 import { creerBulletinValidationRoutes } from '@infrastructure/http/routes/bulletinValidation.routes';
+import { creerAssessmentRoutes } from '@infrastructure/http/routes/assessment.routes';
 import { creerAcademicYearRoutes } from '@infrastructure/http/routes/academicYear.routes';
 import { creerPedagogieRoutes } from '@infrastructure/http/routes/pedagogie.routes';
 import { creerStudentDocumentRoutes } from '@infrastructure/http/routes/studentDocument.routes';
@@ -169,6 +170,12 @@ export function registerAcademicRoutes(app: Application, prismaParam: typeof pri
   app.use('/api/v2/report-cards', creerReportCardRoutes(reportCardController));
   app.use('/api/v2/class-councils', creerClassCouncilRoutes(classCouncilController));
   app.use('/api/v2/bulletin-validations', creerBulletinValidationRoutes(bulletinValidationController));
+  app.use('/api/v2/assessments', requireAuth, creerAssessmentRoutes(
+    c.assessment.creerScope,
+    c.assessment.planifierSession,
+    c.assessment.enregistrerParticipation,
+    c.assessment.enregistrerParticipationEnLot,
+  ));
 
   // V1.1 — Profil Académique (RBAC : ADMIN/STAFF, PP, parent, élève lui-même)
     const enrollmentRepo = new PrismaEnrollmentRepository(p as any);

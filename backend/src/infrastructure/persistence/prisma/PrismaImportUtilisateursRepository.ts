@@ -5,6 +5,7 @@ import type {
   AffectationPedagogiqueData,
   ImportContexteValidation,
 } from '@domain/ports/repositories/ImportUtilisateursRepository';
+import type { PebsFiliere } from '@domain/types/enums';
 
 export class PrismaImportUtilisateursRepository implements ImportUtilisateursRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -43,7 +44,7 @@ export class PrismaImportUtilisateursRepository implements ImportUtilisateursRep
     return profile?.id ?? null;
   }
 
-  async updatePeBSFiliere(userId: string, pebsFiliere: string): Promise<void> {
+  async updatePeBSFiliere(userId: string, pebsFiliere: PebsFiliere): Promise<void> {
     await this.prisma.studentProfile.updateMany({
       where: { userId },
       data: { pebsFiliere },
@@ -54,6 +55,13 @@ export class PrismaImportUtilisateursRepository implements ImportUtilisateursRep
     await this.prisma.studentProfile.updateMany({
       where: { userId },
       data: { lv2SubjectId },
+    });
+  }
+
+  async updatePeBSAndLv2(userId: string, pebsFiliere: PebsFiliere | null, lv2SubjectId: string | null): Promise<void> {
+    await this.prisma.studentProfile.updateMany({
+      where: { userId },
+      data: { pebsFiliere, lv2SubjectId },
     });
   }
 

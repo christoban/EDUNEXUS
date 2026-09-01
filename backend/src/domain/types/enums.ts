@@ -23,6 +23,7 @@ export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'ABSENT_JUSTIFIED
 export type AttendancePeriod = 'MORNING' | 'AFTERNOON';
 
 export type DisciplineType = 'WARNING_ORAL' | 'WARNING_WRITTEN' | 'TEMP_EXCLUSION' | 'COUNCIL_DECISION' | 'PERMANENT_EXCLUSION';
+export type PebsFiliere = 'FR_PEBS' | 'EN_PEBS';
 export type CouncilStatus = 'OPEN' | 'VALIDATED' | 'LOCKED';
 export type CouncilDecision = 'PASS' | 'REPEAT' | 'DELIBERATION';
 

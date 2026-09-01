@@ -681,7 +681,7 @@ model StudentProfile {
   exitYear            String?
   studentStatus       StudentStatus               @default(ACTIVE)
   healthScore         Int?                        @default(75)
-  pebsFiliere         String?
+  pebsFiliere         PebsFiliere?
   photoUrl            String?
   lv2SubjectId        String?
   parents             ParentStudent[]
@@ -2359,6 +2359,11 @@ enum DisciplineStatus {
   ACTIVE
   LIFTED
   APPEALED
+}
+
+enum PebsFiliere {
+  FR_PEBS
+  EN_PEBS
 }
 
 enum CouncilStatus {
