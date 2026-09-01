@@ -11,7 +11,6 @@
 
 | # | Section | Détail | Faisabilité |
 |---|---|---|---|
-| V2.15 | Tâches administratives | Aucun modèle `Task`/`Tache`, aucun fichier applicatif. | ✅ Muse Spark — 1 table `Task` minimale (lazy), à préciser les champs |
 | V3.5 | Reporting Engine mature (métriques versionnées) | Aucun `MetricDefinition`, aucun cache/agrégation de métriques paramétrables. | ⚠️ Tech Lead — moteur générique interdit sans 2-3 cas (I) |
 | V3.9 | Tests de bout en bout (e2e) | Aucun `playwright.config`/`cypress.config` ; `playwright` en dépendance mais jamais importé ; 0 des 5 scénarios e2e demandés. | ✅ Muse Spark (scaffold) / ⚠️ Humain (choix des 5 scénarios) |
 
