@@ -1,0 +1,79 @@
+import type { MetricDefinition, MetricKey, MetricDimensions, MetricComputeFn, MetricComputeContext } from './MetricRegistry';
+import { calculateAverageScoreOn20 } from '@domain/rules/GradingEngine';
+
+export const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
+  taux_presence: {
+    key: 'taux_presence',
+    dimensions: ['schoolId', 'classId', 'studentId', 'teacherId', 'dateRange', 'academicPeriodId'],
+    defaultTtlMs: 2 * 60 * 1000,
+    enabled: true,
+  },
+  moyenne_generale: {
+    key: 'moyenne_generale',
+    dimensions: ['schoolId', 'classId', 'studentId', 'sequenceId', 'academicPeriodId'],
+    defaultTtlMs: 2 * 60 * 1000,
+    enabled: true,
+  },
+};
+
+/**
+ * Réutilise EXACTEMENT la logique de PrismaPresenceRepository.findByClasseEtEleves / getStatistiquesEleve
+ * (post-fix 4f7a9b9 : PRESENT+LATE comptent comme présent, 100 si total=0).
+ * Pas de nouvelle requête : on appelle le repository existant via le port.
+ */
+export const computeTauxPresence: MetricComputeFn = async (dims, ctx: MetricComputeContext) => {
+  const { presenceRepository } = ctx;
+
+  // Cas pilote ListerElevesClasse : classId + studentId
+  if (dims.classId && dims.studentId) {
+    const rows = await presenceRepository.findByClasseEtEleves(dims.classId, [dims.studentId]);
+    if (rows.length === 0) return 100;
+    const presents = rows.filter(r => r.status === 'PRESENT' || r.status === 'LATE').length;
+    return Math.round((presents / rows.length) * 100);
+  }
+
+  // Cas générique par élève + période (academicPeriodId)
+  if (dims.studentId && dims.academicPeriodId) {
+    const stats = await presenceRepository.getStatistiquesEleve(dims.studentId, dims.academicPeriodId);
+    return stats.tauxPresence;
+  }
+
+  // Pas de dimensions suffisantes — 100 par convention (même fallback que getStatistiquesEleve total=0)
+  return 100;
+};
+
+/**
+ * Réutilise GradingEngine.calculateAverageScoreOn20 avec :
+ *  - excludeAbsentGrades FIGÉ à true (jamais une dimension)
+ *  - hasCoefficientBySubject lu depuis la config école via le repository existant (SchoolConfigRepository.findBySchool).
+ * Les notes proviennent de NoteRepository.findValideesParClasseEtEleves (notes LOCKED, source unique).
+ */
+export const computeMoyenneGenerale: MetricComputeFn = async (dims, ctx: MetricComputeContext) => {
+  const { noteRepository } = ctx;
+
+  if (!dims.classId || !dims.studentId) return 0;
+
+  const grades = await noteRepository.findValideesParClasseEtEleves(dims.schoolId, dims.classId, [dims.studentId]);
+  const calculable = grades.filter(g => g.sequenceAverage !== null && g.sequenceAverage !== undefined);
+  if (calculable.length === 0) return 0;
+
+  // TODO(V3.5-bis) : hasCoefficientBySubject figé à true ici comme dans GenererBulletinUseCase.ts:124, CalculerMoyenneUseCase.ts:48, PrismaSanteEleveRepository.ts:32 — bug préexistant identique aux 4 endroits (hardcodé true,true, ignore le subsystem de l'école). Résolution trouvée : School.subsystem → DEFAULT_SUBSYSTEMS.find(c=>c.code===subsystem).hasCoefficientBySubject, fallback true si école introuvable. À corriger dans les 4 consommateurs en même temps dans un chantier dédié, jamais un seul isolément (sinon incohérence bulletin vs dashboard vs indice santé pour les écoles FR_PRIMAIRE/EN_PRIMAIRE).
+  const hasCoefficientBySubject = true;
+  const excludeAbsentGrades = true; // FIGÉ — jamais une dimension (contrat Tech Lead)
+
+  return calculateAverageScoreOn20(
+    calculable.map(g => ({
+      scoreOn20: g.sequenceAverage as number,
+      percentage: 0,
+      coefficient: g.coefficient ?? 1,
+      isAbsentGrade: g.isAbsentGrade,
+    })),
+    hasCoefficientBySubject,
+    excludeAbsentGrades,
+  );
+};
+
+export const METRIC_COMPUTE_FNS: Record<MetricKey, MetricComputeFn> = {
+  taux_presence: computeTauxPresence,
+  moyenne_generale: computeMoyenneGenerale,
+};

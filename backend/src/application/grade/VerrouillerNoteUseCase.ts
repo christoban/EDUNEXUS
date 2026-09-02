@@ -5,6 +5,7 @@
  */
 import type { NoteRepository } from '@domain/ports/repositories/NoteRepository';
 import type { MatiereRepository } from '@domain/ports/repositories/MatiereRepository';
+import type { MetricCachePort } from '@domain/ports/cache/MetricCachePort';
 
 export interface VerrouillerNoteCommande {
   noteId: string;
@@ -23,6 +24,7 @@ export class VerrouillerNoteUseCase {
   constructor(
     private readonly noteRepository: NoteRepository,
     private readonly matiereRepository: MatiereRepository,
+    private readonly metricCache?: MetricCachePort,
   ) {}
 
   async execute(commande: VerrouillerNoteCommande): Promise<VerrouillerNoteResultat> {
@@ -54,6 +56,11 @@ export class VerrouillerNoteUseCase {
 
     // 5. Sauvegarder
     await this.noteRepository.update(note);
+
+    // 5bis. Invalidation MetricCache v1 — moyenne_generale
+    if (this.metricCache) {
+      await this.metricCache.invalidate('moyenne_generale', { schoolId: note.schoolId, classId: note.classId });
+    }
 
     return {
       noteId: note.id,

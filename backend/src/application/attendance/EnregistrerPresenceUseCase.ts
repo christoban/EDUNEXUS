@@ -8,6 +8,7 @@ import type { PresenceRepository } from '@domain/ports/repositories/PresenceRepo
 import type { UserRepository } from '@domain/ports/repositories/UserRepository';
 import type { NotificationService } from '@domain/ports/services/NotificationService';
 import type { RattachementEnseignantRepository } from '@domain/ports/repositories/RattachementEnseignantRepository';
+import type { MetricCachePort } from '@domain/ports/cache/MetricCachePort';
 import type { AttendanceStatus, AttendancePeriod } from '@domain/types/enums';
 
 export interface PresenceEleve {
@@ -40,6 +41,7 @@ export class EnregistrerPresenceUseCase {
     private readonly userRepository: UserRepository,
     private readonly notificationService: NotificationService,
     private readonly rattachementRepository: RattachementEnseignantRepository,
+    private readonly metricCache?: MetricCachePort,
   ) {}
 
   async execute(commande: EnregistrerPresenceCommande): Promise<EnregistrerPresenceResultat> {
@@ -102,6 +104,11 @@ export class EnregistrerPresenceUseCase {
 
     // 4. Sauvegarder en bloc
     await this.presenceRepository.saveMany(presencesACreer);
+
+    // 4bis. Invalidation MetricCache v1 (pilote) — taux_presence
+    if (this.metricCache) {
+      await this.metricCache.invalidate('taux_presence', { schoolId: commande.schoolId, classId: commande.classId });
+    }
 
     // 5. Identifier absents et retardataires
     const absents = commande.presences

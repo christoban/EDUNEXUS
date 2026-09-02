@@ -5,6 +5,7 @@
  */
 import type { NoteRepository } from '@domain/ports/repositories/NoteRepository';
 import type { MatiereRepository } from '@domain/ports/repositories/MatiereRepository';
+import type { MetricCachePort } from '@domain/ports/cache/MetricCachePort';
 
 export interface VerrouillerNotesEnMasseCommande {
   classId: string;
@@ -25,6 +26,7 @@ export class VerrouillerNotesEnMasseUseCase {
   constructor(
     private readonly noteRepository: NoteRepository,
     private readonly matiereRepository: MatiereRepository,
+    private readonly metricCache?: MetricCachePort,
   ) {}
 
   async execute(commande: VerrouillerNotesEnMasseCommande): Promise<VerrouillerNotesEnMasseResultat> {
@@ -76,6 +78,11 @@ export class VerrouillerNotesEnMasseUseCase {
         id: note.id, studentId: note.studentId, subjectId: note.subjectId,
         schoolId: note.schoolId, sequenceId: note.sequenceId,
       });
+    }
+
+    // 3bis. Invalidation MetricCache v1 — moyenne_generale
+    if (this.metricCache && verrouillees > 0) {
+      await this.metricCache.invalidate('moyenne_generale', { schoolId: commande.schoolId, classId: commande.classId });
     }
 
     return {

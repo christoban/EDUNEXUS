@@ -319,6 +319,11 @@ import { PrismaEleveOnboardingRepository } from '@infrastructure/persistence/pri
 import { PrismaImportUtilisateursRepository } from '@infrastructure/persistence/prisma/PrismaImportUtilisateursRepository';
 import { PrismaPushSubscriptionRepository } from '@infrastructure/persistence/prisma/PrismaPushSubscriptionRepository';
 
+// --- Metric Engine v1 (in-memory) ---
+import { MetricCache } from '@infrastructure/cache/MetricCache';
+import { MetricRegistry } from '@domain/reporting/MetricRegistryImpl';
+import { GetMetricUseCase } from '@application/reporting/GetMetricUseCase';
+
 // --- Adapters Persistence HR ---
 import { PrismaStaffProfileRepository } from '@infrastructure/persistence/prisma/PrismaStaffProfileRepository';
 import { PrismaLeaveRepository } from '@infrastructure/persistence/prisma/PrismaLeaveRepository';
@@ -445,6 +450,11 @@ export function creerContainer() {
   const assessmentParticipationRepository = new PrismaAssessmentParticipationRepository(prisma);
   const taskRepository = new PrismaTaskRepository(prisma);
 
+  // 2bis. Metric Engine v1 — singleton in-memory (une seule Map pour la durée de vie du process)
+  const metricCache = new MetricCache();
+  const metricRegistry = new MetricRegistry();
+  const getMetricUseCase = new GetMetricUseCase(metricCache, metricRegistry, presenceRepository, noteRepository);
+
   // 3. Services (adaptateurs réels)
   const emailService = new NodemailerEmailService();
   const notificationService = new SocketNotificationService();
@@ -454,8 +464,8 @@ export function creerContainer() {
   const saisirNoteUseCase = new SaisirNoteUseCase(
     noteRepository, matiereRepository, userRepository, rattachementRepository
   );
-  const verrouillerNoteUseCase = new VerrouillerNoteUseCase(noteRepository, matiereRepository);
-  const verrouillerNotesEnMasseUseCase = new VerrouillerNotesEnMasseUseCase(noteRepository, matiereRepository);
+  const verrouillerNoteUseCase = new VerrouillerNoteUseCase(noteRepository, matiereRepository, metricCache);
+  const verrouillerNotesEnMasseUseCase = new VerrouillerNotesEnMasseUseCase(noteRepository, matiereRepository, metricCache);
 
   // 5. Use Cases — Import
   // creerClasseUseCase doit être déclaré AVANT car injecté dans ImporterUtilisateursUseCase
@@ -481,7 +491,7 @@ export function creerContainer() {
 
   // 6. Use Cases — Présences
   const enregistrerPresenceUseCase = new EnregistrerPresenceUseCase(
-    presenceRepository, userRepository, notificationService, rattachementRepository
+    presenceRepository, userRepository, notificationService, rattachementRepository, metricCache
   );
   const traiterSmsPresenceUseCase = new TraiterSmsPresenceUseCase(
     classeRepository, enrollmentRepository, userRepository, presenceRepository
@@ -613,6 +623,7 @@ export function creerContainer() {
     userRepository,
     noteRepository,
     presenceRepository,
+    getMetricUseCase,
   );
   const classeCoefficientRepository = new PrismaClasseCoefficientRepository(prisma);
   const gererMatiereClasseUseCase = new GererMatiereClasseUseCase(
@@ -1180,6 +1191,11 @@ export function creerContainer() {
       anneeRepository,
       bulletinRepository,
       documentRepository: studentDocumentRepository,
+    },
+    metric: {
+      cache: metricCache,
+      registry: metricRegistry,
+      getMetric: getMetricUseCase,
     },
   };
 }
