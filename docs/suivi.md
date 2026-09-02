@@ -11,7 +11,6 @@
 
 | # | Section | Détail | Faisabilité |
 |---|---|---|---|
-| V3.5 | Reporting Engine mature (métriques versionnées) | Aucun `MetricDefinition`, aucun cache/agrégation de métriques paramétrables. | ⚠️ Tech Lead — moteur générique interdit sans 2-3 cas (I) |
 | V3.9 | Tests de bout en bout (e2e) | Aucun `playwright.config`/`cypress.config` ; `playwright` en dépendance mais jamais importé ; 0 des 5 scénarios e2e demandés. | ✅ Muse Spark (scaffold) / ⚠️ Humain (choix des 5 scénarios) |
 
 ---
@@ -31,26 +30,8 @@
 
 | # | Use cases / zones non testés | Faisabilité |
 |---|---|---|
-| V0.3 | `VerifierMfaConnexionUseCase`, `VerifyMfaUseCase`, `VerifyGroupOwnerMfaUseCase`. | ✅ Muse Spark — fait (17 tests) |
-| V0.6 | `ActiverEtablissementUseCase` (~1000 lignes) — le cœur du jalon V0. | ✅ Muse Spark — mais fichier sensible (500 l. → split si besoin) |
-| V1.1 | `TransfererEleveUseCase` + 4 use cases d'onboarding. | ✅ Muse Spark |
-| V1.3 | Permissions, `CareerEvent`, congés (`LeaveRequest`/`LeaveBalance`), `MissionOrder`. | ✅ Muse Spark |
-| V1.4 | `ImporterUtilisateursUseCase` (439 lignes). | ✅ Muse Spark |
-| V1.8 | `EnvoyerBulletinsUseCase`, export ZIP, `ReportCardController.ts` (628 lignes). | ✅ Muse Spark |
-| V1.10 | Babillard : pas de « catégorie » ni tracking de lecture. | ✅ Muse Spark |
-| V2.1 | `ActiverEtablissementUseCase` (1073 l.), `ConfigurerEtablissementUseCase`, `ImporterUtilisateursUseCase`. | ✅ Muse Spark |
-| V2.6 | Pipeline événementiel Inngest — **aucun test** sur le pipeline. | ✅ Muse Spark |
-| V2.7 | Cas `DELIBERATION` (traité comme `PASS`) + intégration orientation (`findClasseCibleOrientation`). | ✅ Muse Spark |
-| V2.8 | LV2 **et** PEBS — **aucun test**. | ✅ Muse Spark |
-| V2.9 | Tout le module orientation — **aucun test**. | ✅ Muse Spark |
-| V2.10 | `CalculerAdmissionConcoursUseCase` non testé. | ✅ Muse Spark |
-| V2.13 | APEE — **zéro test**. | ✅ Muse Spark — fait (8 tests) |
-| V2.14 | Recensement MINESEC — **aucun test**. | ✅ Muse Spark — fait (2 tests : resolveEsgEngFields + minesecManuelsFieldMap) |
-| V3.1 | Aucun test frontend (pas de script `test` dans `frontend/package.json`). | ✅ Muse Spark (scaffold vitest) |
 | V3.3 | `AssistantController`, catalogues d'actions, RBAC/anti-hallucination — **zéro test** (seule la journalisation en aval est testée). | ✅ Muse Spark pour RBAC (mocker Groq) / ⚠️ Tech Lead pour `/execute` non déterministe |
-| V3.4 | `CreerActionSuiviEleveUseCase` (escalade) non testé. | ✅ Muse Spark |
-| V3.8 | MFA et backups (hors rotation) non testés. | ✅ Muse Spark |
-
+|
 > **Note** : V0.6 figure ici car la roadmap le laisse en 🟡 malgré les 10 tests d'intégration ajoutés en §3.5 — statut conservé tel quel, à arbitrer si passage en ✅.
 
 ---
@@ -59,9 +40,7 @@
 
 | # | Écart | Faisabilité |
 |---|---|---|
-| 1 | **V2.6** : `inngest.send()` émis depuis les contrôleurs HTTP, pas depuis une couche « Domain Rule ». | ⚠️ Tech Lead — flux transverse, à valider en revue |
-| 2 | **V2.12** : canal de notification codé en dur par l'appelant. | ⚠️ Tech Lead — matrice à spécifier (cf. B V2.12) |
-| 3 | **V3.3** : pattern « confirmation obligatoire avant persistence » non généralisé (~54 actions, **2 seulement** confirmées). | ⚠️ Tech Lead — décision sécurité + UX |
+| 1 | **V3.3** : pattern « confirmation obligatoire avant persistence » non généralisé (~54 actions, **2 seulement** confirmées). | ⚠️ Tech Lead — décision sécurité + UX |
 
 ---
 

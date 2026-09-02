@@ -18,7 +18,7 @@ import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { resolveLanguage } from '../../../domain/policies/LanguagePolicy';
 import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 import { logActivity } from '../../services/audit/ActivityLogService';
-import { inngest } from '../../inngest/client/index.ts';
+import type { EventPublisher } from '@domain/ports/services/EventPublisher';
 
 /** Schéma Zod des contraintes douces V2.5 — .strict() : toute clé inconnue → 400. */
 const contraintesSchema = z.object({
@@ -61,6 +61,7 @@ export class TimetableController {
     private readonly proposerEmploiDuTemps: ProposerEmploiDuTempsUseCase,
     private readonly appliquerProposition: AppliquerPropositionEmploiDuTempsUseCase,
     private readonly simulerEmploiDuTemps: SimulerEmploiDuTempsUseCase,
+    private readonly eventPublisher?: EventPublisher,
   ) {}
 
   creerManuel = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -234,10 +235,12 @@ export class TimetableController {
 
       // V2.5 — événement APRÈS la transaction (jamais dedans) : les séances sont écrites, on
       // notifie l'écosystème (AssessmentScheduled si une matière d'examen à venir est concernée).
-      void inngest.send({
-        name: 'timetable/seances.appliquees',
-        data: { schoolId: user.schoolId, timetableId: req.params['id'] as string, nbSeances: seances.length, seances },
-      }).catch((err) => console.error('[TimetableController] Échec envoi timetable/seances.appliquees:', err?.message));
+      void this.eventPublisher?.emit('timetable/seances.appliquees', {
+        schoolId: user.schoolId,
+        timetableId: req.params['id'] as string,
+        nbSeances: seances.length,
+        seances,
+      } as unknown as Record<string, unknown>)?.catch((err) => console.error('[TimetableController] Échec envoi timetable/seances.appliquees:', (err as Error)?.message));
 
       res.status(201).json({ success: true, data: resultat });
     } catch (error) {

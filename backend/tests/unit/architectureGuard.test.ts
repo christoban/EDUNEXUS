@@ -3,27 +3,48 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 /**
- * ARCHITECTURE GUARD — Garde-fous de l'architecture hexagonale (§4.3, §4.12 AGENTS.md).
+ * GARDE-FOU HEXAGONAL CONSOLIDÉ (§4.3, §4.12 AGENTS.md)
+ * ======================================================
  *
- * Objectif : rendre les règles de DIRECTION DE DÉPENDANCE exécutables plutôt que documentaires.
- * Chaque `it()` échoue si la violation réapparaît. C'est le seul mécanisme FERME qui empêche
- * une régression même avec un petit modèle IA : une règle qui fait échouer `bun test` est plus
- * forte qu'une règle qu'on lit dans un .md.
+ * Remplace/fusionne :
+ *   - architecture-guard.test.ts (règles 1-4 : direction des imports + controllers)
+ *   - p1-application-no-prisma.test.ts (règle prisma dans application/)
  *
- * Règles couvertes (le cœur de l'hexagonal) :
- *   1. application/ n'importe JAMAIS @infrastructure (statique OU dynamic import)
- *   2. application/ n'importe JAMAIS @prisma/client
- *   3. domain/ n'importe JAMAIS @application
- *   4. controllers HTTP n'accèdent jamais à this.prisma (tout passe par UC/ports)
+ * PRINCIPE DE CONCEPTION (pour éviter la régression qui a motivé ce fichier) :
+ * Les anciens tests ne détectaient que des CHAÎNES FIXES connues à l'avance
+ * (ex: "this.prisma"). Une fuite d'infra qui prend une forme légèrement
+ * différente (this.cache.getPrisma(), prisma: any, getRawClient(), etc.)
+ * passait à travers. Ce fichier détecte donc des PATTERNS STRUCTURELS :
+ *   - tout type de retour/paramètre `any` dans domain/ ou application/
+ *     (le mécanisme même du contournement, pas le nom de la variable)
+ *   - toute méthode nommée comme un "escape hatch" vers l'infra
+ *     (getPrisma, getClient, getRawClient, getConnection, getDb, rawQuery...)
+ *   - tout import (statique OU dynamique) vers infra/prisma/frameworks
+ *     concrets depuis domain/ ou application/
+ *   - tout accès `this.prisma` / `ctx.prisma` / `req.prisma` où que ce soit
+ *     hors infrastructure/ (pas seulement dans les controllers)
  *
- * Volontairement NON couvert ici (déjà géré par le pre-commit hook : tsc + détection `as any`
- * sur les LIGNES AJOUTÉES) : les casts `as any` préexistants.
+ * ÉCHAPPATOIRE EXPLICITE AUTORISÉE :
+ * Si un `any` est réellement nécessaire et justifié (cas rarissime), il doit
+ * être marqué en fin de ligne par `// hex-allow-any: <raison>`. Sans ce
+ * commentaire, le test échoue. Ça transforme un contournement silencieux en
+ * décision explicite et grep-able.
  */
 
 const ROOT = join(import.meta.dir, '../../src');
-const APP = join(ROOT, 'application');
 const DOMAIN = join(ROOT, 'domain');
+const DOMAIN_PORTS = join(ROOT, 'domain/ports');
+const APP = join(ROOT, 'application');
 const CONTROLLERS = join(ROOT, 'infrastructure/http/controllers');
+const INFRA = join(ROOT, 'infrastructure');
+
+// ---------------------------------------------------------------------------
+// Utilitaires
+// ---------------------------------------------------------------------------
+
+function existsSync(p: string): boolean {
+  try { statSync(p); return true; } catch { return false; }
+}
 
 function listerFichiersTs(dir: string): string[] {
   if (!existsSync(dir)) return [];
@@ -32,13 +53,24 @@ function listerFichiersTs(dir: string): string[] {
     const chemin = join(dir, entry);
     const s = statSync(chemin);
     if (s.isDirectory()) result.push(...listerFichiersTs(chemin));
-    else if (entry.endsWith('.ts')) result.push(chemin);
+    else if (entry.endsWith('.ts') && !entry.endsWith('.test.ts')) result.push(chemin);
   }
   return result;
 }
 
-function existsSync(p: string): boolean {
-  try { statSync(p); return true; } catch { return false; }
+function extraireImports(contenu: string): string[] {
+  // Capture import statique ET dynamique (import('...')) ET require('...')
+  const specs: string[] = [];
+  const re = /(?:from\s*['"]([^'"]+)['"]|import\(\s*['"]([^'"]+)['"]\s*\)|require\(\s*['"]([^'"]+)['"]\s*\))/g;
+  for (const m of contenu.matchAll(re)) {
+    specs.push(m[1] ?? m[2] ?? m[3] ?? '');
+  }
+  return specs;
+}
+
+// Une ligne est couverte par l'échappatoire explicite si elle porte le marqueur
+function ligneEstJustifiee(ligne: string): boolean {
+  return /\/\/\s*hex-allow-any\s*:\s*\S+/.test(ligne);
 }
 
 const isInfraDep = (spec: string): boolean =>
@@ -47,56 +79,233 @@ const isInfraDep = (spec: string): boolean =>
 const isAppDep = (spec: string): boolean =>
   spec.includes('@application') || spec.includes('/application/');
 
-describe('Garde-fou hexagonal — sens des dépendances', () => {
-  // ── Règle 1 : application/ ne dépend JAMAIS de @infrastructure (ni statique ni dynamic import)
-  it('application/ n\'importe aucune dépendance infrastructure (import statique OU dynamique)', () => {
-    const violations: string[] = [];
-    for (const fichier of listerFichiersTs(APP)) {
-      const contenu = readFileSync(fichier, 'utf8');
-      const imports = [...contenu.matchAll(/(?:from\s*'([^']+)'|import\(\s*'([^']+)'\)|require\(\s*'([^']+)'\))/g)];
-      for (const m of imports) {
-        const spec = m[1] ?? m[2] ?? m[3] ?? '';
-        if (isInfraDep(spec)) violations.push(`${relative(APP, fichier)} → "${spec}"`);
+const isDomainDep = (spec: string): boolean =>
+  spec.includes('@domain') || spec.includes('/domain/');
+
+// Librairies concrètes qui ne doivent JAMAIS être importées depuis domain/ ou application/ :
+// seule infrastructure/ a le droit de connaître ces packages (ce sont les adapters).
+const LIBS_INFRA_INTERDITES = [
+  '@prisma/client',
+  '.prisma/client',
+  'express',
+  'socket.io',
+  'inngest',
+  'groq-sdk',
+  '@google/generative-ai', // Gemini
+  'ioredis',
+  'redis',
+  'nodemailer',
+  'twilio',
+  '@aws-sdk',
+  'bullmq',
+];
+
+// Noms de méthodes qui, dans un PORT (domain/ports/), sentent l'escape hatch
+// vers un client concret plutôt qu'une opération métier.
+const NOMS_ESCAPE_HATCH = [
+  'getprisma',
+  'getclient',
+  'getrawclient',
+  'getconnection',
+  'getdb',
+  'getdatabase',
+  'rawquery',
+  'executeraw',
+  '$queryraw',
+  '$executeraw',
+];
+
+// ---------------------------------------------------------------------------
+// Détection générique de "any" utilisé comme paramètre/retour/propriété de type
+// (volontairement plus large que "as any" : couvre aussi ": any", "<any>",
+// "Promise<any>", "(x: any)" etc. — c'est le mécanisme du contournement,
+// peu importe la syntaxe utilisée pour l'exprimer)
+// ---------------------------------------------------------------------------
+
+interface OccurrenceAny {
+  fichier: string;
+  ligneNo: number;
+  ligne: string;
+}
+
+function trouverAnyNonJustifies(dir: string, racineRelative: string): OccurrenceAny[] {
+  const violations: OccurrenceAny[] = [];
+  const reAny = /:\s*any\b|<\s*any\s*>|as\s+any\b/;
+  for (const fichier of listerFichiersTs(dir)) {
+    const lignes = readFileSync(fichier, 'utf8').split('\n');
+    lignes.forEach((ligne, idx) => {
+      if (reAny.test(ligne) && !ligneEstJustifiee(ligne)) {
+        violations.push({ fichier: relative(racineRelative, fichier), ligneNo: idx + 1, ligne: ligne.trim() });
       }
-    }
-    expect(violations, `application/ → infrastructure interdite :\n${violations.join('\n')}`).toEqual([]);
-  });
+    });
+  }
+  return violations;
+}
 
-  // ── Règle 2 : application/ ne dépend JAMAIS de @prisma/client
-  it('application/ n\'importe jamais @prisma/client', () => {
-    const violations: string[] = [];
-    for (const fichier of listerFichiersTs(APP)) {
-      const contenu = readFileSync(fichier, 'utf8');
-      if (contenu.includes('@prisma/client')) violations.push(relative(APP, fichier));
-    }
-    expect(violations, `@prisma/client dans application/ :\n${violations.join('\n')}`).toEqual([]);
-  });
+// ---------------------------------------------------------------------------
+// SUITE
+// ---------------------------------------------------------------------------
 
-  // ── Règle 3 : domain/ ne dépend JAMAIS de @application
-  it('domain/ n\'importe jamais @application (le domaine est le plus profond)', () => {
+describe('Garde-fou hexagonal — direction des dépendances', () => {
+  it('domain/ n\'importe jamais application/ (le domaine est la couche la plus profonde)', () => {
     const violations: string[] = [];
     for (const fichier of listerFichiersTs(DOMAIN)) {
       const contenu = readFileSync(fichier, 'utf8');
-      const imports = [...contenu.matchAll(/(?:from\s*'([^']+)'|import\(\s*'([^']+)'\))/g)];
-      for (const m of imports) {
-        const spec = m[1] ?? m[2] ?? '';
+      for (const spec of extraireImports(contenu)) {
         if (isAppDep(spec)) violations.push(`${relative(DOMAIN, fichier)} → "${spec}"`);
       }
     }
     expect(violations, `domain/ → application/ interdite :\n${violations.join('\n')}`).toEqual([]);
   });
 
-  // ── Règle 4 : aucun controller HTTP n'utilise this.prisma (accès direct)
-  // Exception documentée : AssistantController — ActionContext.prisma requis par le catalogue copilot.
-  it('controllers HTTP ne font aucun accès this.prisma direct (hors AssistantController)', () => {
+  it('domain/ n\'importe jamais infrastructure/ (statique OU dynamique)', () => {
     const violations: string[] = [];
+    for (const fichier of listerFichiersTs(DOMAIN)) {
+      const contenu = readFileSync(fichier, 'utf8');
+      for (const spec of extraireImports(contenu)) {
+        if (isInfraDep(spec)) violations.push(`${relative(DOMAIN, fichier)} → "${spec}"`);
+      }
+    }
+    expect(violations, `domain/ → infrastructure/ interdite :\n${violations.join('\n')}`).toEqual([]);
+  });
+
+  it('application/ n\'importe aucune dépendance infrastructure (statique OU dynamique)', () => {
+    const violations: string[] = [];
+    for (const fichier of listerFichiersTs(APP)) {
+      const contenu = readFileSync(fichier, 'utf8');
+      for (const spec of extraireImports(contenu)) {
+        if (isInfraDep(spec)) violations.push(`${relative(APP, fichier)} → "${spec}"`);
+      }
+    }
+    expect(violations, `application/ → infrastructure/ interdite :\n${violations.join('\n')}`).toEqual([]);
+  });
+
+  for (const lib of LIBS_INFRA_INTERDITES) {
+    it(`domain/ et application/ n'importent jamais "${lib}" directement`, () => {
+      const violations: string[] = [];
+      for (const dir of [DOMAIN, APP]) {
+        for (const fichier of listerFichiersTs(dir)) {
+          const contenu = readFileSync(fichier, 'utf8');
+          for (const spec of extraireImports(contenu)) {
+            if (spec === lib || spec.startsWith(`${lib}/`)) {
+              violations.push(`${relative(ROOT, fichier)} → "${spec}"`);
+            }
+          }
+        }
+      }
+      expect(violations, `Import direct de lib concrète interdit :\n${violations.join('\n')}`).toEqual([]);
+    });
+  }
+});
+
+describe('Garde-fou hexagonal — aucune fuite de client concret (prisma, db...)', () => {
+  it('application/ ne fait jamais this.prisma / ctx.prisma / req.prisma', () => {
+    const violations: string[] = [];
+    const motifs = ['this.prisma', 'ctx.prisma', 'req.prisma', 'this.db.', 'ctx.db.'];
+    for (const fichier of listerFichiersTs(APP)) {
+      const contenu = readFileSync(fichier, 'utf8');
+      for (const motif of motifs) {
+        if (contenu.includes(motif)) violations.push(`${relative(APP, fichier)} → "${motif}"`);
+      }
+    }
+    expect(violations, `Accès client concret dans application/ :\n${violations.join('\n')}`).toEqual([]);
+  });
+
+  it('domain/ports/ n\'expose aucune méthode "escape hatch" vers un client concret', () => {
+    const violations: string[] = [];
+    for (const fichier of listerFichiersTs(DOMAIN_PORTS)) {
+      const contenu = readFileSync(fichier, 'utf8').toLowerCase();
+      for (const nom of NOMS_ESCAPE_HATCH) {
+        if (contenu.includes(nom)) {
+          violations.push(`${relative(DOMAIN_PORTS, fichier)} → méthode/motif "${nom}"`);
+        }
+      }
+    }
+    expect(
+      violations,
+      `Un port expose un accès direct à un client concret plutôt qu'une opération métier :\n${violations.join('\n')}\n` +
+      `→ Remplacer par une méthode métier typée (ex: countPresences(), getMoyenne()) implémentée par l'adapter.`,
+    ).toEqual([]);
+  });
+
+  it('aucun constructeur/paramètre de application/ ou domain/ n\'est typé "PrismaClient"', () => {
+    const violations: string[] = [];
+    for (const dir of [DOMAIN, APP]) {
+      for (const fichier of listerFichiersTs(dir)) {
+        const contenu = readFileSync(fichier, 'utf8');
+        if (/:\s*PrismaClient\b/.test(contenu)) {
+          violations.push(relative(ROOT, fichier));
+        }
+      }
+    }
+    expect(violations, `Type PrismaClient utilisé hors infrastructure/ :\n${violations.join('\n')}`).toEqual([]);
+  });
+});
+
+describe('Garde-fou hexagonal — aucun "any" non justifié comme échappatoire de type', () => {
+  it('domain/ ne contient aucun "any" non justifié', () => {
+    const violations = trouverAnyNonJustifies(DOMAIN, DOMAIN);
+    const message = violations.map(v => `${v.fichier}:${v.ligneNo} → ${v.ligne}`).join('\n');
+    expect(
+      violations,
+      `"any" non justifié dans domain/ (ajoutez "// hex-allow-any: <raison>" si vraiment nécessaire) :\n${message}`,
+    ).toEqual([]);
+  });
+
+  it('application/ ne contient aucun "any" non justifié', () => {
+    const violations = trouverAnyNonJustifies(APP, APP);
+    const message = violations.map(v => `${v.fichier}:${v.ligneNo} → ${v.ligne}`).join('\n');
+    expect(
+      violations,
+      `"any" non justifié dans application/ (ajoutez "// hex-allow-any: <raison>" si vraiment nécessaire) :\n${message}`,
+    ).toEqual([]);
+  });
+});
+
+describe('Garde-fou hexagonal — controllers HTTP passent par les use cases/ports', () => {
+  it('controllers HTTP ne font aucun accès direct this.prisma/ctx.prisma (hors AssistantController)', () => {
+    const violations: string[] = [];
+    const motifs = ['this.prisma', 'ctx.prisma', 'req.prisma'];
     for (const fichier of listerFichiersTs(CONTROLLERS)) {
       const contenu = readFileSync(fichier, 'utf8');
-      if (contenu.includes('this.prisma')) {
-        const nom = relative(CONTROLLERS, fichier);
-        if (!nom.includes('AssistantController')) violations.push(nom);
+      const nom = relative(CONTROLLERS, fichier);
+      if (nom.includes('AssistantController')) continue; // exception documentée (ActionContext.prisma requis par le catalogue copilot)
+      for (const motif of motifs) {
+        if (contenu.includes(motif)) violations.push(`${nom} → "${motif}"`);
       }
     }
     expect(violations, `this.prisma dans controllers (hors AssistantController) :\n${violations.join('\n')}`).toEqual([]);
+  });
+
+  it('controllers HTTP n\'importent jamais @prisma/client directement', () => {
+    const violations: string[] = [];
+    for (const fichier of listerFichiersTs(CONTROLLERS)) {
+      const contenu = readFileSync(fichier, 'utf8');
+      const nom = relative(CONTROLLERS, fichier);
+      if (nom.includes('AssistantController')) continue;
+      for (const spec of extraireImports(contenu)) {
+        if (spec === '@prisma/client') violations.push(nom);
+      }
+    }
+    expect(violations, `@prisma/client importé directement dans un controller :\n${violations.join('\n')}`).toEqual([]);
+  });
+});
+
+describe('Garde-fou hexagonal — cohérence de placement des ports', () => {
+  it('aucune interface nommée *Port n\'est déclarée en dehors de domain/ports/', () => {
+    const violations: string[] = [];
+    for (const dir of [APP, INFRA]) {
+      for (const fichier of listerFichiersTs(dir)) {
+        const contenu = readFileSync(fichier, 'utf8');
+        const matches = [...contenu.matchAll(/\binterface\s+(\w*Port)\b/g)];
+        for (const m of matches) {
+          violations.push(`${relative(ROOT, fichier)} → interface "${m[1]}"`);
+        }
+      }
+    }
+    expect(
+      violations,
+      `Un contrat de port doit vivre uniquement dans domain/ports/ :\n${violations.join('\n')}`,
+    ).toEqual([]);
   });
 });

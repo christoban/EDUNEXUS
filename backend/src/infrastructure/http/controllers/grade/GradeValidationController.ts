@@ -1,14 +1,15 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { VerrouillerNoteUseCase } from '@application/grade/VerrouillerNoteUseCase';
 import type { VerrouillerNotesEnMasseUseCase } from '@application/grade/VerrouillerNotesEnMasseUseCase';
+import type { EventPublisher } from '@domain/ports/services/EventPublisher';
 import { logActivity } from '../../../services/audit/ActivityLogService';
-import { inngest } from '../../../inngest/client/index.ts';
 import { gererErreurGrade } from './gradeErrors';
 
 export class GradeValidationController {
   constructor(
     private readonly verrouillerNote: VerrouillerNoteUseCase,
     private readonly verrouillerNotesEnMasse: VerrouillerNotesEnMasseUseCase,
+    private readonly eventPublisher: EventPublisher,
   ) {}
 
   // PATCH /api/v2/grades/:id/lock
@@ -21,17 +22,13 @@ export class GradeValidationController {
         schoolId: user.schoolId,
       });
 
-      const { prisma } = await import('@infrastructure/persistence/prisma/prisma.client');
-      const grade = await prisma.grade.findUnique({
-        where: { id: req.params.id as string },
-        select: { studentId: true, subjectId: true, schoolId: true, sequenceId: true },
-      }).catch(() => null);
-      if (grade) {
-        void inngest.send({
-          name: 'grade/locked',
-          data: { gradeId: req.params.id as string, ...grade },
-        }).catch((err) => console.error('[GradeValidationController] Échec envoi grade/locked:', err?.message));
-      }
+      void this.eventPublisher.emit('grade/locked', {
+        gradeId: resultat.noteId,
+        studentId: resultat.studentId,
+        subjectId: resultat.subjectId,
+        schoolId: resultat.schoolId,
+        sequenceId: resultat.sequenceId,
+      }).catch((err) => console.error('[GradeValidationController] Échec envoi grade/locked:', (err as Error)?.message));
 
       void logActivity({ userId: user.userId, schoolId: user.schoolId, action: 'Note verrouillée', details: `Note ${req.params.id} verrouillée` });
 
@@ -58,13 +55,10 @@ export class GradeValidationController {
       });
 
       if (resultat.gradesVerrouilles.length > 0) {
-        void inngest.send({
-          name: 'grade/locked-batch',
-          data: {
-            schoolId: resultat.gradesVerrouilles[0]!.schoolId,
-            grades: resultat.gradesVerrouilles.map((g) => ({ studentId: g.studentId, subjectId: g.subjectId, sequenceId: g.sequenceId })),
-          },
-        }).catch((err) => console.error('[GradeValidationController] Échec envoi grade/locked-batch:', err?.message));
+        void this.eventPublisher.emit('grade/locked-batch', {
+          schoolId: resultat.gradesVerrouilles[0]!.schoolId,
+          grades: resultat.gradesVerrouilles.map((g) => ({ studentId: g.studentId, subjectId: g.subjectId, sequenceId: g.sequenceId })),
+        }).catch((err) => console.error('[GradeValidationController] Échec envoi grade/locked-batch:', (err as Error)?.message));
       }
 
       void logActivity({ userId: user.userId, schoolId: user.schoolId, action: 'Notes verrouillées en masse', details: `Classe ${classId}, séquence ${sequenceId} : ${resultat.notesVerrouillees} notes` });

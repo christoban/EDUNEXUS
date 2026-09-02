@@ -35,6 +35,7 @@ export function registerGradeRoutes(app: Application, prismaParam: typeof prisma
     c.school.anneeRepository,
     c.school.classeRepository,
     c.school.matiereRepository,
+    c.events.publisher,
   );
 
   const attendanceController = new AttendanceController(
@@ -56,6 +57,7 @@ export function registerGradeRoutes(app: Application, prismaParam: typeof prisma
     c.timetable.proposerEmploiDuTemps,
     c.timetable.appliquerProposition,
     c.timetable.simulerEmploiDuTemps,
+    c.events.publisher,
   );
 
   app.post('/api/v2/timetables/generate-skeleton', requireAuth, requireRole('ADMIN', 'STAFF'), async (req, res, next) => {

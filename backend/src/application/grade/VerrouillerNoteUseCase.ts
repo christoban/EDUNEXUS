@@ -18,6 +18,10 @@ export interface VerrouillerNoteResultat {
   noteId: string;
   statut: string;
   message: string;
+  studentId: string;
+  subjectId: string;
+  schoolId: string;
+  sequenceId: string;
 }
 
 export class VerrouillerNoteUseCase {
@@ -66,6 +70,10 @@ export class VerrouillerNoteUseCase {
       noteId: note.id,
       statut: note.validationStatus,
       message: 'Note verrouillée avec succès',
+      studentId: note.studentId,
+      subjectId: note.subjectId,
+      schoolId: note.schoolId,
+      sequenceId: note.sequenceId,
     };
   }
 }

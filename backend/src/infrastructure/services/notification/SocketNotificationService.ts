@@ -1,5 +1,6 @@
 import type { NotificationService, EnvoiNotificationOptions } from '@domain/ports/services/NotificationService';
 import type { NotificationType as DomainNotificationType } from '@domain/types/enums';
+import type { EventPublisher } from '@domain/ports/services/EventPublisher';
 import type { NotificationType as PrismaNotificationType, UserRole, Prisma } from '@prisma/client';
 import { getIO } from '../../socket/SocketServer.ts';
 import { notifierUtilisateurPush, notifierUtilisateurPushAvecResultat } from './PushNotificationService.ts';
@@ -36,6 +37,8 @@ const DOMAIN_TO_PRISMA_NOTIFICATION_TYPE: Record<DomainNotificationType, PrismaN
 const pushSubscriptionRepo = new PrismaPushSubscriptionRepository(prisma);
 
 export class SocketNotificationService implements NotificationService {
+  constructor(private readonly eventPublisher?: EventPublisher) {}
+
   async envoyer(options: EnvoiNotificationOptions): Promise<void> {
     // Rétrocompat : si canal est fourni mais urgency aussi, on log un warning
     if (options.urgency && options.canal && options.canal !== 'IN_APP') {
@@ -120,12 +123,11 @@ export class SocketNotificationService implements NotificationService {
     // Escalade SMS différée pour URGENT sans push actif
     if (options.urgency === 'URGENT' && !hasPush && notificationId) {
       try {
-        const { escaladerNotificationUrgente } = await import('../../inngest/functions/notificationJobs.ts');
-        const { inngest } = await import('../../inngest/client/index.ts');
-        await inngest.send({
-          name: 'notification/escalade-urgent',
-          data: { notificationId, userId: options.userId, schoolId: options.schoolId },
-        });
+        await this.eventPublisher?.emit('notification/escalade-urgent', {
+          notificationId,
+          userId: options.userId,
+          schoolId: options.schoolId,
+        } as unknown as Record<string, unknown>);
       } catch (err) {
         console.error('[Notification] Échec envoi job escalade SMS:', err);
       }

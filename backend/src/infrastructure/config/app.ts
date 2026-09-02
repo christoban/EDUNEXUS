@@ -37,6 +37,7 @@ export function creerApp(): Application {
     container.school.anneeRepository,
     container.school.classeRepository,
     container.school.matiereRepository,
+    container.events.publisher,
   );
 
   const attendanceController = new AttendanceController(

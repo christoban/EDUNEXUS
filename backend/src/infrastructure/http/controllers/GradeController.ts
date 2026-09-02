@@ -16,6 +16,7 @@ import type { ImporterNotesExcelUseCase } from '@application/grade/ImporterNotes
 import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/AnneeAcademiqueRepository';
 import type { ClasseRepository } from '@domain/ports/repositories/ClasseRepository';
 import type { MatiereRepository } from '@domain/ports/repositories/MatiereRepository';
+import type { EventPublisher } from '@domain/ports/services/EventPublisher';
 
 export * from './grade/GradeSaisieController';
 export * from './grade/GradeValidationController';
@@ -50,6 +51,7 @@ export class GradeController {
     anneeRepository: AnneeAcademiqueRepository,
     classeRepository: ClasseRepository,
     matiereRepository: MatiereRepository,
+    eventPublisher: EventPublisher,
   ) {
     this.saisieController = new GradeSaisieController(
       saisirNote,
@@ -60,6 +62,7 @@ export class GradeController {
     this.validationController = new GradeValidationController(
       verrouillerNote,
       verrouillerNotesEnMasse,
+      eventPublisher,
     );
     this.lectureController = new GradeLectureController(
       listerNotes,

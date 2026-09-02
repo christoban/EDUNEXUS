@@ -12,7 +12,7 @@ import type { ReinitialiserMfaUtilisateurUseCase } from '@application/masterAdmi
 import { MasterAdminNotFoundError, MasterAdminValidationError } from '@application/masterAdmin/errors';
 import type { MasterAdminQueryRepository } from '@domain/ports/repositories/MasterAdminQueryRepository';
 import type { PlanType, SchoolSubsystem } from '@domain/types/enums';
-import { inngest } from '../../inngest/client/index.ts';
+import type { EventPublisher } from '@domain/ports/services/EventPublisher';
 import { sendTransactionalEmail } from '../../services/email/EmailService.ts';
 import { listSchoolBackups } from '../../backup/SchoolBackupService';
 import { logMasterAction } from '../../services/audit/MasterAuthAuditService';
@@ -30,6 +30,7 @@ export class MasterAdminHexController {
     private readonly changerStatutUC: ChangerStatutEcoleUseCase,
     private readonly synchroniserMatieresUC: SynchroniserMatieresEcoleUseCase,
     private readonly reinitialiserMfaUC: ReinitialiserMfaUtilisateurUseCase,
+    private readonly eventPublisher?: EventPublisher,
   ) {}
 
   // POST /api/v2/master/schools/invite
@@ -330,14 +331,11 @@ export class MasterAdminHexController {
       const master = req.masterUser;
       const schoolId = typeof req.body?.schoolId === 'string' && req.body.schoolId.trim() ? req.body.schoolId.trim() : undefined;
 
-      const response = await inngest.send({
-        name: 'backup/school.requested',
-        data: {
-          schoolId,
-          requestedByMasterId: master?.id ?? null,
-          source: 'manual',
-        },
-      });
+      await this.eventPublisher?.emit('backup/school.requested', {
+        schoolId,
+        requestedByMasterId: master?.id ?? null,
+        source: 'manual',
+      } as unknown as Record<string, unknown>);
 
       void logMasterAction({
         req,
@@ -347,7 +345,7 @@ export class MasterAdminHexController {
         description: schoolId ? `Sauvegarde déclenchée pour l'école ${schoolId}` : 'Sauvegarde globale déclenchée',
       });
 
-      res.status(202).json({ success: true, message: 'Sauvegarde déclenchée', data: { eventId: response.ids?.[0] ?? null } });
+      res.status(202).json({ success: true, message: 'Sauvegarde déclenchée', data: { eventId: null } });
     } catch (error) {
       this.gererErreur(error, res, next);
     }
