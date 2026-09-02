@@ -6,11 +6,12 @@ import { InMemoryPresenceRepository } from '../../helpers/repositories/InMemoryP
 import { InMemoryNoteRepository } from '../../helpers/repositories/InMemoryNoteRepository';
 import { Presence } from '@domain/entities/Presence';
 
-function makePresence(status: string, studentId = 'e1', classId = 'c1', periodId = 'p1') {
+function makePresence(status: string, studentId = 'e1', classId = 'c1', periodId = 'p1', teacherId?: string, date?: Date) {
   return Presence.reconstituer({
     id: crypto.randomUUID(), schoolId: 's1', studentId, classId, academicPeriodId: periodId,
-    date: new Date('2025-09-01'), status: status as any, period: 'MORNING' as any, isOfflineSync: false, createdAt: new Date(),
-  });
+    date: date ?? new Date('2025-09-01'), status: status as any, period: 'MORNING' as any, isOfflineSync: false, createdAt: new Date(),
+    teacherId: teacherId as any,
+  } as any);
 }
 
 function makeStatsRepo(overrides?: Partial<{ assignments: Array<{ classId: string }>; attendances: Array<{ status: string }> }>) {
@@ -29,25 +30,20 @@ function makeStatsRepo(overrides?: Partial<{ assignments: Array<{ classId: strin
   } as any;
 }
 
-function makePrismaMock(attendances: Array<{ status: string }> = []) {
-  return { attendance: { findMany: async () => attendances } } as any;
-}
-
 function setup() {
   const cache = new MetricCache();
   const registry = new MetricRegistry();
   const presenceRepo = new InMemoryPresenceRepository();
   const noteRepo = new InMemoryNoteRepository();
   const statsRepo = makeStatsRepo();
-  const prismaMock = makePrismaMock();
 
   // 3 présences : PRESENT + LATE + ABSENT → 66.67%
   presenceRepo.ajouter(makePresence('PRESENT'));
   presenceRepo.ajouter(makePresence('LATE'));
   presenceRepo.ajouter(makePresence('ABSENT'));
 
-  const useCase = new GetMetricUseCase(cache, registry, presenceRepo, noteRepo, statsRepo, prismaMock);
-  return { cache, registry, useCase, presenceRepo, noteRepo, statsRepo, prismaMock };
+  const useCase = new GetMetricUseCase(cache, registry, presenceRepo, noteRepo, statsRepo);
+  return { cache, registry, useCase, presenceRepo, noteRepo, statsRepo };
 }
 
 describe('GetMetricUseCase', () => {
@@ -101,8 +97,7 @@ describe('GetMetricUseCase', () => {
         { status: 'ABSENT', date: new Date(), classId: 'c2', subjectId: 's1' } as any,
       ],
     });
-    const prismaMock = makePrismaMock();
-    const useCase = new GetMetricUseCase(cache, registry, presenceRepo, noteRepo, statsRepo, prismaMock);
+    const useCase = new GetMetricUseCase(cache, registry, presenceRepo, noteRepo, statsRepo);
     const res = await useCase.execute({ key: 'taux_presence', dimensions: { schoolId: 's1', teacherId: 't1' } });
     // Avant migration : (PRESENT+LATE)/3 = 2/3 → 66.67 (2 décimales)
     expect(res.value).toBe(66.67);
@@ -118,8 +113,7 @@ describe('GetMetricUseCase', () => {
     const presenceRepo = new InMemoryPresenceRepository();
     const noteRepo = new InMemoryNoteRepository();
     const statsRepo = makeStatsRepo({ assignments: [], attendances: [] });
-    const prismaMock = makePrismaMock();
-    const useCase = new GetMetricUseCase(cache, registry, presenceRepo, noteRepo, statsRepo, prismaMock);
+    const useCase = new GetMetricUseCase(cache, registry, presenceRepo, noteRepo, statsRepo);
     const res = await useCase.execute({ key: 'taux_presence', dimensions: { schoolId: 's1', teacherId: 't-unknown' } });
     expect(res.value).toBe(100);
   });
@@ -137,15 +131,13 @@ describe('GetMetricUseCase', () => {
     const presenceRepo = new InMemoryPresenceRepository();
     const noteRepo = new InMemoryNoteRepository();
     const statsRepo = makeStatsRepo();
-    // Mock prisma pour dateRange : 2 présents (PRESENT+LATE) + 1 absent = 66.67
-    const prismaMock = makePrismaMock([
-      { status: 'PRESENT' } as any,
-      { status: 'LATE' } as any,
-      { status: 'ABSENT' } as any,
-    ]);
-    const useCase = new GetMetricUseCase(cache, registry, presenceRepo, noteRepo, statsRepo, prismaMock);
-    const depuis = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
-    const res = await useCase.execute({ key: 'taux_presence', dimensions: { schoolId: 's1', studentId: 'e1', dateRange: { from: depuis, to: new Date().toISOString() } } });
+    const now = new Date();
+    const depuis = new Date(now.getFullYear(), now.getMonth(), 1);
+    presenceRepo.ajouter(makePresence('PRESENT', 'e1', 'c1', 'p1', undefined, new Date(now.getTime() - 1000)));
+    presenceRepo.ajouter(makePresence('LATE', 'e1', 'c1', 'p1', undefined, new Date(now.getTime() - 500)));
+    presenceRepo.ajouter(makePresence('ABSENT', 'e1', 'c1', 'p1', undefined, new Date(now.getTime() - 200)));
+    const useCase = new GetMetricUseCase(cache, registry, presenceRepo, noteRepo, statsRepo);
+    const res = await useCase.execute({ key: 'taux_presence', dimensions: { schoolId: 's1', studentId: 'e1', dateRange: { from: depuis.toISOString(), to: now.toISOString() } } });
     expect(res.value).toBe(66.67);
   });
 
@@ -155,16 +147,15 @@ describe('GetMetricUseCase', () => {
     const presenceRepo = new InMemoryPresenceRepository();
     const noteRepo = new InMemoryNoteRepository();
     const statsRepo = makeStatsRepo();
-    const prismaMock = makePrismaMock([
-      { status: 'PRESENT' } as any,
-      { status: 'LATE' } as any,
-      { status: 'ABSENT' } as any,
-    ]);
-    const useCase = new GetMetricUseCase(cache, registry, presenceRepo, noteRepo, statsRepo, prismaMock);
-    const depuis = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+    const now = new Date();
+    const depuis = new Date(now.getFullYear(), now.getMonth(), 1);
+    presenceRepo.ajouter(makePresence('PRESENT', 'e-student', 'c1', 'p1', 't1', new Date(now.getTime() - 1000)));
+    presenceRepo.ajouter(makePresence('LATE', 'e-student', 'c1', 'p1', 't1', new Date(now.getTime() - 500)));
+    presenceRepo.ajouter(makePresence('ABSENT', 'e-student', 'c1', 'p1', 't1', new Date(now.getTime() - 200)));
+    const useCase = new GetMetricUseCase(cache, registry, presenceRepo, noteRepo, statsRepo);
     const res = await useCase.execute({
       key: 'taux_presence',
-      dimensions: { schoolId: 's1', classId: 'c1', teacherId: 't1', dateRange: { from: depuis, to: new Date().toISOString() } },
+      dimensions: { schoolId: 's1', classId: 'c1', teacherId: 't1', dateRange: { from: depuis.toISOString(), to: now.toISOString() } },
     });
     expect(res.value).toBe(66.67);
   });
@@ -175,8 +166,7 @@ describe('GetMetricUseCase', () => {
     const presenceRepo = new InMemoryPresenceRepository();
     const noteRepo = new InMemoryNoteRepository();
     const statsRepo = makeStatsRepo();
-    const prismaMock = makePrismaMock([]); // 0 rows
-    const useCase = new GetMetricUseCase(cache, registry, presenceRepo, noteRepo, statsRepo, prismaMock);
+    const useCase = new GetMetricUseCase(cache, registry, presenceRepo, noteRepo, statsRepo);
     const depuis = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
     const res = await useCase.execute({ key: 'taux_presence', dimensions: { schoolId: 's1', studentId: 'e1', dateRange: { from: depuis, to: new Date().toISOString() } } });
     expect(res.value).toBe(100);

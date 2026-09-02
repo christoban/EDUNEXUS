@@ -70,6 +70,26 @@ export class InMemoryPresenceRepository implements PresenceRepository {
     return [...this.store.values()].filter(p => p.schoolId === schoolId && p.studentId === studentId && p.toObject().academicPeriodId === academicPeriodId && (p.status === 'ABSENT' || p.status === 'ABSENT_JUSTIFIED')).length;
   }
 
+  async compterPresencesDepuis(filtre: {
+    schoolId: string;
+    classId?: string;
+    teacherId?: string;
+    studentId?: string;
+    depuis: Date;
+  }): Promise<{ present: number; total: number }> {
+    const rows = [...this.store.values()].filter(p => {
+      if (p.schoolId !== filtre.schoolId) return false;
+      if (filtre.classId && p.classId !== filtre.classId) return false;
+      if (filtre.teacherId && p.toObject().teacherId !== filtre.teacherId) return false;
+      if (filtre.studentId && p.studentId !== filtre.studentId) return false;
+      if (p.date < filtre.depuis) return false;
+      return true;
+    });
+    const total = rows.length;
+    const present = rows.filter(r => r.status === 'PRESENT' || r.status === 'LATE').length;
+    return { present, total };
+  }
+
   async countAbsencesConsecutives(studentId: string): Promise<number> {
     const dernieres = [...this.store.values()]
       .filter(presence => presence.studentId === studentId)

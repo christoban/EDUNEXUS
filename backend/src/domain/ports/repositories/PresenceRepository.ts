@@ -84,6 +84,15 @@ export interface PresenceRepository {
   // Inngest — bulletins : ABSENT + LATE
   countAbsencesEtRetards(schoolId: string, studentId: string, academicPeriodId: string): Promise<number>;
 
+  // T7/T8/T9 — taux de présence sur fenêtre de dates libre (copilot) — début du mois courant
+  compterPresencesDepuis(filtre: {
+    schoolId: string;
+    classId?: string;
+    teacherId?: string;
+    studentId?: string;
+    depuis: Date;
+  }): Promise<{ present: number; total: number }>;
+
   // Classe — liste élèves avec taux de présence
   findByClasseEtEleves(classId: string, studentIds: string[]): Promise<Array<{ studentId: string; status: string }>>;
 

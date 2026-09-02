@@ -99,6 +99,30 @@ export class PrismaPresenceRepository implements PresenceRepository {
     });
   }
 
+  async compterPresencesDepuis(filtre: {
+    schoolId: string;
+    classId?: string;
+    teacherId?: string;
+    studentId?: string;
+    depuis: Date;
+  }): Promise<{ present: number; total: number }> {
+    const where: Record<string, unknown> = {
+      schoolId: filtre.schoolId,
+      date: { gte: filtre.depuis },
+    };
+    if (filtre.classId) where.classId = filtre.classId;
+    if (filtre.teacherId) where.teacherId = filtre.teacherId;
+    if (filtre.studentId) where.studentId = filtre.studentId;
+
+    const rows = await this.prisma.attendance.findMany({
+      where,
+      select: { status: true },
+    });
+    const total = rows.length;
+    const present = rows.filter(r => r.status === 'PRESENT' || r.status === 'LATE').length;
+    return { present, total };
+  }
+
   async countAbsencesConsecutives(studentId: string): Promise<number> {
     const dernieres = await this.prisma.attendance.findMany({
       where: { studentId },

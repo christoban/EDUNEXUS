@@ -22,7 +22,7 @@ export const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
  * Pas de nouvelle requête : on appelle le repository existant via le port.
  */
 export const computeTauxPresence: MetricComputeFn = async (dims, ctx: MetricComputeContext) => {
-  const { presenceRepository, statisticsQueryRepository, prisma } = ctx;
+  const { presenceRepository, statisticsQueryRepository } = ctx;
 
   // Cas T4 — taux agrégé pour un enseignant (teacherId → classIds[] via TeachingAssignment, puis Attendance IN classIds)
   // Réutilise exactement la requête de PrismaStatisticsQueryRepository.findAttendanceForTeacher
@@ -41,26 +41,26 @@ export const computeTauxPresence: MetricComputeFn = async (dims, ctx: MetricComp
   // Cas T7 — teacher + classId + dateRange (copilot mes_stats_presence_classe)
   if (dims.teacherId && dims.classId && dims.dateRange) {
     const depuis = new Date(dims.dateRange.from);
-    // Simple filtre Prisma sur Attendance : schoolId + classId + teacherId + date >= depuis
-    const rows: Array<{ status: string }> = await prisma.attendance.findMany({
-      where: { schoolId: dims.schoolId, classId: dims.classId, teacherId: dims.teacherId, date: { gte: depuis } },
-      select: { status: true },
+    const { present, total } = await presenceRepository.compterPresencesDepuis({
+      schoolId: dims.schoolId,
+      classId: dims.classId,
+      teacherId: dims.teacherId,
+      depuis,
     });
-    if (rows.length === 0) return 100;
-    const presents = rows.filter(r => r.status === 'PRESENT' || r.status === 'LATE').length;
-    return Math.round((presents / rows.length) * 10000) / 100;
+    if (total === 0) return 100;
+    return Math.round((present / total) * 10000) / 100;
   }
 
   // Cas T8/T9 — studentId + dateRange (copilot ma_presence / presence_mon_enfant)
   if (dims.studentId && dims.dateRange) {
     const depuis = new Date(dims.dateRange.from);
-    const rows: Array<{ status: string }> = await prisma.attendance.findMany({
-      where: { schoolId: dims.schoolId, studentId: dims.studentId, date: { gte: depuis } },
-      select: { status: true },
+    const { present, total } = await presenceRepository.compterPresencesDepuis({
+      schoolId: dims.schoolId,
+      studentId: dims.studentId,
+      depuis,
     });
-    if (rows.length === 0) return 100;
-    const presents = rows.filter(r => r.status === 'PRESENT' || r.status === 'LATE').length;
-    return Math.round((presents / rows.length) * 10000) / 100;
+    if (total === 0) return 100;
+    return Math.round((present / total) * 10000) / 100;
   }
 
   // Cas pilote ListerElevesClasse : classId + studentId (sans dateRange)

@@ -25,9 +25,8 @@ export class GetMetricUseCase {
     presenceRepository: PresenceRepository,
     noteRepository: NoteRepository,
     statisticsQueryRepository: StatisticsQueryRepository,
-    prisma: any, // hex-allow-any: client prisma injecté pour les branches dateRange copilot
   ) {
-    this.computeContext = { presenceRepository, noteRepository, statisticsQueryRepository, prisma };
+    this.computeContext = { presenceRepository, noteRepository, statisticsQueryRepository };
   }
 
   async execute(cmd: GetMetricCommand): Promise<GetMetricResult> {
