@@ -24,7 +24,7 @@ interface TeacherPerf {
   teacherName: string
   heuresPrevuesParSemaine: number
   seancesEnregistrees: number
-  tauxPresence: number | null
+  tauxPresence: number
   moyennesParClasse: { subjectName: string; className: string; moyenne: number | null; nbEleves: number }[]
 }
 
@@ -247,7 +247,7 @@ export default function SectionStatistics({ onToast }: Props) {
                 <div className="grid grid-cols-1 sm:grid-cols-3" style={{ gap: 12, marginBottom: 18 }}>
                   <Kpi label={t('statistics.kpi_hours_planned')} value={String(teacherPerf.heuresPrevuesParSemaine)} />
                   <Kpi label={t('statistics.kpi_sessions_recorded')} value={String(teacherPerf.seancesEnregistrees)} />
-                  <Kpi label={t('statistics.kpi_attendance_rate')} value={teacherPerf.tauxPresence !== null ? `${teacherPerf.tauxPresence}%` : '—'} />
+                  <Kpi label={t('statistics.kpi_attendance_rate')} value={`${teacherPerf.tauxPresence}%`} />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 160, overflowY: 'auto' }}>
                   {teacherPerf.moyennesParClasse.map((m, i) => (

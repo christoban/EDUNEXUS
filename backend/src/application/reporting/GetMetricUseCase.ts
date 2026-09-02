@@ -2,6 +2,7 @@ import type { MetricCachePort } from '@domain/ports/cache/MetricCachePort';
 import type { MetricRegistryPort, MetricKey, MetricDimensions, MetricComputeContext } from '@domain/reporting/MetricRegistry';
 import type { PresenceRepository } from '@domain/ports/repositories/PresenceRepository';
 import type { NoteRepository } from '@domain/ports/repositories/NoteRepository';
+import type { StatisticsQueryRepository } from '@domain/ports/repositories/StatisticsQueryRepository';
 
 export interface GetMetricCommand {
   key: MetricKey;
@@ -23,8 +24,9 @@ export class GetMetricUseCase {
     private readonly registry: MetricRegistryPort,
     presenceRepository: PresenceRepository,
     noteRepository: NoteRepository,
+    statisticsQueryRepository: StatisticsQueryRepository,
   ) {
-    this.computeContext = { presenceRepository, noteRepository };
+    this.computeContext = { presenceRepository, noteRepository, statisticsQueryRepository };
   }
 
   async execute(cmd: GetMetricCommand): Promise<GetMetricResult> {

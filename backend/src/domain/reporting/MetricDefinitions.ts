@@ -22,7 +22,21 @@ export const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
  * Pas de nouvelle requête : on appelle le repository existant via le port.
  */
 export const computeTauxPresence: MetricComputeFn = async (dims, ctx: MetricComputeContext) => {
-  const { presenceRepository } = ctx;
+  const { presenceRepository, statisticsQueryRepository } = ctx;
+
+  // Cas T4 — taux agrégé pour un enseignant (teacherId → classIds[] via TeachingAssignment, puis Attendance IN classIds)
+  // Réutilise exactement la requête de PrismaStatisticsQueryRepository.findAttendanceForTeacher
+  // (single findMany avec classId IN [...], pas de boucle par classe).
+  if (dims.teacherId) {
+    const assignments = await statisticsQueryRepository.findTeachingAssignmentsForTeacher(dims.schoolId, dims.teacherId);
+    const classIds = [...new Set(assignments.map(a => a.classId))];
+    if (classIds.length === 0) return 100;
+    const attendances = await statisticsQueryRepository.findAttendanceForTeacher(dims.schoolId, dims.teacherId, classIds);
+    if (attendances.length === 0) return 100;
+    const presents = attendances.filter(a => a.status === 'PRESENT' || a.status === 'LATE').length;
+    // 2 décimales comme avant migration (StatisticsController:232-233)
+    return Math.round((presents / attendances.length) * 10000) / 100;
+  }
 
   // Cas pilote ListerElevesClasse : classId + studentId
   if (dims.classId && dims.studentId) {

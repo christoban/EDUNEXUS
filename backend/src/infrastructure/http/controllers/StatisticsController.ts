@@ -1,13 +1,15 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { StatisticsQueryRepository } from '@domain/ports/repositories/StatisticsQueryRepository';
 import type { AIActionAuditPort } from '@domain/ports/services/AIActionAuditPort';
+import type { GetMetricUseCase } from '@application/reporting/GetMetricUseCase';
 
 const GRADE_STATUSES_VALIDES = ['LOCKED'] as const;
 
 export class StatisticsController {
   constructor(
     private readonly statRepo: StatisticsQueryRepository,
-    private readonly audit: AIActionAuditPort
+    private readonly audit: AIActionAuditPort,
+    private readonly getMetric?: GetMetricUseCase,
   ) {}
 
   // GET /grades-evolution?classId=&subjectId=&studentId= — moyenne par séquence de l'année en cours
@@ -225,13 +227,24 @@ export class StatisticsController {
         return { subjectName: a.subject.name, className: a.class.name, moyenne, nbEleves: avgs.length };
       });
 
-      const attendances = classIds.length > 0
-        ? await this.statRepo.findAttendanceForTeacher(user.schoolId, teacherId, classIds)
-        : [];
-
-      const tauxPresence = attendances.length > 0
-        ? Math.round((attendances.filter((a) => a.status === 'PRESENT' || a.status === 'LATE').length / attendances.length) * 10000) / 100
-        : null;
+      // T4 migré vers MetricDefinition — taux agrégé via moteur (teacherId → classIds[] → Attendance IN)
+      let tauxPresence: number;
+      let attendances: Array<{ status: string; date: Date; classId: string; subjectId: string }> = [];
+      if (this.getMetric) {
+        const res = await this.getMetric.execute({ key: 'taux_presence', dimensions: { schoolId: user.schoolId, teacherId } });
+        tauxPresence = res.value;
+        // Toujours charger les attendances pour seancesEnregistrees (distinct date__class__subject)
+        attendances = classIds.length > 0
+          ? await this.statRepo.findAttendanceForTeacher(user.schoolId, teacherId, classIds)
+          : [];
+      } else {
+        attendances = classIds.length > 0
+          ? await this.statRepo.findAttendanceForTeacher(user.schoolId, teacherId, classIds)
+          : [];
+        tauxPresence = attendances.length > 0
+          ? Math.round((attendances.filter((a) => a.status === 'PRESENT' || a.status === 'LATE').length / attendances.length) * 10000) / 100
+          : 100;
+      }
 
       const seancesEnregistrees = new Set(
         attendances.map((a) => `${a.date.toISOString().slice(0, 10)}__${a.classId}__${a.subjectId}`)

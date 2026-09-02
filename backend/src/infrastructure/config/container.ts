@@ -17,6 +17,7 @@ import { PrismaSchoolRepository } from '@infrastructure/persistence/prisma/Prism
 import { PrismaClasseRepository } from '@infrastructure/persistence/prisma/PrismaClasseRepository';
 import { PrismaNoteRepository } from '@infrastructure/persistence/prisma/PrismaNoteRepository';
 import { PrismaPresenceRepository } from '@infrastructure/persistence/prisma/PrismaPresenceRepository';
+import { PrismaStatisticsQueryRepository } from '@infrastructure/persistence/prisma/PrismaStatisticsQueryRepository';
 import { PrismaBulletinRepository } from '@infrastructure/persistence/prisma/PrismaBulletinRepository';
 import { PrismaMatiereRepository } from '@infrastructure/persistence/prisma/PrismaMatiereRepository';
 import { PrismaRoomRepository } from '@infrastructure/persistence/prisma/PrismaRoomRepository';
@@ -449,11 +450,12 @@ export function creerContainer() {
   const assessmentSessionRepository = new PrismaHarmonizedAssessmentSessionRepository(prisma);
   const assessmentParticipationRepository = new PrismaAssessmentParticipationRepository(prisma);
   const taskRepository = new PrismaTaskRepository(prisma);
+  const statisticsQueryRepository = new PrismaStatisticsQueryRepository(prisma);
 
   // 2bis. Metric Engine v1 — singleton in-memory (une seule Map pour la durée de vie du process)
   const metricCache = new MetricCache();
   const metricRegistry = new MetricRegistry();
-  const getMetricUseCase = new GetMetricUseCase(metricCache, metricRegistry, presenceRepository, noteRepository);
+  const getMetricUseCase = new GetMetricUseCase(metricCache, metricRegistry, presenceRepository, noteRepository, statisticsQueryRepository);
 
   // 3. Services (adaptateurs réels)
   const emailService = new NodemailerEmailService();

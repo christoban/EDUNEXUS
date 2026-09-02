@@ -20,6 +20,7 @@ export interface MetricDefinition {
 export interface MetricComputeContext {
   presenceRepository: import('@domain/ports/repositories/PresenceRepository').PresenceRepository;
   noteRepository: import('@domain/ports/repositories/NoteRepository').NoteRepository;
+  statisticsQueryRepository: import('@domain/ports/repositories/StatisticsQueryRepository').StatisticsQueryRepository;
 }
 
 export type MetricComputeFn = (

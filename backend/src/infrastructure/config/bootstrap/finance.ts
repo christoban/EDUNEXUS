@@ -71,6 +71,7 @@ export function registerFinanceRoutes(app: Application, prismaParam: typeof pris
   const statisticsController = new StatisticsController(
     new PrismaStatisticsQueryRepository(p as any),
     auditForFinance,
+    (c as any).metric?.getMetric,
   );
   app.use('/api/v2/statistics', creerStatisticsRoutes(statisticsController));
 
