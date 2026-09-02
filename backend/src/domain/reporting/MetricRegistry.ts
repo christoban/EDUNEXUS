@@ -21,6 +21,7 @@ export interface MetricComputeContext {
   presenceRepository: import('@domain/ports/repositories/PresenceRepository').PresenceRepository;
   noteRepository: import('@domain/ports/repositories/NoteRepository').NoteRepository;
   statisticsQueryRepository: import('@domain/ports/repositories/StatisticsQueryRepository').StatisticsQueryRepository;
+  prisma: any; // hex-allow-any: contexte de calcul direct pour dateRange copilot — évite un port dédié en v1
 }
 
 export type MetricComputeFn = (

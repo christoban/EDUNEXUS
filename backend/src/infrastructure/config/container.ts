@@ -455,7 +455,7 @@ export function creerContainer() {
   // 2bis. Metric Engine v1 — singleton in-memory (une seule Map pour la durée de vie du process)
   const metricCache = new MetricCache();
   const metricRegistry = new MetricRegistry();
-  const getMetricUseCase = new GetMetricUseCase(metricCache, metricRegistry, presenceRepository, noteRepository, statisticsQueryRepository);
+  const getMetricUseCase = new GetMetricUseCase(metricCache, metricRegistry, presenceRepository, noteRepository, statisticsQueryRepository, prisma);
 
   // 3. Services (adaptateurs réels)
   const emailService = new NodemailerEmailService();

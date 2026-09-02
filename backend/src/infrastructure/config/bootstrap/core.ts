@@ -237,6 +237,7 @@ export function registerCoreRoutes(app: Application, prismaParam: typeof prisma 
     verrouillerNotesEnMasse: c.grade.verrouillerNotesEnMasse,
     enregistrerPresence: c.attendance.enregistrerPresence,
     demanderRattrapage: c.timetable.demanderRattrapage,
+    getMetric: c.metric.getMetric,
   });
 
   // ── Assistant IA EXÉCUTANT (copilot) — rôle STAFF (Section 6.2 du chantier) ──
@@ -277,11 +278,11 @@ export function registerCoreRoutes(app: Application, prismaParam: typeof prisma 
   // ── Assistant IA EXÉCUTANT (copilot) — rôle PARENT (Section 6.2 du chantier) ──
   const parentActionCatalog = buildParentActionCatalog({
     initierPaiement: c.finance.initierPaiement,
+    getMetric: c.metric.getMetric,
   });
 
   // ── Assistant IA EXÉCUTANT (copilot) — rôle STUDENT (Section 6.2 du chantier) ──
-  // Consultation uniquement, pas d'actions (voir plan) — aucune dépendance à câbler.
-  const studentActionCatalog = buildStudentActionCatalog();
+  const studentActionCatalog = buildStudentActionCatalog(c.metric.getMetric);
 
   // Un seul copilot, un seul catalogue combiné (Principe 0.1) — chaque action porte son
   // propre `allowedRoles`/`requiredPermission`, filtré côté serveur par filterCatalogForUser.

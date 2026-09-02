@@ -30,11 +30,14 @@ import {
 } from '@infrastructure/assistant/catalog/catalogShared';
 import { whereProfilesParClasse } from '@application/shared/studentEnrollment';
 
+import type { GetMetricUseCase } from '@application/reporting/GetMetricUseCase';
+
 export interface TeacherActionDeps {
   saisirNote: SaisirNoteUseCase;
   verrouillerNotesEnMasse: VerrouillerNotesEnMasseUseCase;
   enregistrerPresence: EnregistrerPresenceUseCase;
   demanderRattrapage: DemanderRattrapageUseCase;
+  getMetric?: GetMetricUseCase;
 }
 
 async function verifierAssignation(ctx: ActionContext, classId: string, subjectId: string, classeName: string, subjectName: string): Promise<void> {
@@ -254,6 +257,22 @@ export function buildTeacherActionCatalog(deps: TeacherActionDeps): ActionDefini
         const classe = await resolveClass(ctx, input.className);
         const now = new Date();
         const depuis = input.depuis ? new Date(input.depuis) : new Date(now.getFullYear(), now.getMonth(), 1);
+        if (deps.getMetric) {
+          const count = await ctx.prisma.attendance.count({
+            where: { schoolId: ctx.schoolId, classId: classe.id, teacherId: ctx.userId, date: { gte: depuis } },
+          });
+          if (count === 0) {
+            return { resultLabel: `Aucun enregistrement de présence pour ${classe.name} depuis le ${depuis.toLocaleDateString('fr-FR')}.`, section: 'attendance' };
+          }
+          const res = await deps.getMetric.execute({
+            key: 'taux_presence',
+            dimensions: { schoolId: ctx.schoolId, classId: classe.id, teacherId: ctx.userId, dateRange: { from: depuis.toISOString(), to: now.toISOString() } },
+          });
+          return {
+            resultLabel: `${classe.name} : taux de présence de ${res.value}% depuis le ${depuis.toLocaleDateString('fr-FR')} (${count} enregistrement(s)).`,
+            section: 'attendance',
+          };
+        }
         const records = await ctx.prisma.attendance.findMany({
           where: { schoolId: ctx.schoolId, classId: classe.id, teacherId: ctx.userId, date: { gte: depuis } },
           select: { status: true },

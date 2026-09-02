@@ -16,9 +16,11 @@
 import { z } from 'zod';
 import type { InitierPaiementMobileMoneyUseCase } from '@application/finance/InitierPaiementMobileMoneyUseCase';
 import { type ActionContext, type ActionDefinition, norm } from '@infrastructure/assistant/catalog/catalogShared';
+import type { GetMetricUseCase } from '@application/reporting/GetMetricUseCase';
 
 export interface ParentActionDeps {
   initierPaiement: InitierPaiementMobileMoneyUseCase;
+  getMetric?: GetMetricUseCase;
 }
 
 interface MonEnfant {
@@ -130,6 +132,25 @@ export function buildParentActionCatalog(deps: ParentActionDeps): ActionDefiniti
         const enfant = await resolveMyChild(ctx, input.childName);
         const now = new Date();
         const depuis = input.depuis ? new Date(input.depuis) : new Date(now.getFullYear(), now.getMonth(), 1);
+        if (deps.getMetric) {
+          const count = await ctx.prisma.attendance.count({
+            where: { schoolId: ctx.schoolId, studentId: enfant.studentUserId, date: { gte: depuis } },
+          });
+          if (count === 0) {
+            return { resultLabel: `Aucun enregistrement de présence pour ${enfant.name} depuis le ${depuis.toLocaleDateString('fr-FR')}.`, section: 'attendance' };
+          }
+          const res = await deps.getMetric.execute({
+            key: 'taux_presence',
+            dimensions: { schoolId: ctx.schoolId, studentId: enfant.studentUserId, dateRange: { from: depuis.toISOString(), to: now.toISOString() } },
+          });
+          const absences = await ctx.prisma.attendance.count({
+            where: { schoolId: ctx.schoolId, studentId: enfant.studentUserId, date: { gte: depuis }, status: { in: ['ABSENT', 'ABSENT_JUSTIFIED'] } },
+          });
+          return {
+            resultLabel: `${enfant.name} : taux de présence de ${res.value}% depuis le ${depuis.toLocaleDateString('fr-FR')} (${absences} absence(s) sur ${count} enregistrement(s)).`,
+            section: 'attendance',
+          };
+        }
         const records = await ctx.prisma.attendance.findMany({
           where: { schoolId: ctx.schoolId, studentId: enfant.studentUserId, date: { gte: depuis } },
           select: { status: true },

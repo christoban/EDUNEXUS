@@ -11,8 +11,9 @@
 import { z } from 'zod';
 import { calculateAverageScoreOn20 } from '@domain/rules/GradingEngine';
 import { type ActionDefinition, resolveCurrentSequence } from '@infrastructure/assistant/catalog/catalogShared';
+import type { GetMetricUseCase } from '@application/reporting/GetMetricUseCase';
 
-export function buildStudentActionCatalog(): ActionDefinition[] {
+export function buildStudentActionCatalog(getMetric?: GetMetricUseCase): ActionDefinition[] {
   return [
     // 1. Mes notes récentes — LECTURE SEULE
     {
@@ -97,6 +98,26 @@ export function buildStudentActionCatalog(): ActionDefinition[] {
       async execute(input, ctx) {
         const now = new Date();
         const depuis = input.depuis ? new Date(input.depuis) : new Date(now.getFullYear(), now.getMonth(), 1);
+        // Si getMetric disponible (moteur v1), l'utiliser ; sinon fallback direct
+        if (getMetric) {
+          const count = await ctx.prisma.attendance.count({
+            where: { schoolId: ctx.schoolId, studentId: ctx.userId, date: { gte: depuis } },
+          });
+          if (count === 0) {
+            return { resultLabel: `Aucun enregistrement de présence depuis le ${depuis.toLocaleDateString('fr-FR')}.`, section: 'attendance' };
+          }
+          const res = await getMetric.execute({
+            key: 'taux_presence',
+            dimensions: { schoolId: ctx.schoolId, studentId: ctx.userId, dateRange: { from: depuis.toISOString(), to: now.toISOString() } },
+          });
+          const absences = await ctx.prisma.attendance.count({
+            where: { schoolId: ctx.schoolId, studentId: ctx.userId, date: { gte: depuis }, status: { in: ['ABSENT', 'ABSENT_JUSTIFIED'] } },
+          });
+          return {
+            resultLabel: `Votre taux de présence depuis le ${depuis.toLocaleDateString('fr-FR')} : ${res.value}% (${absences} absence(s) sur ${count} enregistrement(s)).`,
+            section: 'attendance',
+          };
+        }
         const records = await ctx.prisma.attendance.findMany({
           where: { schoolId: ctx.schoolId, studentId: ctx.userId, date: { gte: depuis } },
           select: { status: true },
