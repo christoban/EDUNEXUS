@@ -29,7 +29,11 @@ export interface NotificationService {
     canal?: NotificationChannel;
     urgency?: NotificationUrgency;
   }): Promise<void>;
-  marquerLue(notificationId: string): Promise<void>;
+  marquerLue(notificationId: string, userId?: string, schoolId?: string): Promise<void>;
+  /** Pose deliveredAt si encore null. Retourne false si introuvable / pas propriétaire. */
+  marquerDelivree(params: { notificationId: string; userId: string; schoolId: string }): Promise<boolean>;
+  /** Pose confirmedAt si encore null. Même garde d’appartenance. */
+  marquerConfirmee(params: { notificationId: string; userId: string; schoolId: string }): Promise<boolean>;
   notifierParents?(opts: {
     schoolId: string;
     studentId: string;

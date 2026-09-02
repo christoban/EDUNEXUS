@@ -10,4 +10,6 @@ export class InMemoryNotificationService implements NotificationService {
   async envoyerAuRole(_params: Parameters<NotificationService['envoyerAuRole']>[0]): Promise<void> {}
 
   async marquerLue(_notificationId: string): Promise<void> {}
+  async marquerDelivree(_params: { notificationId: string; userId: string; schoolId: string }): Promise<boolean> { return true; }
+  async marquerConfirmee(_params: { notificationId: string; userId: string; schoolId: string }): Promise<boolean> { return true; }
 }

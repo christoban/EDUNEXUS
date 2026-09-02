@@ -39,6 +39,25 @@ const pushSubscriptionRepo = new PrismaPushSubscriptionRepository(prisma);
 export class SocketNotificationService implements NotificationService {
   constructor(private readonly eventPublisher?: EventPublisher) {}
 
+  private async poseHorodatageSiNull(
+    id: string,
+    userId: string,
+    schoolId: string,
+    field: 'deliveredAt' | 'confirmedAt' | 'readAt',
+  ): Promise<boolean> {
+    const notif = await prisma.notification.findFirst({
+      where: { id, userId, schoolId },
+      select: { id: true, [field]: true } as any,
+    });
+    if (!notif) return false;
+    if ((notif as any)[field]) return true;
+    await (prisma.notification.update as any)({
+      where: { id },
+      data: { [field]: new Date() },
+    });
+    return true;
+  }
+
   async envoyer(options: EnvoiNotificationOptions): Promise<void> {
     // Rétrocompat : si canal est fourni mais urgency aussi, on log un warning
     if (options.urgency && options.canal && options.canal !== 'IN_APP') {
@@ -72,28 +91,12 @@ export class SocketNotificationService implements NotificationService {
     const hasPush = canaux.includes('PUSH');
     const hasSms = canaux.includes('SMS');
 
-    if (!hasInApp && !hasPush) {
+    if (!hasInApp && !hasPush && !canaux.includes('SMS')) {
       console.log(`[Notification] ${canaux.join(',')} → ${options.userId} : ${options.titre}`);
       return;
     }
 
-    // Push fire-and-forget si le canal inclut PUSH
-    if (hasPush) {
-      void notifierUtilisateurPush({ userId: options.userId, title: options.titre, body: options.corps, data: options.metadata });
-    }
-
-    // SMS fire-and-forget si le canal inclut SMS
-    if (hasSms) {
-      const contacts = await getParentContacts(options.userId);
-      for (const contact of contacts) {
-        if (contact.phone) {
-          const { sendSMS } = await import('../sms/SmsService.ts');
-          await sendSMS(contact.phone, `${options.titre} — ${options.corps}`).catch(() => {});
-        }
-      }
-    }
-
-    // Persisté (table Notification) avant l'émission live
+    // Persisté (table Notification) avant l'émission live / push — pour avoir notificationId
     let notificationId: string | null = null;
     try {
       const created = await prisma.notification.create({
@@ -113,20 +116,51 @@ export class SocketNotificationService implements NotificationService {
       console.error('[Notification] Échec de persistance:', err);
     }
 
-    // Émission Socket.io si IN_APP
+    // Push fire-and-forget si le canal inclut PUSH — inclut notificationId dans data pour ack client
+    if (hasPush) {
+      void notifierUtilisateurPush({
+        userId: options.userId,
+        title: options.titre,
+        body: options.corps,
+        data: { ...(options.metadata ?? {}), ...(notificationId ? { notificationId } : {}) },
+      });
+    }
+
+    // SMS fire-and-forget si le canal inclut SMS
+    if (hasSms) {
+      const contacts = await getParentContacts(options.userId);
+      for (const contact of contacts) {
+        if (contact.phone) {
+          const { sendSMS } = await import('../sms/SmsService.ts');
+          await sendSMS(contact.phone, `${options.titre} — ${options.corps}`).catch(() => {});
+        }
+      }
+    }
+
+    // Émission Socket.io si IN_APP — deliveredAt immédiat si socket live (annule escalade URGENT)
+    let socketEmitted = false;
     if (hasInApp) {
       const io = getIO();
       if (io) {
-        io.to(`user:${options.userId}`).emit('notification', {
-          id: notificationId,
-          type: DOMAIN_TO_PRISMA_NOTIFICATION_TYPE[options.type],
-          title: options.titre,
-          body: options.corps,
-          metadata: options.metadata ?? {},
-          readAt: null,
-          createdAt: new Date().toISOString(),
-        });
+        try {
+          io.to(`user:${options.userId}`).emit('notification', {
+            id: notificationId,
+            type: DOMAIN_TO_PRISMA_NOTIFICATION_TYPE[options.type],
+            title: options.titre,
+            body: options.corps,
+            metadata: options.metadata ?? {},
+            readAt: null,
+            createdAt: new Date().toISOString(),
+          });
+          socketEmitted = true;
+        } catch {}
       }
+    }
+    if (socketEmitted && notificationId) {
+      await (prisma.notification.update as any)({
+        where: { id: notificationId },
+        data: { deliveredAt: new Date() },
+      }).catch(() => {});
     }
 
     // Escalade SMS différée pour URGENT sans push actif
@@ -146,53 +180,44 @@ export class SocketNotificationService implements NotificationService {
   async envoyerAuRole(
     params: Parameters<NotificationService['envoyerAuRole']>[0]
   ): Promise<void> {
-    // Rétrocompat : si canal forcé non-IN_APP sans urgency, on log mais on continue (IN_APP broadcast)
     if (params.canal && params.canal !== 'IN_APP' && !params.urgency) {
       console.log(`[Notification] ${params.canal} → rôle ${params.role}@${params.schoolId} : ${params.titre} (canal ignoré, broadcast IN_APP)`);
     }
-
-    try {
-      const destinataires = await prisma.user.findMany({
-        where: { schoolId: params.schoolId, role: params.role as UserRole, isActive: true },
-        select: { id: true },
-      });
-      if (destinataires.length > 0) {
-        await prisma.notification.createMany({
-          data: destinataires.map((u: { id: string }) => ({
-            schoolId: params.schoolId,
-            userId: u.id,
-            type: DOMAIN_TO_PRISMA_NOTIFICATION_TYPE[params.type],
-            title: params.titre,
-            body: params.corps,
-            channel: 'IN_APP' as const,
-          })),
-        });
-      }
-    } catch (err) {
-      console.error('[Notification] Échec de persistance (broadcast rôle):', err);
-    }
-
-    const io = getIO();
-    if (!io) {
-      console.warn(`[Notification] Socket non initialisé — broadcast rôle ignoré`);
-      return;
-    }
-
-    io.to(`school:${params.schoolId}:role:${params.role}`).emit('notification', {
-      type: DOMAIN_TO_PRISMA_NOTIFICATION_TYPE[params.type],
-      title: params.titre,
-      body: params.corps,
-      readAt: null,
-      createdAt: new Date().toISOString(),
+    const urgency = params.urgency ?? 'NORMAL';
+    const destinataires = await prisma.user.findMany({
+      where: { schoolId: params.schoolId, role: params.role as UserRole, isActive: true },
+      select: { id: true },
     });
+    for (const u of destinataires) {
+      await this.envoyer({
+        schoolId: params.schoolId,
+        userId: u.id,
+        type: params.type,
+        titre: params.titre,
+        corps: params.corps,
+        urgency,
+      }).catch((e) => console.error('[Notification] envoyerAuRole user', u.id, e));
+    }
   }
 
-  async marquerLue(notificationId: string): Promise<void> {
+  async marquerLue(notificationId: string, userId?: string, schoolId?: string): Promise<void> {
+    if (userId && schoolId) {
+      await this.poseHorodatageSiNull(notificationId, userId, schoolId, 'readAt');
+      return;
+    }
     try {
       await prisma.notification.update({ where: { id: notificationId }, data: { readAt: new Date() } });
     } catch (err) {
       console.error('[Notification] Échec marquerLue:', err);
     }
+  }
+
+  async marquerDelivree(params: { notificationId: string; userId: string; schoolId: string }): Promise<boolean> {
+    return this.poseHorodatageSiNull(params.notificationId, params.userId, params.schoolId, 'deliveredAt');
+  }
+
+  async marquerConfirmee(params: { notificationId: string; userId: string; schoolId: string }): Promise<boolean> {
+    return this.poseHorodatageSiNull(params.notificationId, params.userId, params.schoolId, 'confirmedAt');
   }
 
   async notifierParents(opts: {

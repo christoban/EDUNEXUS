@@ -79,4 +79,34 @@ export class NotificationController {
       res.json({ success: true });
     } catch (err) { next(err); }
   };
+
+  // POST /api/v2/notifications/:id/delivered
+  markAsDelivered = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = req.user!.userId;
+      const schoolId = req.user!.schoolId;
+      const id = String(req.params['id']);
+      const ok = await this.notificationService.marquerDelivree({ notificationId: id, userId, schoolId });
+      if (!ok) {
+        res.status(404).json({ success: false, message: 'Notification introuvable' });
+        return;
+      }
+      res.json({ success: true });
+    } catch (err) { next(err); }
+  };
+
+  // POST /api/v2/notifications/:id/confirm
+  markAsConfirmed = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = req.user!.userId;
+      const schoolId = req.user!.schoolId;
+      const id = String(req.params['id']);
+      const ok = await this.notificationService.marquerConfirmee({ notificationId: id, userId, schoolId });
+      if (!ok) {
+        res.status(404).json({ success: false, message: 'Notification introuvable' });
+        return;
+      }
+      res.json({ success: true });
+    } catch (err) { next(err); }
+  };
 }

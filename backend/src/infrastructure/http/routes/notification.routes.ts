@@ -7,6 +7,8 @@ export function creerNotificationRoutes(controller: NotificationController): Rou
 
   router.get('/', requireAuth, controller.list);
   router.post('/:id/read', requireAuth, controller.markAsRead);
+  router.post('/:id/delivered', requireAuth, controller.markAsDelivered);
+  router.post('/:id/confirm', requireAuth, controller.markAsConfirmed);
   router.post('/read-all', requireAuth, controller.markAllAsRead);
 
   return router;
