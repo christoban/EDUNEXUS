@@ -452,7 +452,10 @@ export class FinanceController {
   initierPaiementMobile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = req.user;
-      const { factureId, studentId, phoneNumber, method } = req.body;
+      const { factureId, studentId, phoneNumber, method, baseUpdatedAt, versionLocale, versionClient } = req.body as {
+        factureId?: string; studentId?: string; phoneNumber?: string; method?: string;
+        baseUpdatedAt?: string | Date | null; versionLocale?: string | Date | null; versionClient?: string | Date | null;
+      };
 
       if (!factureId || !phoneNumber || !method) {
         res.status(400).json({
@@ -465,12 +468,17 @@ export class FinanceController {
       const digits = phoneNumber.replace(/[\s+]/g, '');
       const numeroNormalise = digits.startsWith('237') ? digits : `237${digits}`;
 
+      const versionRaw = versionLocale ?? baseUpdatedAt ?? versionClient ?? null;
+      const versionDate = versionRaw ? new Date(versionRaw as string) : undefined;
+      const versionOption = versionDate && !Number.isNaN(versionDate.getTime()) ? versionDate : undefined;
+
       const resultat = await this.initierPaiement.execute({
         schoolId: user.schoolId,
         factureId,
         studentId,
         phoneNumber: numeroNormalise,
         method: method as PaymentMethod,
+        ...(versionOption ? { versionLocale: versionOption } : {}),
       });
 
       res.status(201).json({ success: true, data: resultat });
@@ -586,7 +594,10 @@ export class FinanceController {
   creerPaiementCash = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = req.user;
-      const { factureId, studentId, montant, baseUpdatedAt } = req.body;
+      const { factureId, studentId, montant, baseUpdatedAt, versionLocale, versionClient } = req.body as {
+        factureId?: string; studentId?: string; montant?: number; baseUpdatedAt?: string | Date | null;
+        versionLocale?: string | Date | null; versionClient?: string | Date | null;
+      };
 
       if (!factureId || !studentId || montant == null) {
         res.status(400).json({
@@ -596,13 +607,17 @@ export class FinanceController {
         return;
       }
 
+      const versionRaw = versionLocale ?? baseUpdatedAt ?? versionClient ?? null;
+      const versionDate = versionRaw ? new Date(versionRaw as string) : undefined;
+      const versionOption = versionDate && !Number.isNaN(versionDate.getTime()) ? versionDate : undefined;
+
       const resultat = await this.enregistrerPaiementCash.execute({
         schoolId: user.schoolId,
         factureId,
         studentId,
         montant: Number(montant),
         enregistreurId: user.userId,
-        baseUpdatedAt: baseUpdatedAt ? new Date(baseUpdatedAt) : undefined,
+        ...(versionOption ? { versionLocale: versionOption, baseUpdatedAt: versionOption } : {}),
       });
 
       this.audit.journaliser({

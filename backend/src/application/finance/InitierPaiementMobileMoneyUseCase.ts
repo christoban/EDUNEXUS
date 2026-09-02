@@ -4,6 +4,7 @@
  * Empêche les doublons de tentatives PENDING.
  */
 import { Paiement } from '@domain/entities/Paiement';
+import { ConflitVersionPaiementError } from '@domain/errors/ConflitVersionPaiementError';
 import type { FactureRepository } from '@domain/ports/repositories/FactureRepository';
 import type { PaiementRepository } from '@domain/ports/repositories/PaiementRepository';
 import type { PaiementService } from '@domain/ports/services/PaiementService';
@@ -15,6 +16,10 @@ export interface InitierPaiementCommande {
   studentId: string;
   phoneNumber: string;
   method: PaymentMethod;
+  /** V3.2 — version locale optionnelle (compat offline retro) */
+  baseUpdatedAt?: Date | string | null;
+  versionLocale?: Date | string | null;
+  versionClient?: Date | string | null;
 }
 
 export interface InitierPaiementResultat {
@@ -34,8 +39,28 @@ export class InitierPaiementMobileMoneyUseCase {
     // 1. Vérifier la facture
     const facture = await this.factureRepository.findById(commande.factureId);
     if (!facture) throw new Error(`Facture introuvable : ${commande.factureId}`);
+    if (facture.schoolId !== commande.schoolId) {
+      throw new Error("Cette facture n'appartient pas à votre établissement");
+    }
     if (!facture.peutEtrePayee()) {
       throw new Error('Cette facture ne peut plus être payée (annulée ou déjà payée)');
+    }
+
+    // 1b. V3.2 — Conflit de version (offline) — même garde-fou que cash, si client envoie une version
+    const versionLocaleRaw = (commande.versionLocale ?? commande.baseUpdatedAt ?? commande.versionClient ?? null) as Date | string | null | undefined;
+    if (versionLocaleRaw && facture.updatedAt) {
+      const versionClient = versionLocaleRaw instanceof Date ? versionLocaleRaw : new Date(versionLocaleRaw as string);
+      if (!Number.isNaN(versionClient.getTime()) && facture.updatedAt.getTime() !== versionClient.getTime()) {
+        const totalPayeActuel = await this.factureRepository.calculerTotalPayeAvecSucces(commande.factureId);
+        throw new ConflitVersionPaiementError({
+          factureId: commande.factureId,
+          versionServeur: facture.updatedAt,
+          versionLocale: versionClient,
+          montantSaisi: facture.amount,
+          totalPaye: totalPayeActuel,
+          resteARegler: Math.max(0, facture.amount - totalPayeActuel),
+        });
+      }
     }
 
     // 2. Éviter les doublons — pas deux PENDING pour la même facture

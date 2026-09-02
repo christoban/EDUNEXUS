@@ -23,7 +23,10 @@ export interface EnregistrerPaiementCashCommande {
   montant: number;
   enregistreurId: string;
   /** Version de la facture telle que lue par le client. Optionnel (compat. rétro). */
-  baseUpdatedAt?: Date;
+  baseUpdatedAt?: Date | string | null;
+  /** Alias pour compat spec V3.2 (frontend envoie versionLocale/versionClient) */
+  versionLocale?: Date | string | null;
+  versionClient?: Date | string | null;
 }
 
 export interface EnregistrerPaiementCashResultat {
@@ -54,13 +57,16 @@ export class EnregistrerPaiementCashUseCase {
     }
 
     // 1b. Détection de conflit de version — jamais de résolution silencieuse.
-    if (commande.baseUpdatedAt && facture.updatedAt) {
-      const totalPayeActuel = await this.factureRepository.calculerTotalPayeAvecSucces(commande.factureId);
-      if (facture.updatedAt.getTime() !== commande.baseUpdatedAt.getTime()) {
+    // V3.2 : supporte baseUpdatedAt (historique) + versionLocale/versionClient (spec) + string ISO
+    const versionLocaleRaw = (commande.versionLocale ?? commande.baseUpdatedAt ?? commande.versionClient ?? null) as Date | string | null | undefined;
+    if (versionLocaleRaw && facture.updatedAt) {
+      const versionClient = versionLocaleRaw instanceof Date ? versionLocaleRaw : new Date(versionLocaleRaw as string);
+      if (!Number.isNaN(versionClient.getTime()) && facture.updatedAt.getTime() !== versionClient.getTime()) {
+        const totalPayeActuel = await this.factureRepository.calculerTotalPayeAvecSucces(commande.factureId);
         throw new ConflitVersionPaiementError({
           factureId: commande.factureId,
           versionServeur: facture.updatedAt,
-          versionLocale: commande.baseUpdatedAt,
+          versionLocale: versionClient,
           montantSaisi: commande.montant,
           totalPaye: totalPayeActuel,
           resteARegler: Math.max(0, facture.amount - totalPayeActuel),

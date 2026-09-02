@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
+import { ConflitVersionPaiementError } from '@domain/errors/ConflitVersionPaiementError';
 
 export function errorHandler(
   error: Error,
@@ -6,6 +7,23 @@ export function errorHandler(
   res: Response,
   _next: NextFunction
 ): void {
+  if (error instanceof ConflitVersionPaiementError) {
+    res.status(409).json({
+      success: false,
+      code: 'CONFLIT_VERSION',
+      message: error.message,
+      data: {
+        factureId: error.factureId,
+        versionServeur: error.versionServeur,
+        versionLocale: error.versionLocale,
+        montantSaisi: error.montantSaisi,
+        totalPaye: error.totalPaye,
+        resteARegler: error.resteARegler,
+      },
+    });
+    return;
+  }
+
   console.error(`[ERROR] ${error.name} : ${error.message}`);
   const meta = 'meta' in error ? (error as Error & { meta: unknown }).meta : undefined;
   if (meta !== undefined) {
