@@ -6,27 +6,48 @@
  * distinct du cache/precaching hors-ligne que next-pwa génère lui-même dans le même fichier.
  */
 self.addEventListener('push', function (event) {
-  if (!event.data) return;
-
+  let payload = {};
   try {
-    const data = event.data.json();
-    const title = data.title || 'ZekoulABia';
-    const options = {
-      body: data.body || '',
-      icon: '/icons/icon-192.png',
-      badge: '/icons/icon-192.png',
-      data: data.data || {},
-      // Explicite plutôt qu'implicite : demande le son système par défaut. C'est la SEULE
-      // chose possible en Web Push standard — pas de son personnalisé fiable, surtout pas sur
-      // iOS (limite du navigateur, pas du code). Un son personnalisé n'est atteignable qu'après
-      // empaquetage natif (Capacitor + APNs/FCM) — voir ARCHITECTURE.md §8 ADR-10.
-      silent: false,
-    };
-
-    event.waitUntil(self.registration.showNotification(title, options));
+    payload = event.data ? event.data.json() : {};
   } catch {
-    // ignore malformed push
+    try {
+      payload = { body: event.data && event.data.text() };
+    } catch {
+      payload = {};
+    }
   }
+  const title =
+    payload.title || payload.titre || (payload.data && (payload.data.title || payload.data.titre)) || 'ZekoulABia';
+  const body =
+    payload.body || payload.corps || (payload.data && (payload.data.body || payload.data.corps)) || '';
+  const notificationId = payload.notificationId || (payload.data && payload.data.notificationId) || null;
+  const data = {
+    ...(payload.data || {}),
+    notificationId,
+    url: (payload.data && payload.data.url) || '/login',
+  };
+  const options = {
+    body,
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    data,
+    silent: false,
+  };
+
+  event.waitUntil(
+    (async function () {
+      await self.registration.showNotification(title, options);
+      if (notificationId) {
+        try {
+          await fetch('/api/v2/notifications/' + notificationId + '/delivered', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+          });
+        } catch {}
+      }
+    })(),
+  );
 });
 
 self.addEventListener('notificationclick', function (event) {

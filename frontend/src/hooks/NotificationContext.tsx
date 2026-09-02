@@ -14,6 +14,7 @@ import { createContext, useContext, useState, useCallback, useEffect, useRef } f
 import { fetchApi } from '@/lib/fetchApi'
 import { getNotificationSocket } from '@/lib/notificationSocket'
 import { playNotificationSound } from '@/lib/notificationSound'
+import { markNotificationDelivered } from '@/lib/markNotificationDelivered'
 
 export interface AppNotification {
   id: string
@@ -86,6 +87,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         setHasSeen(false)
         playNotificationSound()
       }
+      // Ack livraison IN_APP (annule escalade URGENT si applicable) — idempotent
+      void markNotificationDelivered(n.id)
     }
     socket.on('notification', onNotification)
     return () => { socket.off('notification', onNotification) }
