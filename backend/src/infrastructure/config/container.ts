@@ -810,7 +810,7 @@ export function creerContainer() {
   const listerNotesUseCase = new ListerNotesUseCase(noteRepository, userRepository, matiereRepository, parentRepository);
   const listerNotesEnAttenteUseCase = new ListerNotesEnAttenteUseCase(noteRepository, userRepository);
   const statutParClasseUseCase = new StatutParClasseUseCase(noteRepository);
-  const calculerMoyenneUseCase = new CalculerMoyenneUseCase(noteRepository, matiereRepository);
+  const calculerMoyenneUseCase = new CalculerMoyenneUseCase(noteRepository, matiereRepository, getMetricUseCase);
   const importerNotesExcelUseCase = new ImporterNotesExcelUseCase(noteRepository, matiereRepository, matriculeImportRepository, rattachementRepository);
 
   // 16. Use Cases — Orientation
