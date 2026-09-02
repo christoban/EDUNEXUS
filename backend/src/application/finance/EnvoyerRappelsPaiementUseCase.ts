@@ -76,7 +76,7 @@ export class EnvoyerRappelsPaiementUseCase {
         } else {
           for (const parent of parentRecipients) {
             await this.notificationService
-              .envoyer({ schoolId: invoice.schoolId, userId: parent.userId, type: "PAYMENT_REMINDER", titre, corps, canal: "IN_APP", urgency: "NORMAL" })
+              .envoyer({ schoolId: invoice.schoolId, userId: parent.userId, type: "PAYMENT_REMINDER", titre, corps, urgency: "NORMAL" })
               .catch((err: any) => console.error('[PushFirst] IN_APP parent:', err?.message));
           }
         }

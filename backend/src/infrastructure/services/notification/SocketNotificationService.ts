@@ -48,15 +48,24 @@ export class SocketNotificationService implements NotificationService {
       );
     }
 
-    // Déterminer les canaux via la matrice urgence si urgency fourni
-    let canaux: string[];
-    if (options.urgency) {
-      const hasActivePush = await pushSubscriptionRepo.hasActiveToken(options.userId);
-      canaux = resoudreCanal(options.urgency, hasActivePush);
-    } else {
-      // Rétrocompat : ancien comportement avec canal fourni
-      canaux = options.canal ? [options.canal] : ['IN_APP'];
+    // Warning rétrocompat si ancien appelant force un canal sans urgency explicite
+    if (!options.urgency && options.canal) {
+      console.warn(
+        `[Notification] canal='${options.canal}' sans urgency — défaut urgency=NORMAL. Migrer l'appelant. userId=${options.userId}`,
+      );
     }
+
+    // Toujours router via resoudreCanal (urgence = source de vérité, défaut NORMAL)
+    const urgency = options.urgency ?? 'NORMAL';
+    const prefRow = await prisma.notificationPreference
+      .findUnique({
+        where: { userId: options.userId },
+        select: { push: true, sms: true, email: true },
+      })
+      .catch(() => null);
+    const prefs = prefRow ? { push: prefRow.push, sms: prefRow.sms, email: prefRow.email } : null;
+    const hasActivePush = await pushSubscriptionRepo.hasActiveToken(options.userId);
+    const canaux: string[] = resoudreCanal(urgency, hasActivePush, prefs as any);
 
     // Canaux EMAIL/SMS sont gérés séparément — on log et on retourne
     const hasInApp = canaux.includes('IN_APP');
@@ -92,7 +101,7 @@ export class SocketNotificationService implements NotificationService {
           schoolId: options.schoolId,
           userId: options.userId,
           type: DOMAIN_TO_PRISMA_NOTIFICATION_TYPE[options.type],
-          urgency: options.urgency ?? 'NORMAL',
+          urgency: urgency,
           title: options.titre,
           body: options.corps,
           metadata: (options.metadata ?? {}) as Prisma.InputJsonValue,
@@ -121,7 +130,7 @@ export class SocketNotificationService implements NotificationService {
     }
 
     // Escalade SMS différée pour URGENT sans push actif
-    if (options.urgency === 'URGENT' && !hasPush && notificationId) {
+    if (urgency === 'URGENT' && !hasPush && notificationId) {
       try {
         await this.eventPublisher?.emit('notification/escalade-urgent', {
           notificationId,
@@ -137,9 +146,9 @@ export class SocketNotificationService implements NotificationService {
   async envoyerAuRole(
     params: Parameters<NotificationService['envoyerAuRole']>[0]
   ): Promise<void> {
-    if (params.canal !== 'IN_APP') {
-      console.log(`[Notification] ${params.canal} → rôle ${params.role}@${params.schoolId} : ${params.titre}`);
-      return;
+    // Rétrocompat : si canal forcé non-IN_APP sans urgency, on log mais on continue (IN_APP broadcast)
+    if (params.canal && params.canal !== 'IN_APP' && !params.urgency) {
+      console.log(`[Notification] ${params.canal} → rôle ${params.role}@${params.schoolId} : ${params.titre} (canal ignoré, broadcast IN_APP)`);
     }
 
     try {
@@ -197,7 +206,7 @@ export class SocketNotificationService implements NotificationService {
       const parents = await getParentContacts(opts.studentId);
       for (const parent of parents) {
         // notifierParents utilise resoudreCanal via envoyer (urgency = HIGH pour alertes parents)
-        await this.envoyer({ schoolId: opts.schoolId, userId: parent.userId, type: opts.type, titre: opts.titre, corps: opts.corps, canal: 'IN_APP', urgency: 'HIGH' }).catch((err) => console.error('[PushFirst] parent:', (err as any)?.message));
+        await this.envoyer({ schoolId: opts.schoolId, userId: parent.userId, type: opts.type, titre: opts.titre, corps: opts.corps, urgency: 'HIGH' }).catch((err) => console.error('[PushFirst] parent:', (err as any)?.message));
         await notifierUtilisateurPushAvecResultat({ userId: parent.userId, title: opts.titre, body: opts.corps }).catch(() => ({ delivered: false }));
       }
     } catch (err) {

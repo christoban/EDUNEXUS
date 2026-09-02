@@ -53,7 +53,7 @@ export class StudentFollowUpController {
   private async notifier(userId: string, schoolId: string, titre: string, corps: string): Promise<void> {
     const socketService = new SocketNotificationService();
     await socketService
-      .envoyer({ schoolId, userId, type: 'STUDENT_RISK_ALERT', titre, corps, canal: 'IN_APP', urgency: 'NORMAL' })
+      .envoyer({ schoolId, userId, type: 'STUDENT_RISK_ALERT', titre, corps, urgency: 'NORMAL' })
       .catch((err) => console.error('[Suivi] notif IN_APP:', err?.message));
     await notifierUtilisateurPush({ userId, title: titre, body: corps }).catch(() => {});
   }

@@ -41,7 +41,7 @@ export class ModererMessageUseCase {
           type: 'COMMUNICATION',
           titre: 'Message non publié',
           corps: cmd.motif ? `Votre message a été refusé : ${cmd.motif}` : 'Votre message a été refusé par la modération.',
-          canal: 'IN_APP', urgency: 'LOW',
+          urgency: 'LOW',
           metadata: { conversationId: message.conversationId },
         })
         .catch(() => {});

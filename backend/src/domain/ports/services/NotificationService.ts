@@ -11,7 +11,9 @@ export interface EnvoiNotificationOptions {
   type: NotificationType;
   titre: string;
   corps: string;
-  canal: NotificationChannel;
+  /** @deprecated Préférer urgency. Si urgency est fourni, canal est ignoré pour le routage. */
+  canal?: NotificationChannel;
+  /** Source de vérité du routage. Défaut NORMAL si absent (rétrocompat). */
   urgency?: NotificationUrgency;
   metadata?: Record<string, unknown>;
 }
@@ -24,7 +26,8 @@ export interface NotificationService {
     type: NotificationType;
     titre: string;
     corps: string;
-    canal: NotificationChannel;
+    canal?: NotificationChannel;
+    urgency?: NotificationUrgency;
   }): Promise<void>;
   marquerLue(notificationId: string): Promise<void>;
   notifierParents?(opts: {

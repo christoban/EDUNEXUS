@@ -225,7 +225,7 @@ export class FinanceController {
         type: 'FEE_PLAN_CREATED',
         titre,
         corps,
-        canal: 'IN_APP',
+        urgency: 'NORMAL',
       });
 
       const digest = await this.schoolRepository.isEmailDigestAdminEnabled(schoolId);

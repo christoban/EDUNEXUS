@@ -159,7 +159,6 @@ export class DetecterChuteMoyenneUseCase {
         type: 'STUDENT_RISK_ALERT',
         titre: `Chute en ${resultat.matiere}`,
         corps: resultat.corpsIndividuel,
-        canal: 'IN_APP',
         urgency: 'HIGH',
       }).catch((err) => console.error('[DetecterChute] notification:', (err as any)?.message));
     }
@@ -191,7 +190,6 @@ export class DetecterChuteMoyenneUseCase {
           type: 'STUDENT_RISK_ALERT',
           titre: 'Chutes détectées lors de votre validation',
           corps,
-          canal: 'IN_APP',
           urgency: 'HIGH',
         })
         .catch((err) => console.error('[DetecterChute batch] notification:', (err as any)?.message));

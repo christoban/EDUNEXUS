@@ -6,11 +6,8 @@ export class EnvoyerDigestProfPrincipalUseCase {
 
   private async notifierPersonnelDirect(userId: string, schoolId: string, titre: string, corps: string) {
     await this.notificationService
-      .envoyer({ schoolId, userId, type: "STUDENT_RISK_ALERT", titre, corps, canal: "IN_APP", urgency: "NORMAL" })
-      .catch((err: any) => console.error("[HealthAlert] IN_APP personnel:", err?.message));
-    await this.notificationService
-      .envoyer({ schoolId, userId, type: "STUDENT_RISK_ALERT", titre, corps, canal: "PUSH", urgency: "NORMAL" })
-      .catch(() => {});
+      .envoyer({ schoolId, userId, type: "STUDENT_RISK_ALERT", titre, corps, urgency: "NORMAL" })
+      .catch((err: any) => console.error("[HealthAlert] personnel:", err?.message));
   }
 
   async execute(): Promise<{ digestSent: boolean }> {

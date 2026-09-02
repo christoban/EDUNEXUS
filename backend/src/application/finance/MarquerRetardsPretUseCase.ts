@@ -24,7 +24,7 @@ export class MarquerRetardsPretUseCase {
       const corps = `Le livre "${loan.book.title}" est en retard de retour à la bibliothèque.`;
 
       await this.notificationService
-        .envoyer({ schoolId: loan.schoolId, userId: loan.studentId, type: "LIBRARY_OVERDUE", titre, corps, canal: "PUSH", urgency: "NORMAL" })
+        .envoyer({ schoolId: loan.schoolId, userId: loan.studentId, type: "LIBRARY_OVERDUE", titre, corps, urgency: "NORMAL" })
         .catch((err: any) => console.error('[Library Overdue élève]', err?.message));
 
       await this.smsNotification.notifyOverdueBookSms({

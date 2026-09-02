@@ -37,7 +37,7 @@ const calculerIndiceSanteUseCase = new CalculerIndiceSanteUseCase(
 async function notifierPersonnelDirect(userId: string, schoolId: string, titre: string, corps: string) {
   const socketService = new SocketNotificationService();
   await socketService
-    .envoyer({ schoolId, userId, type: "STUDENT_RISK_ALERT", titre, corps, canal: "IN_APP", urgency: "NORMAL" })
+    .envoyer({ schoolId, userId, type: "STUDENT_RISK_ALERT", titre, corps, urgency: "NORMAL" })
     .catch((err) => console.error("[HealthAlert] IN_APP personnel:", err?.message));
   const { notifierUtilisateurPush } = await import('../../services/notification/PushNotificationService.ts');
   await notifierUtilisateurPush({ userId, title: titre, body: corps }).catch(() => {});
@@ -149,7 +149,7 @@ export const handleTimetableSeancesAppliquees = inngest.createFunction(
             type: "SYSTEM" as any,
             titre: "Emploi du temps appliqué",
             corps: `${(seances ?? []).length} séance(s) appliquée(s).`,
-            canal: "IN_APP" as any, urgency: "NORMAL" as any,
+            urgency: "NORMAL" as any,
           })
           .catch(() => {});
       }

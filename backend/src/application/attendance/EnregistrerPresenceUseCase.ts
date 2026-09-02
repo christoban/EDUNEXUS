@@ -128,7 +128,6 @@ export class EnregistrerPresenceUseCase {
           type: 'ABSENCE_ALERT',
           titre: 'Absence enregistrée',
           corps: `Votre enfant a été marqué absent le ${commande.date.toLocaleDateString('fr-FR')}`,
-          canal: 'SMS',
           urgency: 'HIGH',
         });
       }
