@@ -10,6 +10,8 @@ import {
   Lock, AlarmClock, PartyPopper, Eye, EyeOff,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import type { TemplateCatalogEntry } from '@/lib/onboarding/templateCatalogTypes'
+import { filterTemplates, pickEffectiveTemplateCode, detectTemplateCode } from '@/lib/onboarding/templateSelection'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -21,38 +23,6 @@ interface InviteData {
   email: string
   plan: string
   notes: string | null
-}
-
-interface DetectedTemplate {
-  code: string
-  name: string
-  hasPremierCycle: boolean
-  hasDeuxiemeCycle: boolean
-  isTechnique: boolean
-  isPrimaire: boolean
-  isComplexe?: boolean
-}
-
-const TEMPLATE_META: Record<string, DetectedTemplate> = {
-  GHS_EN:            { code: 'GHS_EN', name: 'Government High School', hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false },
-  GSS_EN:            { code: 'GSS_EN', name: 'Government Secondary School', hasPremierCycle: true, hasDeuxiemeCycle: false, isTechnique: false, isPrimaire: false },
-  PRIVE_EN:          { code: 'PRIVE_EN', name: 'Private School (Anglophone)', hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false },
-  PRIMARY_EN:        { code: 'PRIMARY_EN', name: 'Primary School (Anglophone)', hasPremierCycle: false, hasDeuxiemeCycle: false, isTechnique: false, isPrimaire: true },
-  NURSERY_EN:        { code: 'NURSERY_EN', name: 'Nursery School', hasPremierCycle: false, hasDeuxiemeCycle: false, isTechnique: false, isPrimaire: true },
-  GTC_GTHS_EN:       { code: 'GTC_GTHS_EN', name: 'Government Technical College & High School', hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: true, isPrimaire: false },
-  GTC_EN:            { code: 'GTC_EN', name: 'Government Technical College', hasPremierCycle: true, hasDeuxiemeCycle: false, isTechnique: true, isPrimaire: false },
-  LYCEE_BILINGUE:    { code: 'LYCEE_BILINGUE', name: 'Lycée Bilingue', hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false },
-  PRIMARY_BILINGUAL: { code: 'PRIMARY_BILINGUAL', name: 'Primary School Bilingue', hasPremierCycle: false, hasDeuxiemeCycle: false, isTechnique: false, isPrimaire: true },
-  LYCEE_TECHNIQUE_FR: { code: 'LYCEE_TECHNIQUE_FR', name: 'Lycée Technique Francophone', hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: true, isPrimaire: false },
-  CETIC:             { code: 'CETIC', name: "Collège d'Enseignement Technique", hasPremierCycle: true, hasDeuxiemeCycle: false, isTechnique: true, isPrimaire: false },
-  SAR_SM:            { code: 'SAR_SM', name: 'SAR / Section Ménagère', hasPremierCycle: false, hasDeuxiemeCycle: false, isTechnique: true, isPrimaire: false },
-  CFM:               { code: 'CFM', name: 'Centre de Formation aux Métiers', hasPremierCycle: false, hasDeuxiemeCycle: false, isTechnique: true, isPrimaire: false },
-  PRIMAIRE_FR:       { code: 'PRIMAIRE_FR', name: 'École Primaire Francophone', hasPremierCycle: false, hasDeuxiemeCycle: false, isTechnique: false, isPrimaire: true },
-  MATERNELLE_FR:     { code: 'MATERNELLE_FR', name: 'École Maternelle', hasPremierCycle: false, hasDeuxiemeCycle: false, isTechnique: false, isPrimaire: true },
-  LYCEE_FR:          { code: 'LYCEE_FR', name: 'Lycée Général Francophone', hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false },
-  CES_FR:            { code: 'CES_FR', name: "Collège d'Enseignement Secondaire", hasPremierCycle: true, hasDeuxiemeCycle: false, isTechnique: false, isPrimaire: false },
-  PRIVE_FR:          { code: 'PRIVE_FR', name: 'Établissement Privé Francophone', hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false },
-  COMPLEXE_SCOLAIRE: { code: 'COMPLEXE_SCOLAIRE', name: 'Complexe Scolaire', hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false, isComplexe: true },
 }
 
 interface PreviewData {
@@ -187,70 +157,6 @@ function toSlug(v: string) {
 
 function toggleInArray(arr: string[], item: string): string[] {
   return arr.includes(item) ? arr.filter(x => x !== item) : [...arr, item]
-}
-
-function detectTemplate(form: FormData): DetectedTemplate | null {
-  const { subsystem, educationType, ownership, nom } = form
-  const n = nom.toLowerCase()
-
-  if (subsystem === 'FRANCOPHONE' && educationType === 'GENERAL') {
-    if (ownership === 'PUBLIC') {
-      if (n.includes('maternelle'))
-        return { code: 'MATERNELLE_FR', name: 'École Maternelle', hasPremierCycle: false, hasDeuxiemeCycle: false, isTechnique: false, isPrimaire: true }
-      if (n.includes('primaire') || n.includes('école') && !n.includes('lycée') && !n.includes('collège'))
-        return { code: 'PRIMAIRE_FR', name: 'École Primaire Francophone', hasPremierCycle: false, hasDeuxiemeCycle: false, isTechnique: false, isPrimaire: true }
-      const isLycee = n.includes('lycée') || n.includes('lycee')
-      const isCollege = n.includes('collège') || n.includes('college') || n.includes('ces')
-      if (isCollege && !isLycee) return { code: 'CES_FR', name: 'Collège d\'Enseignement Secondaire', hasPremierCycle: true, hasDeuxiemeCycle: false, isTechnique: false, isPrimaire: false }
-      return { code: 'LYCEE_FR', name: 'Lycée Général Francophone', hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false }
-    }
-    return { code: 'PRIVE_FR', name: 'Établissement Privé Francophone', hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false }
-  }
-
-  if (subsystem === 'FRANCOPHONE' && educationType === 'TECHNICAL') {
-    const isCetic = n.includes('cetic') || n.includes('college') || n.includes('cet')
-    if (isCetic) return { code: 'CETIC', name: 'Collège d\'Enseignement Technique', hasPremierCycle: true, hasDeuxiemeCycle: false, isTechnique: true, isPrimaire: false }
-    return { code: 'LYCEE_TECHNIQUE_FR', name: 'Lycée Technique Francophone', hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: true, isPrimaire: false }
-  }
-
-  if (subsystem === 'FRANCOPHONE' && educationType === 'PROFESSIONAL') {
-    if (n.includes('cfm') || n.includes('centre de forma'))
-      return { code: 'CFM', name: 'Centre de Formation aux Métiers', hasPremierCycle: false, hasDeuxiemeCycle: false, isTechnique: true, isPrimaire: false }
-    return { code: 'SAR_SM', name: 'SAR / Section Ménagère', hasPremierCycle: false, hasDeuxiemeCycle: false, isTechnique: true, isPrimaire: false }
-  }
-
-  if (subsystem === 'ANGLOPHONE' && educationType === 'TECHNICAL') {
-    // Miroir du branchement francophone ci-dessus (CETIC vs LYCEE_TECHNIQUE_FR) :
-    // nom contenant "gtc" sans "high school"/"gths" → 1er cycle seul (GTC_EN),
-    // sinon cycle complet par défaut (GTC_GTHS_EN). GGTC (filles) partage le même
-    // template — géré par admissionType, jamais par le nom.
-    const isGtcOnly = n.includes('gtc') && !n.includes('high school') && !n.includes('gths')
-    if (isGtcOnly) return { code: 'GTC_EN', name: 'Government Technical College', hasPremierCycle: true, hasDeuxiemeCycle: false, isTechnique: true, isPrimaire: false }
-    return { code: 'GTC_GTHS_EN', name: 'Government Technical College & High School', hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: true, isPrimaire: false }
-  }
-
-  if (subsystem === 'ANGLOPHONE' && educationType === 'GENERAL') {
-    if (n.includes('nursery') || n.includes('preschool'))
-      return { code: 'NURSERY_EN', name: 'Nursery School', hasPremierCycle: false, hasDeuxiemeCycle: false, isTechnique: false, isPrimaire: true }
-    if (n.includes('primary') || n.includes('nurs') || n.includes('infant') || n.includes('junior') && !n.includes('secondary') && !n.includes('high') && !n.includes('grammar'))
-      return { code: 'PRIMARY_EN', name: 'Primary School (Anglophone)', hasPremierCycle: false, hasDeuxiemeCycle: false, isTechnique: false, isPrimaire: true }
-    if (ownership === 'PRIVATE_SECULAR' || ownership === 'PRIVATE_FAITH')
-      return { code: 'PRIVE_EN', name: 'Private School (Anglophone)', hasPremierCycle: false, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false }
-    const isHigh = n.includes('high') || n.includes('grammar')
-    return { code: isHigh ? 'GHS_EN' : 'GSS_EN', name: isHigh ? 'Government High School' : 'Government Secondary School', hasPremierCycle: false, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false }
-  }
-
-  if (subsystem === 'BILINGUAL' && educationType === 'GENERAL') {
-    if (n.includes('primaire') || n.includes('primary') || n.includes('nursery'))
-      return { code: 'PRIMARY_BILINGUAL', name: 'Primary School Bilingue', hasPremierCycle: false, hasDeuxiemeCycle: false, isTechnique: false, isPrimaire: true }
-    return { code: 'LYCEE_BILINGUE', name: 'Lycée Bilingue', hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false }
-  }
-
-  if (subsystem === 'BILINGUAL' && educationType === 'MIXED') {
-    return { code: 'COMPLEXE_SCOLAIRE', name: 'Complexe Scolaire', hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false, isComplexe: true }
-  }
-
-  return null
 }
 
 function previewClassNames(level: string, count: number, convention: string): string[] {
@@ -447,7 +353,8 @@ export default function OnboardingPage() {
   const [enStreamStartLevel, setEnStreamStartLevel] = useState<'FORM4'|'FORM5'|'SIXTH'|''>('')
   const [bilingualEnLevels, setBilingualEnLevels]   = useState<string[]>([])
   const [bilingualEnFilieres, setBilingualEnFilieres] = useState<string[]>([])
-  const [forcedTemplateCode, setForcedTemplateCode] = useState<string | null>(null)
+  const [templateCatalog, setTemplateCatalog] = useState<TemplateCatalogEntry[]>([])
+  const [selectedTemplateCode, setSelectedTemplateCode] = useState<string | null>(null)
 
   const t = useT('onboarding')
   const { lang: currentLang } = useLanguage()
@@ -472,11 +379,51 @@ export default function OnboardingPage() {
     classesParNiveauPrimaire: {},
   })
 
-  const template = forcedTemplateCode ? (TEMPLATE_META[forcedTemplateCode] ?? detectTemplate(form)) : detectTemplate(form)
+  // Charger catalogue depuis backend (source unique)
+  useEffect(() => {
+    fetch('/api/v2/onboarding/template-catalog').then(r => r.json()).then(data => {
+      if (data?.success && Array.isArray(data.data?.templates)) {
+        setTemplateCatalog(data.data.templates)
+      }
+    }).catch(() => {})
+  }, [])
+
+  const detectedCode = useMemo(() => detectTemplateCode(form), [form.subsystem, form.educationType, form.ownership, form.nom])
+  // Pré-sélection suggestion une seule fois
+  useEffect(() => {
+    if (selectedTemplateCode === null && detectedCode) {
+      // ne pas écraser si utilisateur a déjà choisi
+      // on pré-sélectionne seulement si pas encore choisi et catalogue chargé
+      if (templateCatalog.length > 0 && templateCatalog.some(t => t.code === detectedCode)) {
+        // ne pas auto-écraser après choix manuel — cet effet ne tourne que quand selected est null
+      }
+    }
+  }, [detectedCode, selectedTemplateCode, templateCatalog])
+
+  const effectiveCode = useMemo(() => pickEffectiveTemplateCode(selectedTemplateCode, detectedCode), [selectedTemplateCode, detectedCode])
+  const catalogTemplate = useMemo(() => {
+    if (!effectiveCode) return null
+    return templateCatalog.find(t => t.code === effectiveCode) ?? null
+  }, [effectiveCode, templateCatalog])
+  const template = useMemo(() => {
+    if (catalogTemplate) return catalogTemplate
+    if (effectiveCode && templateCatalog.length === 0) return { code: effectiveCode } as any
+    return catalogTemplate
+  }, [catalogTemplate, effectiveCode, templateCatalog])
+
+  const filteredTemplates = useMemo(() => {
+    if (templateCatalog.length === 0) return []
+    return filterTemplates(templateCatalog, {
+      subsystem: form.subsystem as any,
+      educationType: form.educationType as any,
+      level: null,
+      ownership: form.ownership as any,
+    })
+  }, [templateCatalog, form.subsystem, form.educationType, form.ownership])
 
   function setWithTemplateReset(k: 'subsystem' | 'educationType' | 'ownership') {
     return (v: string) => {
-      setForcedTemplateCode(null)
+      setSelectedTemplateCode(null)
       setForm(f => ({ ...f, [k]: v }))
     }
   }
@@ -996,9 +943,9 @@ export default function OnboardingPage() {
                         { code: 'LYCEE_FR', label: t('phase1.step1.templateDetected.lycee'), desc: t('phase1.step1.templateDetected.lyceeDesc') },
                         { code: 'CES_FR', label: t('phase1.step1.templateDetected.ces'), desc: t('phase1.step1.templateDetected.cesDesc') },
                       ].map(opt => {
-                        const active = (forcedTemplateCode ?? template?.code) === opt.code
+                        const active = (selectedTemplateCode ?? template?.code) === opt.code
                         return (
-                          <button key={opt.code} type="button" onClick={() => setForcedTemplateCode(opt.code)}
+                          <button key={opt.code} type="button" onClick={() => setSelectedTemplateCode(opt.code)}
                             style={{
                               flex: 1, padding: '8px 10px', border: `2px solid ${active ? 'var(--green)' : 'var(--border2)'}`,
                               borderRadius: 10, background: active ? 'rgba(5,150,105,0.07)' : 'white',
@@ -1026,9 +973,9 @@ export default function OnboardingPage() {
                         { code: 'GHS_EN', label: t('phase1.step1.templateDetected.ghs'), desc: t('phase1.step1.templateDetected.ghsDesc') },
                         { code: 'GSS_EN', label: t('phase1.step1.templateDetected.gss'), desc: t('phase1.step1.templateDetected.gssDesc') },
                       ].map(opt => {
-                        const active = (forcedTemplateCode ?? template?.code) === opt.code
+                        const active = (selectedTemplateCode ?? template?.code) === opt.code
                         return (
-                          <button key={opt.code} type="button" onClick={() => setForcedTemplateCode(opt.code)}
+                          <button key={opt.code} type="button" onClick={() => setSelectedTemplateCode(opt.code)}
                             style={{
                               flex: 1, padding: '8px 10px', border: `2px solid ${active ? 'var(--green)' : 'var(--border2)'}`,
                               borderRadius: 10, background: active ? 'rgba(5,150,105,0.07)' : 'white',
@@ -1045,6 +992,41 @@ export default function OnboardingPage() {
                   </div>
                 )}
               </div>
+            )}
+
+            {/* Catalogue template — sélection explicite (source backend) */}
+            {templateCatalog.length > 0 && (
+              <Field label={t('phase1.step1.templateSelect.label') ?? 'Template — choix explicite'}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                  {filteredTemplates.map(tmpl => {
+                    const active = effectiveCode === tmpl.code
+                    return (
+                      <button key={tmpl.code} type="button" onClick={() => setSelectedTemplateCode(tmpl.code)}
+                        style={{
+                          padding: '8px 10px', border: `2px solid ${active ? 'var(--green)' : 'var(--border2)'}`,
+                          borderRadius: 10, background: active ? 'rgba(5,150,105,0.07)' : 'white',
+                          cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
+                          color: active ? 'var(--green2)' : 'var(--text2)', textAlign: 'left',
+                        }}>
+                        <div>{tmpl.name}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 600 }}>{tmpl.code} · {tmpl.subsystem} · {tmpl.educationType}</div>
+                      </button>
+                    )
+                  })}
+                </div>
+                {filteredTemplates.length === 0 && (
+                  <div style={{ fontSize: 13, color: 'var(--text3)', fontStyle: 'italic', marginTop: 6 }}>Aucun template ne correspond aux filtres.</div>
+                )}
+                {selectedTemplateCode === null && detectedCode && templateCatalog.some(t => t.code === detectedCode) && (
+                  <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text2)' }}>
+                    Suggestion : <strong>{templateCatalog.find(t => t.code === detectedCode)?.name}</strong>
+                    <button type="button" onClick={() => setSelectedTemplateCode(detectedCode!)}
+                      style={{ marginLeft: 8, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--green)', background: 'var(--green)', color: 'white', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>
+                      Utiliser la suggestion
+                    </button>
+                  </div>
+                )}
+              </Field>
             )}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>

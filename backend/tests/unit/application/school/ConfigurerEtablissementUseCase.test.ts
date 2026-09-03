@@ -33,7 +33,7 @@ function baseState(overrides: Partial<OnboardingState> = {}): OnboardingState {
     schoolType: 'GENERAL',
     subSystem: 'FRANCOPHONE',
     cycles: ['PREMIER_CYCLE', 'SECOND_CYCLE'],
-    template: 'FR_SECONDARY',
+    template: 'LYCEE_FR',
     series: ['A1', 'C', 'D'],
     academicYearStart: '2026-09-01',
     academicYearEnd: '2027-06-30',

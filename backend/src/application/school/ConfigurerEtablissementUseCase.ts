@@ -12,6 +12,7 @@
  */
 import type { SchoolActivationRepository } from '@domain/ports/repositories/SchoolActivationRepository';
 import { ActiverEtablissementUseCase } from './ActiverEtablissementUseCase';
+import { findTemplateInCatalog } from './templateCatalog';
 
 // ── OnboardingState (miroir du frontend) ─────────────────────────────────────
 export interface LV2OrgRule {
@@ -197,6 +198,11 @@ export class ConfigurerEtablissementUseCase {
 
   async execute(state: OnboardingState): Promise<ConfigurerEtablissementResultat> {
     if (!state.schoolId) throw new Error('schoolId requis');
+    if (!state.template || !findTemplateInCatalog(state.template)) {
+      throw new Error(
+        `Template inconnu ou non supporté : ${state.template ?? '(vide)'}. Utilisez un code du catalogue officiel.`,
+      );
+    }
 
     const school = await this.schoolActivationRepository.findSchoolForActivation(state.schoolId);
     if (!school) throw new Error(`École introuvable : ${state.schoolId}`);

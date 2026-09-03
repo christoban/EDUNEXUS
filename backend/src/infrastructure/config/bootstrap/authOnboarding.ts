@@ -12,6 +12,7 @@ import { PrismaSchoolActivationRepository } from '@infrastructure/persistence/pr
 import { AIActionAuditAdapter } from '@infrastructure/services/ai/AIActionAuditAdapter';
 import { ActiverEtablissementUseCase } from '@application/school/ActiverEtablissementUseCase';
 import { ConfigurerEtablissementUseCase } from '@application/school/ConfigurerEtablissementUseCase';
+import { ListerTemplatesCatalogUseCase } from '@application/school/ListerTemplatesCatalogUseCase';
 import { creerParentRoutes } from '@infrastructure/http/routes/parent.routes';
 import { creerSchoolSettingsRoutes } from '@infrastructure/http/routes/schoolSettings.routes';
 import { creerSchoolConfigRoutes } from '@infrastructure/http/routes/school-config.routes';
@@ -56,6 +57,13 @@ export function registerAuthOnboardingRoutes(app: Application, prismaParam: type
   const activerEtablissementUseCase = new ActiverEtablissementUseCase(schoolActivationRepository);
   app.use('/api/v2', creerSchoolConfigRoutes(activerEtablissementUseCase));
 
+  // ── Catalogue templates (public, lecture seule) ──
+  const listerTemplatesCatalogUseCase = new ListerTemplatesCatalogUseCase();
+  app.get('/api/v2/onboarding/template-catalog', async (_req, res) => {
+    const result = listerTemplatesCatalogUseCase.execute();
+    res.json({ success: true, data: result });
+  });
+
   // ── Onboarding conversationnel Phase 2 : exécution déterministe ────
   const configurerEtablissementUseCase = new ConfigurerEtablissementUseCase(schoolActivationRepository, activerEtablissementUseCase);
   const onboardingPEBSController = new OnboardingPEBSController();
@@ -68,6 +76,7 @@ export function registerAuthOnboardingRoutes(app: Application, prismaParam: type
     } catch (error) {
       if (error instanceof Error) {
         if (error.message.includes('introuvable')) { res.status(404).json({ success: false, message: error.message }); return; }
+        if (error.message.includes('Template inconnu')) { res.status(400).json({ success: false, message: error.message }); return; }
         if (error.message.includes('déjà') || error.message.includes('approuvé') || error.message.includes('requis')) {
           res.status(422).json({ success: false, message: error.message }); return;
         }
