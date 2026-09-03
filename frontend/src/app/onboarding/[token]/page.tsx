@@ -12,6 +12,7 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import type { TemplateCatalogEntry } from '@/lib/onboarding/templateCatalogTypes'
 import { filterTemplates, pickEffectiveTemplateCode, detectTemplateCode } from '@/lib/onboarding/templateSelection'
+import { showPremierCycle, showDeuxiemeCycle, showSeriesFr, showStreamsEn, showTechnique, showPrimaire, isPebsFrEligible, isPebsEnEligible } from '@/lib/onboarding/templateGates'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -91,13 +92,6 @@ const OWNERSHIP_KEYS = [
   { value: 'PRIVATE_SECULAR', key: 'phase1.step1.ownership.options.PRIVATE_SECULAR.label', icon: School },
   { value: 'PRIVATE_FAITH',   key: 'phase1.step1.ownership.options.PRIVATE_FAITH.label',   icon: Church },
 ]
-
-const TCODES_PEBS_FR = ['LYCEE_FR','CES_FR','PRIVE_FR','LYCEE_BILINGUE']
-const TCODES_PEBS_EN = ['GHS_EN','GSS_EN','PRIVE_EN','LYCEE_BILINGUE']
-const TCODES_AVEC_1ER_CYCLE = ['LYCEE_FR','CES_FR','PRIVE_FR','LYCEE_TECHNIQUE_FR','CETIC','LYCEE_BILINGUE','COMPLEXE_SCOLAIRE','GTC_GTHS_EN','GTC_EN']
-const TCODES_AVEC_2E_CYCLE = ['LYCEE_FR','PRIVE_FR','LYCEE_BILINGUE','GHS_EN','GSS_EN','PRIVE_EN','COMPLEXE_SCOLAIRE','GTC_GTHS_EN']
-const TCODES_TECHNIQUE = ['LYCEE_TECHNIQUE_FR','CETIC','GTC_GTHS_EN','GTC_EN']
-const TCODES_PRIMAIRE = ['PRIMAIRE_FR','PRIMARY_EN','PRIMARY_BILINGUAL']
 
 const NIVEAUX_1ER_CYCLE_FR = ['6e','5e','4e','3e']
 const NIVEAUX_1ER_CYCLE_CAP = ['CAP1','CAP2','CAP3','CAP4']
@@ -508,6 +502,38 @@ export default function OnboardingPage() {
     if (template?.code !== 'NURSERY_EN') setNurseryLevels([]);
   }, [template?.code, template?.isComplexe])
 
+  // Reset des états hors scope quand le template change (gating catalogue)
+  useEffect(() => {
+    if (!template) return
+    const t = template as any as import('@/lib/onboarding/templateCatalogTypes').TemplateCatalogEntry
+    if (!showPremierCycle(t)) {
+      setForm(f => (f.niveaux1erCycle.length === 0 && Object.keys(f.classesParNiveau).length === 0 ? f : { ...f, niveaux1erCycle: [], classesParNiveau: {} }))
+    }
+    if (!showDeuxiemeCycle(t)) {
+      setForm(f => (f.niveaux2eCycle.length === 0 && f.filieres.length === 0 ? f : { ...f, niveaux2eCycle: [], filieres: [], a4Languages: [] }))
+      if (enStreamStartLevel) setEnStreamStartLevel('')
+      if (bilingualEnLevels.length) setBilingualEnLevels([])
+      if (bilingualEnFilieres.length) setBilingualEnFilieres([])
+      if (enGradingSystem) setEnGradingSystem('')
+    }
+    if (!isPebsFrEligible(t.code)) {
+      if (hasPEBSFrancophone) setHasPEBSFrancophone(false)
+    }
+    if (!isPebsEnEligible(t.code)) {
+      if (hasPEBSAnglophone) setHasPEBSAnglophone(false)
+    }
+    if (!showTechnique(t)) {
+      setForm(f => (f.filieresTechniques.length === 0 ? f : { ...f, filieresTechniques: [] }))
+      if (sarMetiers.length) setSarMetiers([])
+      if (cfmFilieres.length) setCfmFilieres([])
+      if (sousTypeTechnique) setSousTypeTechnique('')
+      if (cetifMode) setCetifMode(false)
+    }
+    if (!showPrimaire(t)) {
+      setForm(f => (f.niveauxPrimaire.length === 0 && Object.keys(f.classesParNiveauPrimaire).length === 0 ? f : { ...f, niveauxPrimaire: [], classesParNiveauPrimaire: {} }))
+    }
+  }, [template?.code])
+
   // Auto-ajouter/retirer ABI des filières quand PEBS Francophone change
   useEffect(() => {
     setForm(f => {
@@ -594,7 +620,7 @@ export default function OnboardingPage() {
     return ''
   }
 
-  // Validate step 3
+  // Validate step 3 — gating synchronisé au catalogue
   function validateStep3(): string {
     if (!template) return 'Impossible de détecter le type d\'établissement.'
 
@@ -609,10 +635,11 @@ export default function OnboardingPage() {
       return ''
     }
 
-    if (template.hasPremierCycle && form.niveaux1erCycle.length === 0) return 'Veuillez sélectionner au moins un niveau du 1er cycle.'
-    if (template.hasPremierCycle && Object.keys(form.classesParNiveau).length < form.niveaux1erCycle.length) return 'Veuillez indiquer le nombre de classes pour chaque niveau.'
-    if (template.hasDeuxiemeCycle && form.niveaux2eCycle.length === 0) return 'Veuillez sélectionner au moins un niveau du 2e cycle.'
-    if (template.hasDeuxiemeCycle && form.filieres.length === 0) return 'Veuillez sélectionner au moins une filière.'
+    if (showPremierCycle(template as any) && form.niveaux1erCycle.length === 0) return 'Veuillez sélectionner au moins un niveau du 1er cycle.'
+    if (showPremierCycle(template as any) && Object.keys(form.classesParNiveau).length < form.niveaux1erCycle.length) return 'Veuillez indiquer le nombre de classes pour chaque niveau.'
+    if (showDeuxiemeCycle(template as any) && form.niveaux2eCycle.length === 0) return 'Veuillez sélectionner au moins un niveau du 2e cycle.'
+    if (showSeriesFr(template as any) && form.filieres.length === 0) return 'Veuillez sélectionner au moins une filière.'
+    if (showStreamsEn(template as any) && form.filieres.length === 0) return 'Veuillez sélectionner au moins une filière.'
     return ''
   }
 
@@ -1576,7 +1603,7 @@ export default function OnboardingPage() {
             {/* PSB / PEBS — Programme Spécial Bilingue : variable ORTHOGONALE au cycle, disponible
                 pour tout template général éligible (y compris un CES à 1er cycle seul), jamais le
                 technique. Le backend crée une classe bilingue au 1er rang de chaque niveau. */}
-            {template && !template.isComplexe && template.code && TCODES_PEBS_FR.includes(template.code) && (
+            {template && !template.isComplexe && template.code && isPebsFrEligible(template.code) && (
               <Field label={t('phase1.step3.secondCycle.pebsFR')}>
                 <div style={{ display: 'flex', gap: 8 }}>
                   {([{ v: true, l: t('phase1.step3.secondCycle.pebsYes') }, { v: false, l: t('phase1.step3.secondCycle.pebsNo') }]).map(opt => (
@@ -1598,7 +1625,7 @@ export default function OnboardingPage() {
                 )}
               </Field>
             )}
-            {template && !template.isComplexe && template.code && TCODES_PEBS_EN.includes(template.code) && (
+            {template && !template.isComplexe && template.code && isPebsEnEligible(template.code) && (
               <Field label={t('phase1.step3.secondCycle.pebsEN')}>
                 <div style={{ display: 'flex', gap: 8 }}>
                   {([{ v: true, l: t('phase1.step3.secondCycle.pebsYesEN') }, { v: false, l: t('phase1.step3.secondCycle.pebsNoEN') }]).map(opt => (
