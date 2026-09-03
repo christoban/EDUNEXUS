@@ -2,6 +2,12 @@
  * APPLICATION — Use case : générer la déclaration statistique MINESEC officielle, en
  * écrivant dans une copie du vrai fichier téléchargé (jamais un fac-similé). Bloque
  * immédiatement si le formulaire complémentaire (Catégorie C) n'est pas complet.
+ *
+ * Inventaire template 2022 (18 onglets, backend/scripts/list-minesec-sheets.ts):
+ * - BRANCHÉ: Identification, Eleves_ESG_Fr, Students_ESG_Eng, Eleves_ESTP_Fr, Students_ESTP_Eng,
+ *   Infrastructures, Personnels, Manuels-Didactics, Financement-Funding, Themes_Tranversaux
+ * - MÉTIER_TODO: Atelier_Workshop (présent mais mapping cellules non vérifié — V2.14 P1 TODO)
+ * - DOC: NOTICE, Guide, Menu, Annexe 1, Contenu update, Variables Essentielles, DPCache
  */
 import fs from 'fs';
 import path from 'path';
@@ -17,6 +23,7 @@ import { ESTP_GRID_BLOCKS } from './minesecEstpGridMap';
 import { ESTP_ENG_GRID_BLOCKS } from './minesecEstpEngGridMap';
 import { MANUELS_FIELD_MAPPING } from './minesecManuelsFieldMap';
 import { THEMES_FIELD_MAPPING } from './minesecThemesFieldMap';
+import { ATELIER_GRID_BLOCKS } from './minesecAteliersFieldMap';
 import type { ChampNonResolu, GenererDeclarationStatistiqueCommande, GenererDeclarationStatistiqueResultat } from './types';
 
 function getByPath(obj: any, keyPath: string): any {
@@ -28,6 +35,13 @@ function getByPath(obj: any, keyPath: string): any {
     cur = cur[p];
   }
   return cur;
+}
+
+/** P0 V2.14 — extraction testable du choix de clé manuelsDetail (typo rétrocompat). */
+export function pickManuelsDetail(supplement: any): any[] {
+  if (Array.isArray(supplement?.manuelsDetail)) return supplement.manuelsDetail;
+  if (Array.isArray(supplement?.manuelDetail)) return supplement.manuelDetail;
+  return [];
 }
 
 const STORAGE_DIR = path.resolve(process.cwd(), 'storage', 'statistical-submissions');
@@ -239,7 +253,7 @@ export class GenererDeclarationStatistiqueMinesecUseCase {
     }
 
     // ── Catégorie C_MANUAL — Manuels-Didactics ──
-    const manuelsDetail: any[] = Array.isArray(supplement?.manuelDetail) ? supplement.manuelDetail : [];
+    const manuelsDetail: any[] = pickManuelsDetail(supplement);
     for (const mapping of MANUELS_FIELD_MAPPING) {
       const ws = wb.getWorksheet('Manuels-Didactics');
       if (!ws) continue;
@@ -272,6 +286,26 @@ export class GenererDeclarationStatistiqueMinesecUseCase {
           }
           setCellValue(ws, mapping.cellRef, value, mapping.dataType);
         }
+      }
+    }
+
+    // ── Catégorie C_MANUAL — Ateliers (si feuille présente) ──
+    // Inventaire 2022: Atelier_Workshop existe (18 onglets). Mapping cellules NON vérifié — on ne
+    // branche l'écriture que si ATELIER_GRID_BLOCKS est renseigné ; sinon on signale explicitement
+    // le gap sans inventer de données (P1 V2.14).
+    const wsAtelier = wb.getWorksheet('Atelier_Workshop');
+    const ateliersDetail: any[] = Array.isArray(supplement?.ateliersDetail) ? supplement.ateliersDetail : [];
+    if (wsAtelier && ateliersDetail.length > 0) {
+      if (ATELIER_GRID_BLOCKS.length === 0) {
+        champsNonResolus.push({
+          fieldCode: 'ATELIER_NON_MAPPE',
+          sheetName: 'Atelier_Workshop',
+          cellReference: '',
+          fieldLabel: 'Ateliers',
+          raison: 'Données ateliers renseignées mais mapping cellules Atelier_Workshop non vérifié — génération reportée (V2.14 P1).',
+        });
+      } else {
+        // TODO: écrire selon ATELIER_GRID_BLOCKS (même discipline que ESTP)
       }
     }
 

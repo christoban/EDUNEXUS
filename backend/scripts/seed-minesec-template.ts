@@ -4,6 +4,10 @@
  * couverts, à but de documentation/audit — la résolution effective des valeurs se fait par
  * code, voir resolveAutoFields.ts / minesecEsgFieldMap.ts).
  *
+ * NOTE (V2.14) : ce seed documente Identification/Infra/Financement/ESG_Fr.
+ * La résolution runtime couvre aussi Students_ESG_Eng, ESTP Fr/Eng,
+ * Manuels-Didactics, Themes_Tranversaux, Personnels — voir GenererDeclarationStatistiqueMinesecUseCase.
+ *
  * À exécuter une fois : bun scripts/seed-minesec-template.ts
  */
 import fs from 'fs';
