@@ -1,5 +1,6 @@
 import type { MetricDefinition, MetricKey, MetricDimensions, MetricComputeFn, MetricComputeContext } from './MetricRegistry';
 import { calculateAverageScoreOn20 } from '@domain/rules/GradingEngine';
+import { resolveHasCoefficientForClass } from '@domain/subsystems/SubsystemDefaults';
 
 export const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
   taux_presence: {
@@ -96,8 +97,16 @@ export const computeMoyenneGenerale: MetricComputeFn = async (dims, ctx: MetricC
   const calculable = grades.filter(g => g.sequenceAverage !== null && g.sequenceAverage !== undefined);
   if (calculable.length === 0) return 0;
 
-  // TODO(V3.5-bis) : hasCoefficientBySubject figé à true ici comme dans GenererBulletinUseCase.ts:124, CalculerMoyenneUseCase.ts:48, PrismaSanteEleveRepository.ts:32 — bug préexistant identique aux 4 endroits (hardcodé true,true, ignore le subsystem de l'école). Résolution trouvée : School.subsystem → DEFAULT_SUBSYSTEMS.find(c=>c.code===subsystem).hasCoefficientBySubject, fallback true si école introuvable. À corriger dans les 4 consommateurs en même temps dans un chantier dédié, jamais un seul isolément (sinon incohérence bulletin vs dashboard vs indice santé pour les écoles FR_PRIMAIRE/EN_PRIMAIRE).
-  const hasCoefficientBySubject = true;
+  let hasCoefficientBySubject = true;
+  try {
+    const school = await ctx.schoolRepository.findById(dims.schoolId);
+    const classe = await ctx.classeRepository.findById(dims.classId);
+    if (school && classe) {
+      hasCoefficientBySubject = resolveHasCoefficientForClass(school as any, (classe as any).level ?? null);
+    }
+  } catch {
+    // best-effort fallback
+  }
   const excludeAbsentGrades = true; // FIGÉ — jamais une dimension (contrat Tech Lead)
 
   return calculateAverageScoreOn20(

@@ -214,15 +214,32 @@ export async function calculerMoyennesClasseSequence(
   classId: string,
   sequenceId: string,
 ): Promise<Map<string, number>> {
+  // Résolution hasCoefficient au niveau classe (même mécanisme que le moteur)
+  let hasCoefficientBySubject = true;
+  try {
+    const [school, classe] = await Promise.all([
+      ctx.prisma.school.findUnique({ where: { id: ctx.schoolId }, select: { subsystem: true } }),
+      ctx.prisma.class.findUnique({ where: { id: classId }, select: { level: true } }),
+    ]);
+    if (school && classe) {
+      const { resolveHasCoefficientForClass } = await import('@domain/subsystems/SubsystemDefaults');
+      hasCoefficientBySubject = resolveHasCoefficientForClass(school as any, (classe as any).level ?? null);
+    }
+  } catch {
+    // best-effort fallback
+  }
+
   const grades = await ctx.prisma.grade.findMany({
     where: { classId, sequenceId, schoolId: ctx.schoolId, sequenceAverage: { not: null } },
-    select: { studentId: true, sequenceAverage: true, coefficient: true },
+    select: { studentId: true, sequenceAverage: true, coefficient: true, isAbsentGrade: true },
   });
   const parStudent = new Map<string, { somme: number; poids: number }>();
   for (const g of grades) {
+    if ((g as any).isAbsentGrade) continue;
+    const coeff = hasCoefficientBySubject ? g.coefficient : 1;
     const cur = parStudent.get(g.studentId) ?? { somme: 0, poids: 0 };
-    cur.somme += (g.sequenceAverage ?? 0) * g.coefficient;
-    cur.poids += g.coefficient;
+    cur.somme += (g.sequenceAverage ?? 0) * coeff;
+    cur.poids += coeff;
     parStudent.set(g.studentId, cur);
   }
   const moyennes = new Map<string, number>();

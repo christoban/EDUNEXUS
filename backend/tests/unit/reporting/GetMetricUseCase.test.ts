@@ -4,6 +4,8 @@ import { MetricRegistry } from '../../../src/domain/reporting/MetricRegistryImpl
 import { GetMetricUseCase } from '../../../src/application/reporting/GetMetricUseCase';
 import { InMemoryPresenceRepository } from '../../helpers/repositories/InMemoryPresenceRepository';
 import { InMemoryNoteRepository } from '../../helpers/repositories/InMemoryNoteRepository';
+import { InMemorySchoolRepository } from '../../helpers/repositories/InMemorySchoolRepository';
+import { InMemoryClasseRepository } from '../../helpers/repositories/InMemoryClasseRepository';
 import { Presence } from '@domain/entities/Presence';
 
 function makePresence(status: string, studentId = 'e1', classId = 'c1', periodId = 'p1', teacherId?: string, date?: Date) {
@@ -36,14 +38,16 @@ function setup() {
   const presenceRepo = new InMemoryPresenceRepository();
   const noteRepo = new InMemoryNoteRepository();
   const statsRepo = makeStatsRepo();
+  const schoolRepo = new InMemorySchoolRepository();
+  const classeRepo = new InMemoryClasseRepository();
 
   // 3 présences : PRESENT + LATE + ABSENT → 66.67%
   presenceRepo.ajouter(makePresence('PRESENT'));
   presenceRepo.ajouter(makePresence('LATE'));
   presenceRepo.ajouter(makePresence('ABSENT'));
 
-  const useCase = new GetMetricUseCase(cache, registry, presenceRepo, noteRepo, statsRepo);
-  return { cache, registry, useCase, presenceRepo, noteRepo, statsRepo };
+  const useCase = new GetMetricUseCase(cache, registry, presenceRepo, noteRepo, statsRepo, schoolRepo, classeRepo);
+  return { cache, registry, useCase, presenceRepo, noteRepo, statsRepo, schoolRepo, classeRepo };
 }
 
 describe('GetMetricUseCase', () => {
@@ -97,7 +101,7 @@ describe('GetMetricUseCase', () => {
         { status: 'ABSENT', date: new Date(), classId: 'c2', subjectId: 's1' } as any,
       ],
     });
-    const useCase = new GetMetricUseCase(cache, registry, presenceRepo, noteRepo, statsRepo);
+    const useCase = new GetMetricUseCase(cache, registry, presenceRepo, noteRepo, statsRepo, new InMemorySchoolRepository(), new InMemoryClasseRepository());
     const res = await useCase.execute({ key: 'taux_presence', dimensions: { schoolId: 's1', teacherId: 't1' } });
     // Avant migration : (PRESENT+LATE)/3 = 2/3 → 66.67 (2 décimales)
     expect(res.value).toBe(66.67);
@@ -113,7 +117,7 @@ describe('GetMetricUseCase', () => {
     const presenceRepo = new InMemoryPresenceRepository();
     const noteRepo = new InMemoryNoteRepository();
     const statsRepo = makeStatsRepo({ assignments: [], attendances: [] });
-    const useCase = new GetMetricUseCase(cache, registry, presenceRepo, noteRepo, statsRepo);
+    const useCase = new GetMetricUseCase(cache, registry, presenceRepo, noteRepo, statsRepo, new InMemorySchoolRepository(), new InMemoryClasseRepository());
     const res = await useCase.execute({ key: 'taux_presence', dimensions: { schoolId: 's1', teacherId: 't-unknown' } });
     expect(res.value).toBe(100);
   });
@@ -136,7 +140,7 @@ describe('GetMetricUseCase', () => {
     presenceRepo.ajouter(makePresence('PRESENT', 'e1', 'c1', 'p1', undefined, new Date(now.getTime() - 1000)));
     presenceRepo.ajouter(makePresence('LATE', 'e1', 'c1', 'p1', undefined, new Date(now.getTime() - 500)));
     presenceRepo.ajouter(makePresence('ABSENT', 'e1', 'c1', 'p1', undefined, new Date(now.getTime() - 200)));
-    const useCase = new GetMetricUseCase(cache, registry, presenceRepo, noteRepo, statsRepo);
+    const useCase = new GetMetricUseCase(cache, registry, presenceRepo, noteRepo, statsRepo, new InMemorySchoolRepository(), new InMemoryClasseRepository());
     const res = await useCase.execute({ key: 'taux_presence', dimensions: { schoolId: 's1', studentId: 'e1', dateRange: { from: depuis.toISOString(), to: now.toISOString() } } });
     expect(res.value).toBe(66.67);
   });
@@ -152,7 +156,7 @@ describe('GetMetricUseCase', () => {
     presenceRepo.ajouter(makePresence('PRESENT', 'e-student', 'c1', 'p1', 't1', new Date(now.getTime() - 1000)));
     presenceRepo.ajouter(makePresence('LATE', 'e-student', 'c1', 'p1', 't1', new Date(now.getTime() - 500)));
     presenceRepo.ajouter(makePresence('ABSENT', 'e-student', 'c1', 'p1', 't1', new Date(now.getTime() - 200)));
-    const useCase = new GetMetricUseCase(cache, registry, presenceRepo, noteRepo, statsRepo);
+    const useCase = new GetMetricUseCase(cache, registry, presenceRepo, noteRepo, statsRepo, new InMemorySchoolRepository(), new InMemoryClasseRepository());
     const res = await useCase.execute({
       key: 'taux_presence',
       dimensions: { schoolId: 's1', classId: 'c1', teacherId: 't1', dateRange: { from: depuis.toISOString(), to: now.toISOString() } },
@@ -166,7 +170,7 @@ describe('GetMetricUseCase', () => {
     const presenceRepo = new InMemoryPresenceRepository();
     const noteRepo = new InMemoryNoteRepository();
     const statsRepo = makeStatsRepo();
-    const useCase = new GetMetricUseCase(cache, registry, presenceRepo, noteRepo, statsRepo);
+    const useCase = new GetMetricUseCase(cache, registry, presenceRepo, noteRepo, statsRepo, new InMemorySchoolRepository(), new InMemoryClasseRepository());
     const depuis = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
     const res = await useCase.execute({ key: 'taux_presence', dimensions: { schoolId: 's1', studentId: 'e1', dateRange: { from: depuis, to: new Date().toISOString() } } });
     expect(res.value).toBe(100);

@@ -3,6 +3,8 @@ import { CalculerMoyenneUseCase } from '../../../src/application/grade/CalculerM
 import { InMemoryNoteRepository } from '../../helpers/repositories/InMemoryNoteRepository';
 import { InMemoryMatiereRepository } from '../../helpers/repositories/InMemoryMatiereRepository';
 import { InMemoryPresenceRepository } from '../../helpers/repositories/InMemoryPresenceRepository';
+import { InMemorySchoolRepository } from '../../helpers/repositories/InMemorySchoolRepository';
+import { InMemoryClasseRepository } from '../../helpers/repositories/InMemoryClasseRepository';
 import { MetricCache } from '../../../src/infrastructure/cache/MetricCache';
 import { MetricRegistry } from '../../../src/domain/reporting/MetricRegistryImpl';
 import { GetMetricUseCase } from '../../../src/application/reporting/GetMetricUseCase';
@@ -68,7 +70,9 @@ describe('M2 — CalculerMoyenneUseCase migré vers moyenne_generale', () => {
     // Avec moteur
     const cache = new MetricCache();
     const registry = new MetricRegistry();
-    const getMetric = new GetMetricUseCase(cache, registry, presenceRepo, noteRepo as any, statsRepo);
+    const schoolRepo = new InMemorySchoolRepository();
+    const classeRepo = new InMemoryClasseRepository();
+    const getMetric = new GetMetricUseCase(cache, registry, presenceRepo, noteRepo as any, statsRepo, schoolRepo, classeRepo);
     const useCaseAvec = new CalculerMoyenneUseCase(noteRepo, matiereRepo, getMetric);
     const resAvec1 = await useCaseAvec.execute({ schoolId: 'school-1', studentId: 'eleve-1', classId, sequenceId: seqId });
     const resAvec2 = await useCaseAvec.execute({ schoolId: 'school-1', studentId: 'eleve-2', classId, sequenceId: seqId });
@@ -85,9 +89,11 @@ describe('M2 — CalculerMoyenneUseCase migré vers moyenne_generale', () => {
     const matiereRepo = new InMemoryMatiereRepository();
     const presenceRepo = new InMemoryPresenceRepository();
     const statsRepo = { findTeachingAssignmentsForTeacher: async () => [], findAttendanceForTeacher: async () => [] } as any;
+    const schoolRepo = new InMemorySchoolRepository();
+    const classeRepo = new InMemoryClasseRepository();
     const cache = new MetricCache();
     const registry = new MetricRegistry();
-    const getMetric = new GetMetricUseCase(cache, registry, presenceRepo, noteRepo, statsRepo);
+    const getMetric = new GetMetricUseCase(cache, registry, presenceRepo, noteRepo, statsRepo, schoolRepo, classeRepo);
 
     // Simule un appel pilote
     const res = await getMetric.execute({ key: 'moyenne_generale', dimensions: { schoolId: 'school-1', classId: 'c1', studentId: 'e1' } });

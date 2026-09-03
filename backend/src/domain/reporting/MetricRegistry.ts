@@ -21,6 +21,8 @@ export interface MetricComputeContext {
   presenceRepository: import('@domain/ports/repositories/PresenceRepository').PresenceRepository;
   noteRepository: import('@domain/ports/repositories/NoteRepository').NoteRepository;
   statisticsQueryRepository: import('@domain/ports/repositories/StatisticsQueryRepository').StatisticsQueryRepository;
+  schoolRepository: import('@domain/ports/repositories/SchoolRepository').SchoolRepository;
+  classeRepository: import('@domain/ports/repositories/ClasseRepository').ClasseRepository;
 }
 
 export type MetricComputeFn = (

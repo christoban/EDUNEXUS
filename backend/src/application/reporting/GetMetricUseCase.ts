@@ -3,6 +3,8 @@ import type { MetricRegistryPort, MetricKey, MetricDimensions, MetricComputeCont
 import type { PresenceRepository } from '@domain/ports/repositories/PresenceRepository';
 import type { NoteRepository } from '@domain/ports/repositories/NoteRepository';
 import type { StatisticsQueryRepository } from '@domain/ports/repositories/StatisticsQueryRepository';
+import type { SchoolRepository } from '@domain/ports/repositories/SchoolRepository';
+import type { ClasseRepository } from '@domain/ports/repositories/ClasseRepository';
 
 export interface GetMetricCommand {
   key: MetricKey;
@@ -25,8 +27,10 @@ export class GetMetricUseCase {
     presenceRepository: PresenceRepository,
     noteRepository: NoteRepository,
     statisticsQueryRepository: StatisticsQueryRepository,
+    schoolRepository: SchoolRepository,
+    classeRepository: ClasseRepository,
   ) {
-    this.computeContext = { presenceRepository, noteRepository, statisticsQueryRepository };
+    this.computeContext = { presenceRepository, noteRepository, statisticsQueryRepository, schoolRepository, classeRepository };
   }
 
   async execute(cmd: GetMetricCommand): Promise<GetMetricResult> {

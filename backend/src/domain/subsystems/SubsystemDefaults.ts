@@ -73,3 +73,26 @@ export const resolveDefaultSubsystemCodeForSection = (
   if (cycle === "technique") return language === "en" ? "EN_TECHNIQUE_SEC" : "FR_TECHNIQUE_SEC";
   return language === "en" ? "EN_GENERAL_SEC" : "FR_GENERAL_SEC";
 };
+
+export function resolveHasCoefficientForClass(
+  school: { subsystem: string },
+  classLevel: string | null | undefined,
+  sectionCode?: string | null,
+): boolean {
+  const PRIMARY_LEVELS = ["SIL","CP","CE1","CE2","CM1","CM2","Class1","Class2","Class3","Class4","Class5","Class6"];
+  const PRESCHOOL_LEVELS = ["PS","MS","GS","PreNursery","Nursery1","Nursery2","Petite section","Moyenne section","Grande section"];
+  const TECHNICAL_LEVELS = ["CAP1","CAP2","CAP3","CAP4","BT1","BT2","BT3"];
+  let cycle: SectionCycle | null = null;
+  if (classLevel && PRESCHOOL_LEVELS.includes(classLevel)) cycle = "maternelle";
+  else if (classLevel && PRIMARY_LEVELS.includes(classLevel)) cycle = "primaire";
+  else if (classLevel && TECHNICAL_LEVELS.includes(classLevel)) cycle = "technique";
+  else cycle = "secondaire";
+  // Source réelle de la langue : School.subsystem + Section.code (via resolveLanguage, BILINGUAL → sectionCode)
+  // Import évité ici pour rester sans dépendance circulaire — on duplique la logique minimale de LanguagePolicy
+  let language: SectionLanguage;
+  if (school.subsystem === "ANGLOPHONE") language = "en";
+  else if (school.subsystem === "BILINGUAL") language = sectionCode === "EN" ? "en" : "fr";
+  else language = "fr";
+  const code = resolveDefaultSubsystemCodeForSection(cycle, language);
+  return DEFAULT_SUBSYSTEMS.find(d => d.code === code)?.hasCoefficientBySubject ?? true;
+}

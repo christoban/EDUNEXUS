@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import { calculateAverageScoreOn20 } from '@domain/rules/GradingEngine';
+import { resolveHasCoefficientForClass } from '@domain/subsystems/SubsystemDefaults';
 import type {
   SanteEleveRepository,
   DonneesSanteEleve,
@@ -19,6 +20,20 @@ export class PrismaSanteEleveRepository implements SanteEleveRepository {
     });
     if (!student || student.schoolId !== schoolId) return null;
 
+    // Résolution hasCoefficient au niveau classe (un élève de primaire dans un complexe scolaire)
+    let hasCoefficientBySubject = true;
+    try {
+      const school = await this.prisma.school.findUnique({ where: { id: schoolId }, select: { subsystem: true } });
+      const enrollment = await this.prisma.enrollment.findFirst({
+        where: { studentId, academicYearId, status: 'ACTIVE' },
+        select: { class: { select: { level: true } } },
+      });
+      const level = (enrollment as any)?.class?.level ?? null;
+      if (school) hasCoefficientBySubject = resolveHasCoefficientForClass(school as any, level);
+    } catch {
+      // best-effort fallback
+    }
+
     // 1. Moyenne générale pondérée (notes VALIDATED/LOCKED)
     const notes = await this.prisma.grade.findMany({
       where: {
@@ -35,7 +50,7 @@ export class PrismaSanteEleveRepository implements SanteEleveRepository {
         percentage: (n.sequenceAverage ?? 0) * 5,
         coefficient: n.coefficient,
       })),
-      true,
+      hasCoefficientBySubject,
     );
 
     // 2. Assiduité (30 derniers jours)
@@ -81,7 +96,7 @@ export class PrismaSanteEleveRepository implements SanteEleveRepository {
               percentage: (n.sequenceAverage ?? 0) * 5,
               coefficient: n.coefficient,
             })),
-            true,
+            hasCoefficientBySubject,
           ),
         );
       }

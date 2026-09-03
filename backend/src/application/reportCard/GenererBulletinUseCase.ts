@@ -19,6 +19,7 @@ import type { SectionRepository } from '@domain/ports/repositories/SectionReposi
 import type { StudentProfileRepository } from '@domain/ports/repositories/StudentProfileRepository';
 import type { BulletinTemplate } from '@domain/types/enums';
 import { calculateAverageScoreOn20 } from '@domain/rules/GradingEngine';
+import { resolveHasCoefficientForClass } from '@domain/subsystems/SubsystemDefaults';
 import { resolveLanguage } from '../../domain/policies/LanguagePolicy';
 
 export interface GenererBulletinCommande {
@@ -112,6 +113,11 @@ export class GenererBulletinUseCase {
     const matiereParId = new Map(matieres.map(m => [m.id, m]));
 
     // 4. Calculer les moyennes générales de tous les élèves (pour les rangs)
+    const schoolForCoeff = await this.schoolRepository.findById(commande.schoolId);
+    const classeForCoeff = await this.classeRepository.findById(commande.classId);
+    const hasCoefficientBySubject = schoolForCoeff && classeForCoeff
+      ? resolveHasCoefficientForClass(schoolForCoeff as any, (classeForCoeff as any).level ?? null)
+      : true;
     // On utilise notesDeClasse (déjà chargé par findByClasse — classId garanti correct)
     const moyennesEleves: { studentId: string; moyenne: number }[] = [];
 
@@ -130,7 +136,7 @@ export class GenererBulletinUseCase {
             coefficient: n.coefficient,
             isAbsentGrade: n.isAbsentGrade,
           })),
-        true,
+        hasCoefficientBySubject,
         true,
       );
       const moyenne = Number.isNaN(moyenneBrute) ? 0 : moyenneBrute === 0 ? 0 : moyenneBrute;
