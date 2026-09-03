@@ -9,6 +9,8 @@ import type { EmployeeFileRepository } from '@domain/ports/repositories/Employee
 import type { CareerEventRepository } from '@domain/ports/repositories/CareerEventRepository';
 import type { StaffAttendanceRepository } from '@domain/ports/repositories/StaffAttendanceRepository';
 import type { MissionOrderRepository } from '@domain/ports/repositories/MissionOrderRepository';
+import type { AjouterEvenementCarriereUseCase } from '@application/hr/AjouterEvenementCarriereUseCase';
+import type { ListerEvenementsCarriereUseCase } from '@application/hr/ListerEvenementsCarriereUseCase';
 import { traiterDemandeConge } from '@infrastructure/services/hr/TraiterCongeService';
 import ExcelJS from 'exceljs';
 import {
@@ -58,6 +60,8 @@ export class HRController {
     private readonly staffAttendanceRepository: StaffAttendanceRepository,
     private readonly missionOrderRepository: MissionOrderRepository,
     private readonly audit: AIActionAuditPort,
+    private readonly ajouterEvenementCarriereUseCase: AjouterEvenementCarriereUseCase,
+    private readonly listerEvenementsCarriereUseCase: ListerEvenementsCarriereUseCase,
   ) {}
 
   private getSchoolId(req: Request): string {
@@ -281,28 +285,17 @@ export class HRController {
       const employeeId = String(req.params.id);
       const body = req.body as { type?: string; date?: string; observation?: string };
 
-      const employee = await this.loadEmployeeOrFail(employeeId, schoolId);
-      if (!employee) {
-        res.status(404).json({ success: false, message: 'Employé introuvable' });
-        return;
-      }
-
-      if (!body.type || !body.date) {
-        res.status(400).json({ success: false, message: 'type et date sont requis' });
-        return;
-      }
-
-      const event = await this.careerEventRepository.create({
-        userId: employeeId,
+      const result = await this.ajouterEvenementCarriereUseCase.execute({
         schoolId,
-        type: body.type,
-        date: normalizeDateInput(body.date),
-        observation: body.observation?.trim() || null,
+        demandeurId: this.getCurrentUser(req)?.userId ?? this.getCurrentUser(req)?.id ?? '',
+        userId: employeeId,
+        type: body.type ?? '',
+        date: body.date ? normalizeDateInput(body.date) : (new Date('') as unknown as Date),
+        observation: body.observation,
       });
-
-      res.status(201).json({ success: true, data: event });
+      res.status(201).json({ success: true, data: result.event });
     } catch (error) {
-      next(error);
+      this.gererErreurHR(error, res, next);
     }
   };
 
@@ -311,18 +304,30 @@ export class HRController {
       const schoolId = this.getSchoolId(req);
       const employeeId = String(req.params.id);
 
-      const employee = await this.loadEmployeeOrFail(employeeId, schoolId);
-      if (!employee) {
-        res.status(404).json({ success: false, message: 'Employé introuvable' });
-        return;
-      }
-
-      const events = await this.careerEventRepository.findByUserOrdered(employeeId, schoolId);
-      res.json({ success: true, data: events });
+      const result = await this.listerEvenementsCarriereUseCase.execute({
+        schoolId,
+        demandeurId: this.getCurrentUser(req)?.userId ?? this.getCurrentUser(req)?.id ?? '',
+        userId: employeeId,
+      });
+      res.json({ success: true, data: result.events });
     } catch (error) {
-      next(error);
+      this.gererErreurHR(error, res, next);
     }
   };
+
+  private gererErreurHR(error: unknown, res: Response, next: NextFunction): void {
+    if (error instanceof Error) {
+      if (error.message.includes('introuvable')) {
+        res.status(404).json({ success: false, message: error.message });
+        return;
+      }
+      if (error.message.includes('requis')) {
+        res.status(400).json({ success: false, message: error.message });
+        return;
+      }
+    }
+    next(error as Error);
+  }
 
   recordAttendance = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {

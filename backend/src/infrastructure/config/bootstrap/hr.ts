@@ -44,6 +44,8 @@ import { DisciplineController } from '@infrastructure/http/controllers/Disciplin
 import { StudentFollowUpController } from '@infrastructure/http/controllers/StudentFollowUpController';
 import { AssistantController } from '@infrastructure/http/controllers/AssistantController';
 import { OnboardingPEBSController } from '@infrastructure/http/controllers/OnboardingPEBSController';
+import { AjouterEvenementCarriereUseCase } from '@application/hr/AjouterEvenementCarriereUseCase';
+import { ListerEvenementsCarriereUseCase } from '@application/hr/ListerEvenementsCarriereUseCase';
 import { creerClasseRoutes } from '@infrastructure/http/routes/classe.routes';
 import { creerSubjectRoutes } from '@infrastructure/http/routes/subject.routes';
 import { creerRoomRoutes } from '@infrastructure/http/routes/room.routes';
@@ -169,7 +171,15 @@ export function registerHrRoutes(app: Application, prismaParam: typeof prisma = 
   const p = prismaParam ?? prisma;
   const c = container;
 
-  // ── Module RH (C.2) ───────────────────────────────────────────────────────
+  // ── Module RH (C.2) — pilote extraction HR : CareerEvent → application/hr/
+  const ajouterEvenementCarriereUseCase = new AjouterEvenementCarriereUseCase(
+    c.hr.careerEventRepository,
+    c.hr.userRepository,
+  );
+  const listerEvenementsCarriereUseCase = new ListerEvenementsCarriereUseCase(
+    c.hr.careerEventRepository,
+    c.hr.userRepository,
+  );
   const hrController = new HRController(
     c.hr.userRepository,
     c.hr.schoolRepository,
@@ -181,6 +191,8 @@ export function registerHrRoutes(app: Application, prismaParam: typeof prisma = 
     c.hr.staffAttendanceRepository,
     c.hr.missionOrderRepository,
     new AIActionAuditAdapter(p as any),
+    ajouterEvenementCarriereUseCase,
+    listerEvenementsCarriereUseCase,
   );
   app.use('/api/v2/hr', requireAuth, requireRole('ADMIN', 'STAFF'), creerHrRoutes(hrController));
 
