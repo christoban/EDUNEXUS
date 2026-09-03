@@ -10,7 +10,7 @@ import {
   Lock, AlarmClock, PartyPopper, Eye, EyeOff,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import type { TemplateCatalogEntry } from '@/lib/onboarding/templateCatalogTypes'
+import type { TemplateCatalogEntry, TemplateSubsystem, TemplateEducationType } from '@/lib/onboarding/templateCatalogTypes'
 import { filterTemplates, pickEffectiveTemplateCode, detectTemplateCode } from '@/lib/onboarding/templateSelection'
 import { showPremierCycle, showDeuxiemeCycle, showSeriesFr, showStreamsEn, showTechnique, showPrimaire, isPebsFrEligible, isPebsEnEligible } from '@/lib/onboarding/templateGates'
 
@@ -400,18 +400,19 @@ export default function OnboardingPage() {
     return templateCatalog.find(t => t.code === effectiveCode) ?? null
   }, [effectiveCode, templateCatalog])
   const template = useMemo(() => {
-    if (catalogTemplate) return catalogTemplate
-    if (effectiveCode && templateCatalog.length === 0) return { code: effectiveCode } as any
     return catalogTemplate
-  }, [catalogTemplate, effectiveCode, templateCatalog])
+  }, [catalogTemplate])
 
   const filteredTemplates = useMemo(() => {
     if (templateCatalog.length === 0) return []
+    const validSubsystem = ['FRANCOPHONE', 'ANGLOPHONE', 'BILINGUAL'].includes(form.subsystem) ? form.subsystem as TemplateSubsystem : null
+    const validEducation = ['GENERAL', 'TECHNICAL', 'PROFESSIONAL', 'MIXED'].includes(form.educationType) ? form.educationType as TemplateEducationType : null
+    const validOwnership = ['PUBLIC', 'PRIVATE_SECULAR', 'PRIVATE_FAITH'].includes(form.ownership) ? form.ownership as 'PUBLIC' | 'PRIVATE_SECULAR' | 'PRIVATE_FAITH' : null
     return filterTemplates(templateCatalog, {
-      subsystem: form.subsystem as any,
-      educationType: form.educationType as any,
+      subsystem: validSubsystem,
+      educationType: validEducation,
       level: null,
-      ownership: form.ownership as any,
+      ownership: validOwnership,
     })
   }, [templateCatalog, form.subsystem, form.educationType, form.ownership])
 
@@ -505,31 +506,30 @@ export default function OnboardingPage() {
   // Reset des états hors scope quand le template change (gating catalogue)
   useEffect(() => {
     if (!template) return
-    const t = template as any as import('@/lib/onboarding/templateCatalogTypes').TemplateCatalogEntry
-    if (!showPremierCycle(t)) {
+    if (!showPremierCycle(template)) {
       setForm(f => (f.niveaux1erCycle.length === 0 && Object.keys(f.classesParNiveau).length === 0 ? f : { ...f, niveaux1erCycle: [], classesParNiveau: {} }))
     }
-    if (!showDeuxiemeCycle(t)) {
+    if (!showDeuxiemeCycle(template)) {
       setForm(f => (f.niveaux2eCycle.length === 0 && f.filieres.length === 0 ? f : { ...f, niveaux2eCycle: [], filieres: [], a4Languages: [] }))
       if (enStreamStartLevel) setEnStreamStartLevel('')
       if (bilingualEnLevels.length) setBilingualEnLevels([])
       if (bilingualEnFilieres.length) setBilingualEnFilieres([])
       if (enGradingSystem) setEnGradingSystem('')
     }
-    if (!isPebsFrEligible(t.code)) {
+    if (!isPebsFrEligible(template.code)) {
       if (hasPEBSFrancophone) setHasPEBSFrancophone(false)
     }
-    if (!isPebsEnEligible(t.code)) {
+    if (!isPebsEnEligible(template.code)) {
       if (hasPEBSAnglophone) setHasPEBSAnglophone(false)
     }
-    if (!showTechnique(t)) {
+    if (!showTechnique(template)) {
       setForm(f => (f.filieresTechniques.length === 0 ? f : { ...f, filieresTechniques: [] }))
       if (sarMetiers.length) setSarMetiers([])
       if (cfmFilieres.length) setCfmFilieres([])
       if (sousTypeTechnique) setSousTypeTechnique('')
       if (cetifMode) setCetifMode(false)
     }
-    if (!showPrimaire(t)) {
+    if (!showPrimaire(template)) {
       setForm(f => (f.niveauxPrimaire.length === 0 && Object.keys(f.classesParNiveauPrimaire).length === 0 ? f : { ...f, niveauxPrimaire: [], classesParNiveauPrimaire: {} }))
     }
   }, [template?.code])
@@ -635,11 +635,11 @@ export default function OnboardingPage() {
       return ''
     }
 
-    if (showPremierCycle(template as any) && form.niveaux1erCycle.length === 0) return 'Veuillez sélectionner au moins un niveau du 1er cycle.'
-    if (showPremierCycle(template as any) && Object.keys(form.classesParNiveau).length < form.niveaux1erCycle.length) return 'Veuillez indiquer le nombre de classes pour chaque niveau.'
-    if (showDeuxiemeCycle(template as any) && form.niveaux2eCycle.length === 0) return 'Veuillez sélectionner au moins un niveau du 2e cycle.'
-    if (showSeriesFr(template as any) && form.filieres.length === 0) return 'Veuillez sélectionner au moins une filière.'
-    if (showStreamsEn(template as any) && form.filieres.length === 0) return 'Veuillez sélectionner au moins une filière.'
+    if (showPremierCycle(template) && form.niveaux1erCycle.length === 0) return 'Veuillez sélectionner au moins un niveau du 1er cycle.'
+    if (showPremierCycle(template) && Object.keys(form.classesParNiveau).length < form.niveaux1erCycle.length) return 'Veuillez indiquer le nombre de classes pour chaque niveau.'
+    if (showDeuxiemeCycle(template) && form.niveaux2eCycle.length === 0) return 'Veuillez sélectionner au moins un niveau du 2e cycle.'
+    if (showSeriesFr(template) && form.filieres.length === 0) return 'Veuillez sélectionner au moins une filière.'
+    if (showStreamsEn(template) && form.filieres.length === 0) return 'Veuillez sélectionner au moins une filière.'
     return ''
   }
 
