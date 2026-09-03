@@ -50,6 +50,7 @@ import { DocumentAiAdapter } from '@infrastructure/services/ai/DocumentAiAdapter
 import { EmailTemplateAdapter } from '@infrastructure/services/email/EmailTemplateAdapter';
 import { RealtimeSocketAdapter } from '@infrastructure/socket/RealtimeSocketAdapter';
 import { SchedulingGridAdapter } from '@infrastructure/scheduling/SchedulingGridAdapter';
+import { InngestEventPublisher } from '@infrastructure/events/InngestEventPublisher';
 
 // --- Use Cases : Notes ---
 import { SaisirNoteUseCase } from '@application/grade/SaisirNoteUseCase';
@@ -457,9 +458,12 @@ export function creerContainer() {
   const metricRegistry = new MetricRegistry();
   const getMetricUseCase = new GetMetricUseCase(metricCache, metricRegistry, presenceRepository, noteRepository, statisticsQueryRepository, schoolRepository, classeRepository);
 
+  // 2ter. Event Publisher (Inngest)
+  const eventPublisher = new InngestEventPublisher();
+
   // 3. Services (adaptateurs réels)
   const emailService = new NodemailerEmailService();
-  const notificationService = new SocketNotificationService();
+  const notificationService = new SocketNotificationService(eventPublisher);
   const pdfService = new PdfKitBulletinService();
 
   // 4. Use Cases — Notes
@@ -1198,6 +1202,9 @@ export function creerContainer() {
       cache: metricCache,
       registry: metricRegistry,
       getMetric: getMetricUseCase,
+    },
+    events: {
+      publisher: eventPublisher,
     },
   };
 }

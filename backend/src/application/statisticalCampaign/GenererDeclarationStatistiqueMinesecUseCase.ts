@@ -5,9 +5,9 @@
  *
  * Inventaire template 2022 (18 onglets, backend/scripts/list-minesec-sheets.ts):
  * - BRANCHÉ: Identification, Eleves_ESG_Fr, Students_ESG_Eng, Eleves_ESTP_Fr, Students_ESTP_Eng,
- *   Infrastructures, Personnels, Manuels-Didactics, Financement-Funding, Themes_Tranversaux
- * - MÉTIER_TODO: Atelier_Workshop (présent mais mapping cellules non vérifié — V2.14 P1 TODO)
+ *   Infrastructures, Atelier_Workshop, Personnels, Manuels-Didactics, Financement-Funding, Themes_Tranversaux
  * - DOC: NOTICE, Guide, Menu, Annexe 1, Contenu update, Variables Essentielles, DPCache
+ *   (dump Atelier_Workshop R7: C7 N°, D7 Atelier, E7 Etat, F7 Désignation, G7 Quantités, H7 Etat équipement, I7 Nb postes, J7 Workshop, K7 State, L7 Heavy designation, Q7 Quantities, R7 State, S7 Number work post — FIRST_DATA_ROW 8)
  */
 import fs from 'fs';
 import path from 'path';
@@ -23,7 +23,7 @@ import { ESTP_GRID_BLOCKS } from './minesecEstpGridMap';
 import { ESTP_ENG_GRID_BLOCKS } from './minesecEstpEngGridMap';
 import { MANUELS_FIELD_MAPPING } from './minesecManuelsFieldMap';
 import { THEMES_FIELD_MAPPING } from './minesecThemesFieldMap';
-import { ATELIER_GRID_BLOCKS } from './minesecAteliersFieldMap';
+import { resolveAtelierFields } from './resolveAtelierFields';
 import type { ChampNonResolu, GenererDeclarationStatistiqueCommande, GenererDeclarationStatistiqueResultat } from './types';
 
 function getByPath(obj: any, keyPath: string): any {
@@ -289,25 +289,11 @@ export class GenererDeclarationStatistiqueMinesecUseCase {
       }
     }
 
-    // ── Catégorie C_MANUAL — Ateliers (si feuille présente) ──
-    // Inventaire 2022: Atelier_Workshop existe (18 onglets). Mapping cellules NON vérifié — on ne
-    // branche l'écriture que si ATELIER_GRID_BLOCKS est renseigné ; sinon on signale explicitement
-    // le gap sans inventer de données (P1 V2.14).
-    const wsAtelier = wb.getWorksheet('Atelier_Workshop');
+    // ── Catégorie C_MANUAL — Atelier_Workshop (ligne par ligne) ──
     const ateliersDetail: any[] = Array.isArray(supplement?.ateliersDetail) ? supplement.ateliersDetail : [];
-    if (wsAtelier && ateliersDetail.length > 0) {
-      if (ATELIER_GRID_BLOCKS.length === 0) {
-        champsNonResolus.push({
-          fieldCode: 'ATELIER_NON_MAPPE',
-          sheetName: 'Atelier_Workshop',
-          cellReference: '',
-          fieldLabel: 'Ateliers',
-          raison: 'Données ateliers renseignées mais mapping cellules Atelier_Workshop non vérifié — génération reportée (V2.14 P1).',
-        });
-      } else {
-        // TODO: écrire selon ATELIER_GRID_BLOCKS (même discipline que ESTP)
-      }
-    }
+    const atelierResolved = resolveAtelierFields(ateliersDetail);
+    applyCells(atelierResolved.cells);
+    champsNonResolus.push(...atelierResolved.nonCouverts);
 
     const outDir = path.join(STORAGE_DIR, cmd.schoolId);
     fs.mkdirSync(outDir, { recursive: true });
