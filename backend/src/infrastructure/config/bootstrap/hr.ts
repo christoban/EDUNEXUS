@@ -11,7 +11,6 @@ import { StudentGroupController } from '@infrastructure/http/controllers/Student
 import { AIActionAuditController } from '@infrastructure/http/controllers/AIActionAuditController';
 import { CorbeilleController } from '@infrastructure/http/controllers/CorbeilleController';
 import { HRController } from '@infrastructure/http/controllers/HRController';
-import { traiterDemandeConge } from '@infrastructure/services/hr/TraiterCongeService';
 import { HRSelfServiceController } from '@infrastructure/http/controllers/HRSelfServiceController';
 import { ParentController } from '@infrastructure/http/controllers/ParentController';
 import { SchoolSettingsController } from '@infrastructure/http/controllers/SchoolSettingsController';
@@ -46,6 +45,10 @@ import { AssistantController } from '@infrastructure/http/controllers/AssistantC
 import { OnboardingPEBSController } from '@infrastructure/http/controllers/OnboardingPEBSController';
 import { AjouterEvenementCarriereUseCase } from '@application/hr/AjouterEvenementCarriereUseCase';
 import { ListerEvenementsCarriereUseCase } from '@application/hr/ListerEvenementsCarriereUseCase';
+import { CreerDemandeCongeUseCase } from '@application/hr/CreerDemandeCongeUseCase';
+import { TraiterDemandeCongeUseCase } from '@application/hr/TraiterDemandeCongeUseCase';
+import { ListerDemandesCongeUseCase } from '@application/hr/ListerDemandesCongeUseCase';
+import { TraiterCongeServiceAdapter } from '@infrastructure/services/hr/TraiterCongeServiceAdapter';
 import { creerClasseRoutes } from '@infrastructure/http/routes/classe.routes';
 import { creerSubjectRoutes } from '@infrastructure/http/routes/subject.routes';
 import { creerRoomRoutes } from '@infrastructure/http/routes/room.routes';
@@ -171,13 +174,26 @@ export function registerHrRoutes(app: Application, prismaParam: typeof prisma = 
   const p = prismaParam ?? prisma;
   const c = container;
 
-  // ── Module RH (C.2) — pilote extraction HR : CareerEvent → application/hr/
+  // ── Module RH (C.2) — extraction Congé → application/hr/
   const ajouterEvenementCarriereUseCase = new AjouterEvenementCarriereUseCase(
     c.hr.careerEventRepository,
     c.hr.userRepository,
   );
   const listerEvenementsCarriereUseCase = new ListerEvenementsCarriereUseCase(
     c.hr.careerEventRepository,
+    c.hr.userRepository,
+  );
+  const creerDemandeCongeUseCase = new CreerDemandeCongeUseCase(
+    c.hr.leaveRepository,
+    c.hr.userRepository,
+  );
+  const traiterCongeService = new TraiterCongeServiceAdapter(c.hr.leaveRepository);
+  const traiterDemandeCongeUseCase = new TraiterDemandeCongeUseCase(
+    traiterCongeService,
+    new AIActionAuditAdapter(p as any),
+  );
+  const listerDemandesCongeUseCase = new ListerDemandesCongeUseCase(
+    c.hr.leaveRepository,
     c.hr.userRepository,
   );
   const hrController = new HRController(
@@ -193,6 +209,9 @@ export function registerHrRoutes(app: Application, prismaParam: typeof prisma = 
     new AIActionAuditAdapter(p as any),
     ajouterEvenementCarriereUseCase,
     listerEvenementsCarriereUseCase,
+    creerDemandeCongeUseCase,
+    traiterDemandeCongeUseCase,
+    listerDemandesCongeUseCase,
   );
   app.use('/api/v2/hr', requireAuth, requireRole('ADMIN', 'STAFF'), creerHrRoutes(hrController));
 

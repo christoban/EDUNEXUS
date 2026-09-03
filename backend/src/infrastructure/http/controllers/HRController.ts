@@ -11,7 +11,9 @@ import type { StaffAttendanceRepository } from '@domain/ports/repositories/Staff
 import type { MissionOrderRepository } from '@domain/ports/repositories/MissionOrderRepository';
 import type { AjouterEvenementCarriereUseCase } from '@application/hr/AjouterEvenementCarriereUseCase';
 import type { ListerEvenementsCarriereUseCase } from '@application/hr/ListerEvenementsCarriereUseCase';
-import { traiterDemandeConge } from '@infrastructure/services/hr/TraiterCongeService';
+import type { CreerDemandeCongeUseCase } from '@application/hr/CreerDemandeCongeUseCase';
+import type { TraiterDemandeCongeUseCase } from '@application/hr/TraiterDemandeCongeUseCase';
+import type { ListerDemandesCongeUseCase } from '@application/hr/ListerDemandesCongeUseCase';
 import ExcelJS from 'exceljs';
 import {
   generateAttestationTravailPdf,
@@ -62,6 +64,9 @@ export class HRController {
     private readonly audit: AIActionAuditPort,
     private readonly ajouterEvenementCarriereUseCase: AjouterEvenementCarriereUseCase,
     private readonly listerEvenementsCarriereUseCase: ListerEvenementsCarriereUseCase,
+    private readonly creerDemandeCongeUseCase: CreerDemandeCongeUseCase,
+    private readonly traiterDemandeCongeUseCase: TraiterDemandeCongeUseCase,
+    private readonly listerDemandesCongeUseCase: ListerDemandesCongeUseCase,
   ) {}
 
   private getSchoolId(req: Request): string {
@@ -99,13 +104,6 @@ export class HRController {
     const fallback = await this.leaveRepository.findLatestBalance(userId, schoolId);
     if (fallback) return fallback;
 
-    return this.leaveRepository.createBalance({ userId, schoolId, annee: year });
-  }
-
-  private async ensureLeaveBalance(userId: string, schoolId: string) {
-    const year = new Date().getFullYear();
-    const existing = await this.leaveRepository.findBalanceForYear(userId, year);
-    if (existing) return existing;
     return this.leaveRepository.createBalance({ userId, schoolId, annee: year });
   }
 
@@ -389,31 +387,18 @@ export class HRController {
       const schoolId = this.getSchoolId(req);
       const body = req.body as { userId?: string; type?: string; dateDebut?: string; dateFin?: string; motif?: string };
 
-      if (!body.userId || !body.type || !body.dateDebut || !body.dateFin) {
-        res.status(400).json({ success: false, message: 'userId, type, dateDebut et dateFin sont requis' });
-        return;
-      }
-
-      const employee = await this.loadEmployeeOrFail(body.userId, schoolId);
-      if (!employee) {
-        res.status(404).json({ success: false, message: 'Employé introuvable' });
-        return;
-      }
-
-      await this.ensureLeaveBalance(body.userId, schoolId);
-
-      const leaveRequest = await this.leaveRepository.createRequest({
-        userId: body.userId,
+      const result = await this.creerDemandeCongeUseCase.execute({
         schoolId,
-        type: body.type,
-        dateDebut: normalizeDateInput(body.dateDebut),
-        dateFin: normalizeDateInput(body.dateFin),
-        motif: body.motif?.trim() || null,
+        demandeurId: this.getCurrentUser(req)?.userId ?? this.getCurrentUser(req)?.id ?? '',
+        userId: body.userId ?? '',
+        type: body.type ?? '',
+        dateDebut: body.dateDebut ? normalizeDateInput(body.dateDebut) : (new Date('') as unknown as Date),
+        dateFin: body.dateFin ? normalizeDateInput(body.dateFin) : (new Date('') as unknown as Date),
+        motif: body.motif,
       });
-
-      res.status(201).json({ success: true, data: leaveRequest });
+      res.status(201).json({ success: true, data: result.leaveRequest });
     } catch (error) {
-      next(error);
+      this.gererErreurHR(error, res, next);
     }
   };
 
@@ -424,34 +409,16 @@ export class HRController {
       const { id } = req.params;
       const body = req.body as { statut?: LeaveStatusValue };
 
-      if (!body.statut || !['APPROVED', 'REJECTED'].includes(body.statut)) {
-        res.status(400).json({ success: false, message: 'statut doit être APPROVED ou REJECTED' });
-        return;
-      }
-
-      let updated;
-      try {
-        updated = await traiterDemandeConge(this.leaveRepository, schoolId, String(id), body.statut as 'APPROVED' | 'REJECTED', currentUser?.id);
-      } catch (err) {
-        this.audit.journaliser({
-          actorUserId: currentUser?.userId, actorRole: currentUser?.role, schoolId,
-          actionName: 'traiter_demande_conge', targetType: 'LeaveRequest', targetId: String(id),
-          origin: 'UI_DIRECT', outcome: 'ERREUR',
-          refusalReason: err instanceof Error ? err.message : undefined, parametersSummary: body,
-        });
-        const message = err instanceof Error ? err.message : 'Erreur serveur';
-        res.status(message === 'Demande de congé introuvable' ? 404 : 409).json({ success: false, message });
-        return;
-      }
-
-      this.audit.journaliser({
-        actorUserId: currentUser?.id ?? currentUser?.userId, actorRole: currentUser?.role, schoolId,
-        actionName: 'traiter_demande_conge', targetType: 'LeaveRequest', targetId: String(id),
-        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: body,
+      const result = await this.traiterDemandeCongeUseCase.execute({
+        schoolId,
+        demandeurId: currentUser?.userId ?? currentUser?.id ?? '',
+        demandeurRole: currentUser?.role,
+        leaveRequestId: String(id),
+        statut: (body.statut ?? '') as 'APPROVED' | 'REJECTED',
       });
-      res.json({ success: true, data: updated });
+      res.json({ success: true, data: result.leaveRequest });
     } catch (error) {
-      next(error);
+      this.gererErreurHR(error, res, next);
     }
   };
 
@@ -460,8 +427,12 @@ export class HRController {
       const schoolId = this.getSchoolId(req);
       const { userId } = req.query as Record<string, string>;
 
-      const leaveRequests = await this.leaveRepository.findRequestsBySchool(schoolId, userId);
-      res.json({ success: true, data: leaveRequests });
+      const result = await this.listerDemandesCongeUseCase.lister({
+        schoolId,
+        demandeurId: this.getCurrentUser(req)?.userId ?? this.getCurrentUser(req)?.id ?? '',
+        filtreUserId: userId,
+      });
+      res.json({ success: true, data: result.leaveRequests });
     } catch (error) {
       next(error);
     }
@@ -472,18 +443,14 @@ export class HRController {
       const schoolId = this.getSchoolId(req);
       const userId = String(req.params.userId);
 
-      const employee = await this.loadEmployeeOrFail(userId, schoolId);
-      if (!employee) {
-        res.status(404).json({ success: false, message: 'Employé introuvable' });
-        return;
-      }
-
-      const balances = await this.leaveRepository.findBalancesByUser(userId, schoolId);
-      const current = balances[0] ?? await this.getCurrentLeaveBalance(userId, schoolId);
-
-      res.json({ success: true, data: { current, balances } });
+      const result = await this.listerDemandesCongeUseCase.obtenirSolde({
+        schoolId,
+        demandeurId: this.getCurrentUser(req)?.userId ?? this.getCurrentUser(req)?.id ?? '',
+        userId,
+      });
+      res.json({ success: true, data: result });
     } catch (error) {
-      next(error);
+      this.gererErreurHR(error, res, next);
     }
   };
 
