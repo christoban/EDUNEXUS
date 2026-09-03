@@ -13,6 +13,7 @@ import type { LucideIcon } from 'lucide-react'
 import type { TemplateCatalogEntry, TemplateSubsystem, TemplateEducationType } from '@/lib/onboarding/templateCatalogTypes'
 import { filterTemplates, pickEffectiveTemplateCode, detectTemplateCode } from '@/lib/onboarding/templateSelection'
 import { showPremierCycle, showDeuxiemeCycle, showSeriesFr, showStreamsEn, showTechnique, showPrimaire, isPebsFrEligible, isPebsEnEligible } from '@/lib/onboarding/templateGates'
+import { buildOnboardingConfig } from '@/lib/onboarding/buildOnboardingConfig'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -630,7 +631,7 @@ export default function OnboardingPage() {
       const has2eCfg = form.niveaux2eCycle.length > 0
       if (!hasPrimaireCfg && !has1erCfg && !has2eCfg) return 'Configurez au moins un cycle (maternelle/primaire, 1er cycle ou 2nd cycle).'
       if (has1erCfg && Object.keys(form.classesParNiveau).length < form.niveaux1erCycle.length) return 'Veuillez indiquer le nombre de classes pour chaque niveau du 1er cycle.'
-      if (has2eCfg && form.filieres.length === 0) return 'Veuillez sélectionner au moins une filière pour le 2nd cycle.'
+      if (has2eCfg && form.filieres.length === 0 && !bilingualEnLevels.length && !bilingualEnFilieres.length) return 'Veuillez sélectionner au moins une filière ou configurer le volet anglophone.'
       if (form.niveauxPrimaire.length > 0 && Object.keys(form.classesParNiveauPrimaire).length < form.niveauxPrimaire.length) return 'Veuillez indiquer le nombre de classes pour chaque niveau primaire.'
       return ''
     }
@@ -693,36 +694,37 @@ export default function OnboardingPage() {
           adminNom: form.adminNom,
           adminEmail: form.adminEmail,
           password: form.password,
-          onboardingConfig: {
-            templateCode: template?.code,
-            niveaux1erCycle: form.niveaux1erCycle,
-            classesParNiveau: form.classesParNiveau,
-            conventionNommage: form.conventionNommage,
-            lv2Debut: form.lv2Debut,
-            lv2Disponibles: form.lv2Disponibles,
-            niveaux2eCycle: form.niveaux2eCycle,
-            filieres: form.filieres,
-            a4Languages: form.a4Languages,
-            classesParFiliere: form.classesParFiliere,
-            filieresTechniques: form.filieresTechniques,
-            niveauxPrimaire: form.niveauxPrimaire,
-            classesParNiveauPrimaire: form.classesParNiveauPrimaire,
-            sousTypeTechnique: sousTypeTechnique || undefined,
-            cetifMode,
-            sarMetiers: sarMetiers.length ? sarMetiers : undefined,
-            cfmFilieres: cfmFilieres.length ? cfmFilieres : undefined,
-            nurseryLevels: nurseryLevels.length ? nurseryLevels : undefined,
-            maternelleSections: maternelleSections.length ? maternelleSections : undefined,
-            enGradingSystem: enGradingSystem || undefined,
-            bulletinFrequency,
-            evalSystemPrimaire: evalSystemPrimaire || undefined,
-            appelFrequency: appelFrequency || undefined,
-            hasPEBSFrancophone,
-            hasPEBSAnglophone,
-            enStreamStartLevel: enStreamStartLevel || undefined,
-            bilingualEnLevels: bilingualEnLevels.length ? bilingualEnLevels : undefined,
-            bilingualEnFilieres: bilingualEnFilieres.length ? bilingualEnFilieres : undefined,
-          },
+          onboardingConfig: template
+            ? buildOnboardingConfig(template, {
+                niveaux1erCycle: form.niveaux1erCycle,
+                classesParNiveau: form.classesParNiveau,
+                conventionNommage: form.conventionNommage,
+                lv2Debut: form.lv2Debut,
+                lv2Disponibles: form.lv2Disponibles,
+                niveaux2eCycle: form.niveaux2eCycle,
+                filieres: form.filieres,
+                a4Languages: form.a4Languages,
+                classesParFiliere: form.classesParFiliere,
+                niveauxPrimaire: form.niveauxPrimaire,
+                classesParNiveauPrimaire: form.classesParNiveauPrimaire,
+                maternelleSections,
+                nurseryLevels,
+                filieresTechniques: form.filieresTechniques,
+                sousTypeTechnique,
+                cetifMode,
+                sarMetiers,
+                cfmFilieres,
+                enGradingSystem,
+                enStreamStartLevel,
+                bilingualEnLevels,
+                bilingualEnFilieres,
+                hasPEBSFrancophone,
+                hasPEBSAnglophone,
+                bulletinFrequency,
+                evalSystemPrimaire,
+                appelFrequency,
+              })
+            : undefined,
         }),
       })
       clearTimeout(timeout)

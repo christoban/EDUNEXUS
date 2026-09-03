@@ -87,6 +87,27 @@ interface Props {
   onComplete: (state: OnboardingState) => void
 }
 
+function asStringArray(v: unknown): string[] {
+  return Array.isArray(v) && v.every((x) => typeof x === 'string') ? (v as string[]) : []
+}
+
+function asString(v: unknown): string | undefined {
+  return typeof v === 'string' ? v : undefined
+}
+
+function asBool(v: unknown): boolean {
+  return v === true
+}
+
+function asNumberRecord(v: unknown): Record<string, number> | undefined {
+  if (!v || typeof v !== 'object') return undefined
+  const out: Record<string, number> = {}
+  for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+    if (typeof val === 'number') out[k] = val
+  }
+  return Object.keys(out).length ? out : undefined
+}
+
 /**
  * Traduit l'onboardingConfig de la Phase 1 (formulaire d'inscription) vers l'état de la Phase 2.
  * Ne mappe que les données STRUCTURELLES fiables (cycles/séries/LV2/primaire/technique). Les
@@ -94,35 +115,41 @@ interface Props {
  */
 function mapPhase1ToState(cfg: Record<string, unknown> | null | undefined): Partial<OnboardingState> {
   if (!cfg || typeof cfg !== 'object') return {}
-  const arr = (k: string): string[] => (Array.isArray((cfg as any)[k]) ? ((cfg as any)[k] as string[]) : [])
-  const cycles: string[] = []
-  if (arr('maternelleSections').length) cycles.push('MATERNELLE')
-  if (arr('niveauxPrimaire').length) cycles.push('PRIMAIRE')
-  if (arr('niveaux1erCycle').length) cycles.push('PREMIER_CYCLE')
-  if (arr('niveaux2eCycle').length) cycles.push('SECOND_CYCLE')
-  if (arr('filieresTechniques').length) cycles.push('TECHNIQUE')
 
-  const lv2Languages = arr('lv2Disponibles')
-  const lv2Debut = (cfg as any).lv2Debut
+  const maternelleSections = asStringArray(cfg.maternelleSections)
+  const niveauxPrimaire = asStringArray(cfg.niveauxPrimaire)
+  const niveaux1erCycle = asStringArray(cfg.niveaux1erCycle)
+  const niveaux2eCycle = asStringArray(cfg.niveaux2eCycle)
+  const filieresTechniques = asStringArray(cfg.filieresTechniques)
+
+  const cycles: string[] = []
+  if (maternelleSections.length) cycles.push('MATERNELLE')
+  if (niveauxPrimaire.length) cycles.push('PRIMAIRE')
+  if (niveaux1erCycle.length) cycles.push('PREMIER_CYCLE')
+  if (niveaux2eCycle.length) cycles.push('SECOND_CYCLE')
+  if (filieresTechniques.length) cycles.push('TECHNIQUE')
+
+  const lv2Languages = asStringArray(cfg.lv2Disponibles)
+  const lv2Debut = asString(cfg.lv2Debut)
   const lv2Active =
-    (typeof lv2Debut === 'string' && lv2Debut !== '' && lv2Debut !== 'NON_APPLICABLE') || lv2Languages.length > 0
-  const classesParNiveau = (cfg as any).classesParNiveau as Record<string, number> | undefined
-  const conventionNommage = (cfg as any).conventionNommage as string | undefined
-  const hasPEBSFrancophone = (cfg as any).hasPEBSFrancophone === true
-  const hasPEBSAnglophone = (cfg as any).hasPEBSAnglophone === true
+    (lv2Debut !== undefined && lv2Debut !== '' && lv2Debut !== 'NON_APPLICABLE') || lv2Languages.length > 0
 
   const out: Partial<OnboardingState> = {}
-  if ((cfg as any).templateCode) out.template = (cfg as any).templateCode as string
+  const templateCode = asString(cfg.templateCode)
+  if (templateCode) out.template = templateCode
   if (cycles.length) out.cycles = cycles
-  if (arr('filieres').length) out.series = arr('filieres')
-  if (arr('filieresTechniques').length) out.technicalFilieres = arr('filieresTechniques')
-  if (arr('niveauxPrimaire').length) out.primaryLevels = arr('niveauxPrimaire')
+  const filieres = asStringArray(cfg.filieres)
+  if (filieres.length) out.series = filieres
+  if (filieresTechniques.length) out.technicalFilieres = filieresTechniques
+  if (niveauxPrimaire.length) out.primaryLevels = niveauxPrimaire
   if (lv2Languages.length) out.lv2Languages = lv2Languages
-  if (cycles.length) out.lv2Active = lv2Active // ne fixe lv2Active que si la Phase 1 a été remplie
+  if (cycles.length) out.lv2Active = lv2Active
+  const classesParNiveau = asNumberRecord(cfg.classesParNiveau)
   if (classesParNiveau) out.classesPerLevel = classesParNiveau
+  const conventionNommage = asString(cfg.conventionNommage)
   if (conventionNommage) out.conventionNommage = conventionNommage
-  if (hasPEBSFrancophone) out.hasPEBSFrancophone = true
-  if (hasPEBSAnglophone) out.hasPEBSAnglophone = true
+  if (asBool(cfg.hasPEBSFrancophone)) out.hasPEBSFrancophone = true
+  if (asBool(cfg.hasPEBSAnglophone)) out.hasPEBSAnglophone = true
   return out
 }
 
@@ -658,7 +685,7 @@ export default function ConversationalOnboarding(props: Props) {
                             <select style={{ ...S.input, marginBottom: 0, flex: 1, minWidth: 140 }} value={rule?.langue ?? ''}
                               onChange={e => setPerClass(level, cn, { organisation: 'UNIFORME', langue: e.target.value, langues: undefined })}>
                               <option value="">{t('phase2.lv2.chooseLang')}</option>
-                              {state.lv2Languages.map(l => <option key={l} value={l}>{t(`phase2.lv2.${l.toLowerCase()}` as any) ?? l}</option>)}
+                              {state.lv2Languages.map(l => <option key={l} value={l}>{t(`phase2.lv2.${l.toLowerCase()}`) ?? l}</option>)}
                             </select>
                           )}
                           <button style={{ ...S.opt(isMixte), width: 'auto', marginBottom: 0, padding: '7px 12px', fontSize: 13 }}
@@ -688,7 +715,7 @@ export default function ConversationalOnboarding(props: Props) {
                                       setPerClass(level, cn, { langues: next })
                                     }}>
                                     {active && <Check size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} />}
-                                    {t(`phase2.lv2.${l.toLowerCase()}` as any) ?? l}
+                                    {t(`phase2.lv2.${l.toLowerCase()}`) ?? l}
                                   </button>
                                 )
                               })}
