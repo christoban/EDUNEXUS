@@ -66,22 +66,35 @@ describe('CreerDemandeCongeUseCase', () => {
     leaveRepo = new FakeLeaveRepository();
     userRepo = new FakeUserRepository();
     userRepo.setEmployee('emp-1', 'school-1', true);
+    userRepo.setEmployee('admin-1', 'school-1', true);
+    userRepo.setEmployee('staff-1', 'school-1', true);
     useCase = new CreerDemandeCongeUseCase(leaveRepo as any, userRepo as any);
   });
   it('cas nominal — crée une demande', async () => {
-    const res = await useCase.execute({ schoolId: 'school-1', demandeurId: 'admin-1', userId: 'emp-1', type: 'CONGE_PAYE', dateDebut: new Date('2024-06-01'), dateFin: new Date('2024-06-05'), motif: 'Vacances' });
+    const res = await useCase.execute({ schoolId: 'school-1', demandeurId: 'admin-1', demandeurRole: 'ADMIN', userId: 'emp-1', type: 'CONGE_PAYE', dateDebut: new Date('2024-06-01'), dateFin: new Date('2024-06-05'), motif: 'Vacances' });
     expect(res.leaveRequest.type).toBe('CONGE_PAYE');
     expect(leaveRepo.requests).toHaveLength(1);
   });
   it('employé introuvable → throw introuvable', async () => {
-    await expect(useCase.execute({ schoolId: 'school-1', demandeurId: 'admin-1', userId: 'inconnu', type: 'CONGE_PAYE', dateDebut: new Date(), dateFin: new Date() })).rejects.toThrow('introuvable');
+    await expect(useCase.execute({ schoolId: 'school-1', demandeurId: 'admin-1', demandeurRole: 'ADMIN', userId: 'inconnu', type: 'CONGE_PAYE', dateDebut: new Date(), dateFin: new Date() })).rejects.toThrow('introuvable');
   });
   it('solde créé si absent', async () => {
-    await useCase.execute({ schoolId: 'school-1', demandeurId: 'admin-1', userId: 'emp-1', type: 'CONGE_PAYE', dateDebut: new Date('2024-06-01'), dateFin: new Date('2024-06-02') });
+    await useCase.execute({ schoolId: 'school-1', demandeurId: 'admin-1', demandeurRole: 'ADMIN', userId: 'emp-1', type: 'CONGE_PAYE', dateDebut: new Date('2024-06-01'), dateFin: new Date('2024-06-02') });
     expect(leaveRepo.balances.size).toBe(1);
   });
   it('type manquant → throw requis', async () => {
-    await expect(useCase.execute({ schoolId: 'school-1', demandeurId: 'admin-1', userId: 'emp-1', type: '', dateDebut: new Date(), dateFin: new Date() } as any)).rejects.toThrow('requis');
+    await expect(useCase.execute({ schoolId: 'school-1', demandeurId: 'admin-1', demandeurRole: 'ADMIN', userId: 'emp-1', type: '', dateDebut: new Date(), dateFin: new Date() } as any)).rejects.toThrow('requis');
+  });
+  it('self — autorisé (userId === demandeurId)', async () => {
+    const res = await useCase.execute({ schoolId: 'school-1', demandeurId: 'emp-1', demandeurRole: 'STAFF', userId: 'emp-1', type: 'CONGE_PAYE', dateDebut: new Date('2024-06-01'), dateFin: new Date('2024-06-02') });
+    expect(res.leaveRequest.userId).toBe('emp-1');
+  });
+  it('ADMIN pour autrui — autorisé', async () => {
+    const res = await useCase.execute({ schoolId: 'school-1', demandeurId: 'admin-1', demandeurRole: 'ADMIN', userId: 'emp-1', type: 'CONGE_PAYE', dateDebut: new Date('2024-06-01'), dateFin: new Date('2024-06-02') });
+    expect(res.leaveRequest.userId).toBe('emp-1');
+  });
+  it('STAFF pour autrui — refusé 403', async () => {
+    await expect(useCase.execute({ schoolId: 'school-1', demandeurId: 'staff-1', demandeurRole: 'STAFF', userId: 'emp-1', type: 'CONGE_PAYE', dateDebut: new Date('2024-06-01'), dateFin: new Date('2024-06-02') })).rejects.toThrow('Permission');
   });
 });
 
@@ -110,7 +123,7 @@ describe('TraiterDemandeCongeUseCase', () => {
     leaveRepo = new FakeLeaveRepository();
     audit = new FakeAudit();
     const fakeService = new FakeTraiterCongeService(leaveRepo);
-    useCase = new TraiterDemandeCongeUseCase(fakeService as any, audit as any);
+    useCase = new TraiterDemandeCongeUseCase(fakeService as any, audit as any, leaveRepo as any);
     leaveRepo.requests.push({ id: 'req-1', schoolId: 'school-1', userId: 'emp-1', type: 'CONGE_PAYE', dateDebut: new Date('2024-06-01'), dateFin: new Date('2024-06-02'), statut: 'PENDING', validatedBy: null });
   });
   it('APPROVED nominal', async () => {
@@ -129,6 +142,9 @@ describe('TraiterDemandeCongeUseCase', () => {
   it('demande introuvable → throw', async () => {
     await expect(useCase.execute({ schoolId: 'school-1', demandeurId: 'admin-1', leaveRequestId: 'inconnu', statut: 'APPROVED' })).rejects.toThrow('introuvable');
   });
+  it('auto-approbation interdite → throw 403', async () => {
+    await expect(useCase.execute({ schoolId: 'school-1', demandeurId: 'emp-1', leaveRequestId: 'req-1', statut: 'APPROVED' })).rejects.toThrow('Auto-approbation');
+  });
 });
 
 describe('ListerDemandesCongeUseCase', () => {
@@ -139,17 +155,23 @@ describe('ListerDemandesCongeUseCase', () => {
     leaveRepo = new FakeLeaveRepository();
     userRepo = new FakeUserRepository();
     userRepo.setEmployee('emp-1', 'school-1', true);
+    userRepo.setEmployee('admin-1', 'school-1', true);
     useCase = new ListerDemandesCongeUseCase(leaveRepo as any, userRepo as any);
     leaveRepo.requests.push({ id: 'req-1', schoolId: 'school-1', userId: 'emp-1', statut: 'PENDING' });
     leaveRepo.requests.push({ id: 'req-2', schoolId: 'school-1', userId: 'emp-2', statut: 'PENDING' });
   });
-  it('liste sans filtre', async () => {
-    const res = await useCase.lister({ schoolId: 'school-1', demandeurId: 'admin-1' });
+  it('liste sans filtre — ADMIN voit tout', async () => {
+    const res = await useCase.lister({ schoolId: 'school-1', demandeurId: 'admin-1', demandeurRole: 'ADMIN' });
     expect(res.leaveRequests).toHaveLength(2);
   });
-  it('liste avec filtre userId', async () => {
-    const res = await useCase.lister({ schoolId: 'school-1', demandeurId: 'admin-1', filtreUserId: 'emp-1' });
+  it('liste avec filtre userId — ADMIN', async () => {
+    const res = await useCase.lister({ schoolId: 'school-1', demandeurId: 'admin-1', demandeurRole: 'ADMIN', filtreUserId: 'emp-1' });
     expect(res.leaveRequests).toHaveLength(1);
+  });
+  it('self — STAFF ne voit que ses demandes (filtre ignoré)', async () => {
+    const res = await useCase.lister({ schoolId: 'school-1', demandeurId: 'emp-1', demandeurRole: 'STAFF', filtreUserId: 'emp-2' });
+    expect(res.leaveRequests).toHaveLength(1);
+    expect(res.leaveRequests[0].userId).toBe('emp-1');
   });
   it('obtenirSolde — employé introuvable → throw', async () => {
     await expect(useCase.obtenirSolde({ schoolId: 'school-1', demandeurId: 'admin-1', userId: 'inconnu' })).rejects.toThrow('introuvable');

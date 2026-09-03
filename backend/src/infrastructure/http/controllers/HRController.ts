@@ -325,6 +325,19 @@ export class HRController {
         res.status(400).json({ success: false, message: error.message });
         return;
       }
+      if (
+        error.message.includes('Permission') ||
+        error.message.includes('Auto-approbation') ||
+        error.message.includes('non autorisé') ||
+        error.message.includes('seulement')
+      ) {
+        res.status(403).json({ success: false, message: error.message });
+        return;
+      }
+      if (error.message.includes('déjà été traitée')) {
+        res.status(409).json({ success: false, message: error.message });
+        return;
+      }
     }
     next(error as Error);
   }
@@ -387,11 +400,13 @@ export class HRController {
   createLeaveRequest = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const schoolId = this.getSchoolId(req);
+      const currentUser = this.getCurrentUser(req);
       const body = req.body as { userId?: string; type?: string; dateDebut?: string; dateFin?: string; motif?: string };
 
       const result = await this.creerDemandeCongeUseCase.execute({
         schoolId,
-        demandeurId: this.getCurrentUser(req)?.userId ?? this.getCurrentUser(req)?.id ?? '',
+        demandeurId: currentUser?.userId ?? currentUser?.id ?? '',
+        demandeurRole: currentUser?.role,
         userId: body.userId ?? '',
         type: body.type ?? '',
         dateDebut: body.dateDebut ? normalizeDateInput(body.dateDebut) : (new Date('') as unknown as Date),
@@ -428,10 +443,12 @@ export class HRController {
     try {
       const schoolId = this.getSchoolId(req);
       const { userId } = req.query as Record<string, string>;
+      const currentUser = this.getCurrentUser(req);
 
       const result = await this.listerDemandesCongeUseCase.lister({
         schoolId,
-        demandeurId: this.getCurrentUser(req)?.userId ?? this.getCurrentUser(req)?.id ?? '',
+        demandeurId: currentUser?.userId ?? currentUser?.id ?? '',
+        demandeurRole: currentUser?.role,
         filtreUserId: userId,
       });
       res.json({ success: true, data: result.leaveRequests });

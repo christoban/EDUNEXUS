@@ -4,6 +4,7 @@ import type { UserRepository } from '@domain/ports/repositories/UserRepository';
 export interface CreerDemandeCongeCommande {
   schoolId: string;
   demandeurId: string;
+  demandeurRole?: string;
   userId: string;
   type: string;
   dateDebut: Date;
@@ -25,6 +26,10 @@ export class CreerDemandeCongeUseCase {
   }
 
   async execute(commande: CreerDemandeCongeCommande): Promise<{ leaveRequest: import('@domain/ports/repositories/LeaveRepository').LeaveRequestData }> {
+    if (commande.userId !== commande.demandeurId && commande.demandeurRole !== 'ADMIN') {
+      throw new Error('Permission refusée : vous ne pouvez créer une demande que pour vous-même');
+    }
+
     if (!commande.userId || !commande.type || !commande.dateDebut || !commande.dateFin) {
       throw new Error('userId, type, dateDebut et dateFin sont requis');
     }

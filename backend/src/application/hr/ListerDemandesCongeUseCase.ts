@@ -4,6 +4,7 @@ import type { UserRepository } from '@domain/ports/repositories/UserRepository';
 export interface ListerDemandesCongeCommande {
   schoolId: string;
   demandeurId: string;
+  demandeurRole?: string;
   filtreUserId?: string;
 }
 
@@ -33,7 +34,9 @@ export class ListerDemandesCongeUseCase {
   }
 
   async lister(commande: ListerDemandesCongeCommande): Promise<ListerDemandesCongeResultat> {
-    const leaveRequests = await this.leaveRepository.findRequestsBySchool(commande.schoolId, commande.filtreUserId);
+    const filtreUserId =
+      commande.demandeurRole !== 'ADMIN' ? commande.demandeurId : commande.filtreUserId;
+    const leaveRequests = await this.leaveRepository.findRequestsBySchool(commande.schoolId, filtreUserId);
     return { leaveRequests };
   }
 

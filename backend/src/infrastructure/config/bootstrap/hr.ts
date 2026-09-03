@@ -192,6 +192,7 @@ export function registerHrRoutes(app: Application, prismaParam: typeof prisma = 
   const traiterDemandeCongeUseCase = new TraiterDemandeCongeUseCase(
     traiterCongeService,
     new AIActionAuditAdapter(p as any),
+    c.hr.leaveRepository,
   );
   const listerDemandesCongeUseCase = new ListerDemandesCongeUseCase(
     c.hr.leaveRepository,
