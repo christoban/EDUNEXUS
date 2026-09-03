@@ -4,7 +4,7 @@
  */
 import type {
   SchoolStatus, PlanType, SchoolSubsystem,
-  EducationType, SchoolOwnership, SchoolLevel
+  EducationType, SchoolOwnership, SchoolLevel, JsonValue
 } from '@domain/types/enums';
 
 export interface SchoolProps {
@@ -23,7 +23,7 @@ export interface SchoolProps {
   email?: string;
   logoUrl?: string;
   templateCode?: string;
-  onboardingConfig?: any;
+  onboardingConfig?: JsonValue | null;
   saturdaySchedule: boolean;
   contractEnd?: Date;
   createdAt: Date;
@@ -43,7 +43,7 @@ export interface CreerSchoolProps {
   phone?: string;
   email?: string;
   templateCode?: string;
-  onboardingConfig?: any;
+  onboardingConfig?: JsonValue | null;
 }
 
 export class School {
@@ -86,7 +86,7 @@ export class School {
   get plan(): PlanType { return this.props.plan; }
   get subsystem(): SchoolSubsystem { return this.props.subsystem; }
   get templateCode(): string | undefined { return this.props.templateCode; }
-  get onboardingConfig(): any { return this.props.onboardingConfig; }
+  get onboardingConfig(): JsonValue | null | undefined { return this.props.onboardingConfig; }
 
   // --- Méthodes métier ---
 

@@ -11,7 +11,7 @@ export class RelanceOnboardingUseCase {
     private readonly smsNotification: SmsNotificationPort,
   ) {}
 
-  async execute(step: any): Promise<{ reminded: number; escalated: number; expired: number; processedAt: string }> {
+  async execute(step: any): Promise<{ reminded: number; escalated: number; expired: number; processedAt: string }> { // hex-allow-any: Inngest step
     const dossiers = await this.repository.listerDossiersLinkSent();
 
     let reminded = 0;
@@ -47,7 +47,7 @@ export class RelanceOnboardingUseCase {
               contenuTexte: tpl.text,
               eventType: 'user_invite',
               metadata: { schoolId: dossier.schoolId },
-            }).catch((err: any) => console.error('[Email] Échec relance onboarding:', err?.message));
+            }).catch((err: unknown) => console.error('[Email] Échec relance onboarding:', err instanceof Error ? err.message : String(err)));
           }
           if (dossier.contactTelephone) {
             await this.smsNotification.notifyOnboardingReminderSms({ schoolId: dossier.schoolId, nomProvisoire: dossier.nomProvisoire, schoolName, phone: dossier.contactTelephone, formUrl });
@@ -62,7 +62,7 @@ export class RelanceOnboardingUseCase {
               contenuTexte: tpl.text,
               eventType: 'user_invite',
               metadata: { schoolId: dossier.schoolId },
-            }).catch((err: any) => console.error('[Email] Échec relance onboarding (parent):', err?.message));
+            }).catch((err: unknown) => console.error('[Email] Échec relance onboarding (parent):', err instanceof Error ? err.message : String(err)));
           }
           if (dossier.parentContactTelephone) {
             await this.smsNotification.notifyOnboardingReminderSms({ schoolId: dossier.schoolId, nomProvisoire: dossier.nomProvisoire, schoolName, phone: dossier.parentContactTelephone, formUrl });
@@ -84,7 +84,7 @@ export class RelanceOnboardingUseCase {
               contenuTexte: `Le dossier d'inscription de ${dossier.nomProvisoire} n'est toujours pas complété après ${daysSinceCreated} jours.`,
               eventType: 'user_invite',
               metadata: { schoolId: dossier.schoolId },
-            }).catch((err: any) => console.error('[Email] Échec escalade onboarding:', err?.message));
+            }).catch((err: unknown) => console.error('[Email] Échec escalade onboarding:', err instanceof Error ? err.message : String(err)));
           }
           await this.repository.marquerEscalade(dossier.id);
         });

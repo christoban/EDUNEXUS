@@ -8,14 +8,8 @@ import { GenererRecommandationOrientationUseCase } from './GenererRecommandation
 import { RelancerElevesEnAttenteUseCase } from './RelancerElevesEnAttenteUseCase';
 import { FinaliserParDefautUseCase } from './FinaliserParDefautUseCase';
 import { ListerElevesAOrienterUseCase } from './ListerElevesAOrienterUseCase';
-
-export interface ConseillerResolverPort {
-  resolverConseillersOrientation(schoolId: string): Promise<string[]>;
-}
-
-export interface PersonnelNotificationPort {
-  notifierPersonnel(userId: string, schoolId: string, titre: string, corps: string): Promise<void>;
-}
+import type { ConseillerResolverPort } from '@domain/ports/services/ConseillerResolverPort';
+import type { PersonnelNotificationPort } from '@domain/ports/services/PersonnelNotificationPort';
 
 export interface VerifierOrientationCheckpointsDeps {
   schoolRepository: SchoolRepository;

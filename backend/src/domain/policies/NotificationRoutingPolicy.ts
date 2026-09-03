@@ -1,5 +1,4 @@
-import type { NotificationUrgency } from '@prisma/client';
-import type { NotificationChannel } from '@domain/types/enums';
+import type { NotificationChannel, NotificationUrgency } from '@domain/types/enums';
 
 export interface PrefsCanal {
   push: boolean;

@@ -76,8 +76,8 @@ export class EnregistrerResultatCepUseCase {
           examCandidateId: candidate.id,
           aucunContactDisponible: !parentPhone,
         });
-      } catch (err: any) {
-        console.error('[EnregistrerResultatCepUseCase] Échec création squelette onboarding:', err?.message);
+      } catch (err: unknown) {
+        console.error('[EnregistrerResultatCepUseCase] Échec création squelette onboarding:', err instanceof Error ? err.message : String(err));
       }
 
       await this.cloturerSessionSiTousTraites(candidate.sessionId, candidate.session!.schoolId);

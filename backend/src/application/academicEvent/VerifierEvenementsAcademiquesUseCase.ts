@@ -3,16 +3,9 @@ import type { SchoolRepository } from '@domain/ports/repositories/SchoolReposito
 import type { Lv2ChoiceRepository } from '@domain/ports/repositories/Lv2ChoiceRepository';
 import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/AnneeAcademiqueRepository';
 import type { SmsNotificationPort } from '@domain/ports/services/SmsNotificationPort';
-import { activerRessourceLieeSiApplicable, synchroniserClotureRessourceLiee, cloturerRessourceLiee } from './activerRessourceLiee';
-
-export interface SchoolCalendarPort {
-  ajouterJoursOuvresScolaires(schoolId: string, date: Date, jours: number): Promise<Date>;
-  prolongerSiFermetureAujourdhui(schoolId: string, closeDate: Date, aujourd: Date): Promise<Date | null>;
-}
-
-export interface AcademicEventNotificationPort {
-  notifierEvenementAcademique(schoolId: string, targetRoles: string[], titre: string, corps: string): Promise<void>;
-}
+import { activerRessourceLieeSiApplicable, synchroniserClotureRessourceLiee, cloturerRessourceLiee, type EvenementPourActivation } from './activerRessourceLiee';
+import type { SchoolCalendarPort } from '@domain/ports/services/SchoolCalendarPort';
+import type { AcademicEventNotificationPort } from '@domain/ports/services/AcademicEventNotificationPort';
 
 export interface VerifierEvenementsAcademiquesDeps {
   academicEventRepository: AcademicEventRepository;
@@ -42,11 +35,11 @@ export class VerifierEvenementsAcademiquesUseCase {
           linkedResourceId = await activerRessourceLieeSiApplicable(
             this.deps.lv2ChoiceRepository,
             this.deps.anneeRepository,
-            ev as any,
+            ev as EvenementPourActivation,
             this.deps.smsPort,
           );
-        } catch (err: any) {
-          console.error(`[AcademicEvent] activation ressource liée (${ev.id}):`, err?.message);
+        } catch (err: unknown) {
+          console.error(`[AcademicEvent] activation ressource liée (${ev.id}):`, err instanceof Error ? err.message : String(err));
           continue;
         }
         await this.deps.academicEventRepository.mettreAJourStatutEtRessource(ev.id, { status: 'ACTIVE', linkedResourceId });
@@ -57,7 +50,7 @@ export class VerifierEvenementsAcademiquesUseCase {
             ev.title,
             ev.description ?? `« ${ev.title} » est désormais ouvert.`,
           )
-          .catch((err: any) => console.error('[AcademicEvent] notification ouverture:', err?.message));
+          .catch((err: unknown) => console.error('[AcademicEvent] notification ouverture:', err instanceof Error ? err.message : String(err)));
       }
 
       const actifsAvecCloture = await this.deps.academicEventRepository.trouverActifsAvecClotureSansRappel(school.id);
@@ -72,7 +65,7 @@ export class VerifierEvenementsAcademiquesUseCase {
               `Rappel — ${ev.title}`,
               `« ${ev.title} » se clôture le ${new Date(ev.closeDate).toLocaleDateString('fr-FR')}. Pensez à agir avant cette date.`,
             )
-            .catch((err: any) => console.error('[AcademicEvent] notification rappel:', err?.message));
+            .catch((err: unknown) => console.error('[AcademicEvent] notification rappel:', err instanceof Error ? err.message : String(err)));
           await this.deps.academicEventRepository.mettreAJourRappel(ev.id, maintenant);
         }
       }

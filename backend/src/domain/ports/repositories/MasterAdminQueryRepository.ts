@@ -19,24 +19,24 @@ export interface EcoleInvitePending {
 
 export interface MasterAdminQueryRepository {
   // Écoles
-  listSchools(where: any, skip: number, take: number): Promise<unknown[]>;
-  countSchools(where: any): Promise<number>;
+  listSchools(where: Record<string, unknown>, skip: number, take: number): Promise<unknown[]>;
+  countSchools(where: Record<string, unknown>): Promise<number>;
   findSchoolWithDetail(id: string): Promise<unknown | null>;
   findSchoolBasic(id: string): Promise<EcoleDetail | null>;
   findSchoolBySubdomain(subdomain: string): Promise<{ id: string; name: string } | null>;
   findSchoolWithPendingInvite(id: string): Promise<{ id: string; name: string; invites: EcoleInvitePending[] } | null>;
 
   // Journal MasterAuth
-  listMasterAuthAudit(where: any, skip: number, take: number): Promise<unknown[]>;
-  countMasterAuthAudit(where: any): Promise<number>;
+  listMasterAuthAudit(where: Record<string, unknown>, skip: number, take: number): Promise<unknown[]>;
+  countMasterAuthAudit(where: Record<string, unknown>): Promise<number>;
 
   // Logs email
-  listEmailLogs(where: any, skip: number, take: number): Promise<unknown[]>;
-  countEmailLogs(where: any): Promise<number>;
+  listEmailLogs(where: Record<string, unknown>, skip: number, take: number): Promise<unknown[]>;
+  countEmailLogs(where: Record<string, unknown>): Promise<number>;
 
   // Journal sécurité IA
-  listAiActionAudit(where: any, skip: number, take: number): Promise<unknown[]>;
-  countAiActionAudit(where: any): Promise<number>;
+  listAiActionAudit(where: Record<string, unknown>, skip: number, take: number): Promise<unknown[]>;
+  countAiActionAudit(where: Record<string, unknown>): Promise<number>;
 
   // Rattrapage matières
   findSchoolTemplateByCode(code: string): Promise<unknown | null>;

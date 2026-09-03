@@ -2,8 +2,7 @@
  * DOMAIN LAYER — Port Service Notification
  * Push (FCM), SMS, Email, In-App — selon les préférences utilisateur et l'urgence.
  */
-import type { NotificationType, NotificationChannel } from '@domain/types/enums';
-import type { NotificationUrgency } from '@prisma/client';
+import type { NotificationType, NotificationChannel, NotificationUrgency } from '@domain/types/enums';
 
 export interface EnvoiNotificationOptions {
   schoolId: string;

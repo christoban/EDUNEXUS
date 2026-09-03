@@ -1,3 +1,4 @@
+import type { Note } from '@domain/entities/Note';
 import type { NoteRepository, NoteFilters } from '@domain/ports/repositories/NoteRepository';
 import type { UserRepository } from '@domain/ports/repositories/UserRepository';
 
@@ -13,8 +14,8 @@ export interface ListerNotesEnAttenteRequete {
 }
 
 export interface NotesEnAttenteResultat {
-  grades: any[];
-  grouped: Record<string, Record<string, any[]>>;
+  grades: Note[];
+  grouped: Record<string, Record<string, Note[]>>;
   total: number;
 }
 
@@ -39,7 +40,7 @@ export class ListerNotesEnAttenteUseCase {
 
     const result = await this.noteRepository.find(noteFilters, 1, 10000);
 
-    const grouped: Record<string, Record<string, any[]>> = {};
+    const grouped: Record<string, Record<string, Note[]>> = {};
     for (const grade of result.items) {
       const data = grade.toObject();
       if (!grouped[data.classId]) grouped[data.classId] = {};

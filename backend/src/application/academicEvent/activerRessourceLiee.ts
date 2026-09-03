@@ -88,7 +88,7 @@ export async function synchroniserClotureRessourceLiee(
 ): Promise<void> {
   if (type !== 'CHOIX_LV2' || !linkedResourceId) return;
   await lv2ChoiceRepository.mettreAJourCloture(linkedResourceId, nouvelleCloture)
-    .catch((err: any) => console.error('[AcademicEvent] sync clôture Lv2ChoiceWindow:', err?.message));
+    .catch((err: unknown) => console.error('[AcademicEvent] sync clôture Lv2ChoiceWindow:', err instanceof Error ? err.message : String(err)));
 }
 
 /** Clôture la ressource liée quand l'AcademicEvent lui-même passe CLOSED. */
@@ -99,5 +99,5 @@ export async function cloturerRessourceLiee(
 ): Promise<void> {
   if (type !== 'CHOIX_LV2' || !linkedResourceId) return;
   await lv2ChoiceRepository.cloreFenetre(linkedResourceId)
-    .catch((err: any) => console.error('[AcademicEvent] clôture Lv2ChoiceWindow:', err?.message));
+    .catch((err: unknown) => console.error('[AcademicEvent] clôture Lv2ChoiceWindow:', err instanceof Error ? err.message : String(err)));
 }

@@ -84,6 +84,8 @@ export type NotificationType =
 
 export type NotificationChannel = 'EMAIL' | 'SMS' | 'PUSH' | 'IN_APP';
 
+export type NotificationUrgency = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
+
 export type TypeExamen = 'BEPC' | 'PROBATOIRE' | 'BAC' | 'GCE_OL' | 'GCE_AL' | 'CAP' | 'BT';
 export type TypeFraisMinesec = 'SCOLARITE_PREMIER_CYCLE' | 'SCOLARITE_SECOND_CYCLE' | 'EXAMEN_BEPC' | 'EXAMEN_PROBATOIRE' | 'EXAMEN_BAC' | 'EXAMEN_GCE_OL' | 'EXAMEN_GCE_AL';
 
@@ -99,3 +101,5 @@ export type TemplateMeta = {
   isTechnique: boolean;
   langMode: 'anglophone' | 'francophone' | 'bilingual';
 };
+
+export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };

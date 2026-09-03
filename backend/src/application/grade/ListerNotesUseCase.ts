@@ -1,3 +1,4 @@
+import type { Note } from '@domain/entities/Note';
 import type { NoteRepository, NoteFilters, PaginatedResult } from '@domain/ports/repositories/NoteRepository';
 import type { UserRepository } from '@domain/ports/repositories/UserRepository';
 import type { MatiereRepository } from '@domain/ports/repositories/MatiereRepository';
@@ -26,7 +27,7 @@ export class ListerNotesUseCase {
     private readonly parentRepository: ParentRepository,
   ) {}
 
-  async execute(requete: ListerNotesRequete): Promise<PaginatedResult<any>> {
+  async execute(requete: ListerNotesRequete): Promise<PaginatedResult<Note>> {
     const { schoolId, userId, userRole, filters, pagination } = requete;
 
     const user = await this.userRepository.findById(userId);

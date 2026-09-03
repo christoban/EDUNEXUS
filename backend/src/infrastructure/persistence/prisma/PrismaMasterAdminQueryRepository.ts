@@ -13,9 +13,9 @@ import type {
 export class PrismaMasterAdminQueryRepository implements MasterAdminQueryRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  listSchools(where: any, skip: number, take: number): Promise<unknown[]> {
+  listSchools(where: Record<string, unknown>, skip: number, take: number): Promise<unknown[]> {
     return this.prisma.school.findMany({
-      where,
+      where: where as any,
       skip,
       take,
       orderBy: { createdAt: 'desc' },
@@ -27,8 +27,8 @@ export class PrismaMasterAdminQueryRepository implements MasterAdminQueryReposit
     });
   }
 
-  countSchools(where: any): Promise<number> {
-    return this.prisma.school.count({ where });
+  countSchools(where: Record<string, unknown>): Promise<number> {
+    return this.prisma.school.count({ where: where as any });
   }
 
   findSchoolWithDetail(id: string): Promise<unknown | null> {
@@ -81,9 +81,9 @@ export class PrismaMasterAdminQueryRepository implements MasterAdminQueryReposit
     };
   }
 
-  listMasterAuthAudit(where: any, skip: number, take: number): Promise<unknown[]> {
+  listMasterAuthAudit(where: Record<string, unknown>, skip: number, take: number): Promise<unknown[]> {
     return this.prisma.masterAuthAudit.findMany({
-      where,
+      where: where as any,
       skip,
       take,
       orderBy: { createdAt: 'desc' },
@@ -91,13 +91,13 @@ export class PrismaMasterAdminQueryRepository implements MasterAdminQueryReposit
     });
   }
 
-  countMasterAuthAudit(where: any): Promise<number> {
-    return this.prisma.masterAuthAudit.count({ where });
+  countMasterAuthAudit(where: Record<string, unknown>): Promise<number> {
+    return this.prisma.masterAuthAudit.count({ where: where as any });
   }
 
-  listEmailLogs(where: any, skip: number, take: number): Promise<unknown[]> {
+  listEmailLogs(where: Record<string, unknown>, skip: number, take: number): Promise<unknown[]> {
     return this.prisma.emailLog.findMany({
-      where,
+      where: where as any,
       skip,
       take,
       orderBy: { createdAt: 'desc' },
@@ -105,16 +105,16 @@ export class PrismaMasterAdminQueryRepository implements MasterAdminQueryReposit
     });
   }
 
-  countEmailLogs(where: any): Promise<number> {
-    return this.prisma.emailLog.count({ where });
+  countEmailLogs(where: Record<string, unknown>): Promise<number> {
+    return this.prisma.emailLog.count({ where: where as any });
   }
 
-  listAiActionAudit(where: any, skip: number, take: number): Promise<unknown[]> {
-    return this.prisma.aIActionAuditLog.findMany({ where, skip, take, orderBy: { timestamp: 'desc' } });
+  listAiActionAudit(where: Record<string, unknown>, skip: number, take: number): Promise<unknown[]> {
+    return this.prisma.aIActionAuditLog.findMany({ where: where as any, skip, take, orderBy: { timestamp: 'desc' } });
   }
 
-  countAiActionAudit(where: any): Promise<number> {
-    return this.prisma.aIActionAuditLog.count({ where });
+  countAiActionAudit(where: Record<string, unknown>): Promise<number> {
+    return this.prisma.aIActionAuditLog.count({ where: where as any });
   }
 
   findSchoolTemplateByCode(code: string): Promise<unknown | null> {
