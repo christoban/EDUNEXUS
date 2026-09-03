@@ -48,6 +48,7 @@ import { ListerEvenementsCarriereUseCase } from '@application/hr/ListerEvenement
 import { CreerDemandeCongeUseCase } from '@application/hr/CreerDemandeCongeUseCase';
 import { TraiterDemandeCongeUseCase } from '@application/hr/TraiterDemandeCongeUseCase';
 import { ListerDemandesCongeUseCase } from '@application/hr/ListerDemandesCongeUseCase';
+import { CreerOrdreMissionUseCase } from '@application/hr/CreerOrdreMissionUseCase';
 import { TraiterCongeServiceAdapter } from '@infrastructure/services/hr/TraiterCongeServiceAdapter';
 import { creerClasseRoutes } from '@infrastructure/http/routes/classe.routes';
 import { creerSubjectRoutes } from '@infrastructure/http/routes/subject.routes';
@@ -196,6 +197,10 @@ export function registerHrRoutes(app: Application, prismaParam: typeof prisma = 
     c.hr.leaveRepository,
     c.hr.userRepository,
   );
+  const creerOrdreMissionUseCase = new CreerOrdreMissionUseCase(
+    c.hr.missionOrderRepository,
+    c.hr.userRepository,
+  );
   const hrController = new HRController(
     c.hr.userRepository,
     c.hr.schoolRepository,
@@ -212,6 +217,7 @@ export function registerHrRoutes(app: Application, prismaParam: typeof prisma = 
     creerDemandeCongeUseCase,
     traiterDemandeCongeUseCase,
     listerDemandesCongeUseCase,
+    creerOrdreMissionUseCase,
   );
   app.use('/api/v2/hr', requireAuth, requireRole('ADMIN', 'STAFF'), creerHrRoutes(hrController));
 

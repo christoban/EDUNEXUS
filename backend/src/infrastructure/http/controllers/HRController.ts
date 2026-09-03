@@ -14,6 +14,7 @@ import type { ListerEvenementsCarriereUseCase } from '@application/hr/ListerEven
 import type { CreerDemandeCongeUseCase } from '@application/hr/CreerDemandeCongeUseCase';
 import type { TraiterDemandeCongeUseCase } from '@application/hr/TraiterDemandeCongeUseCase';
 import type { ListerDemandesCongeUseCase } from '@application/hr/ListerDemandesCongeUseCase';
+import type { CreerOrdreMissionUseCase } from '@application/hr/CreerOrdreMissionUseCase';
 import ExcelJS from 'exceljs';
 import {
   generateAttestationTravailPdf,
@@ -67,6 +68,7 @@ export class HRController {
     private readonly creerDemandeCongeUseCase: CreerDemandeCongeUseCase,
     private readonly traiterDemandeCongeUseCase: TraiterDemandeCongeUseCase,
     private readonly listerDemandesCongeUseCase: ListerDemandesCongeUseCase,
+    private readonly creerOrdreMissionUseCase: CreerOrdreMissionUseCase,
   ) {}
 
   private getSchoolId(req: Request): string {
@@ -531,30 +533,19 @@ export class HRController {
       const schoolId = this.getSchoolId(req);
       const body = req.body as { userId?: string; motif?: string; lieu?: string; dateDebut?: string; dateFin?: string; signataire?: string };
 
-      if (!body.userId || !body.motif || !body.lieu || !body.dateDebut || !body.dateFin) {
-        res.status(400).json({ success: false, message: 'userId, motif, lieu, dateDebut et dateFin sont requis' });
-        return;
-      }
-
-      const employee = await this.loadEmployeeOrFail(body.userId, schoolId);
-      if (!employee) {
-        res.status(404).json({ success: false, message: 'Employé introuvable' });
-        return;
-      }
-
-      const missionOrder = await this.missionOrderRepository.create({
-        userId: body.userId,
+      const result = await this.creerOrdreMissionUseCase.execute({
         schoolId,
-        motif: body.motif.trim(),
-        lieu: body.lieu.trim(),
-        dateDebut: normalizeDateInput(body.dateDebut),
-        dateFin: normalizeDateInput(body.dateFin),
-        signataire: body.signataire?.trim() || null,
+        demandeurId: this.getCurrentUser(req)?.userId ?? this.getCurrentUser(req)?.id ?? '',
+        userId: body.userId ?? '',
+        motif: body.motif ?? '',
+        lieu: body.lieu ?? '',
+        dateDebut: body.dateDebut ? normalizeDateInput(body.dateDebut) : (new Date('') as unknown as Date),
+        dateFin: body.dateFin ? normalizeDateInput(body.dateFin) : (new Date('') as unknown as Date),
+        signataire: body.signataire,
       });
-
-      res.status(201).json({ success: true, data: missionOrder });
+      res.status(201).json({ success: true, data: result.missionOrder });
     } catch (error) {
-      next(error);
+      this.gererErreurHR(error, res, next);
     }
   };
 
