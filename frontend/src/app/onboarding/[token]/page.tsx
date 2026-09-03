@@ -639,7 +639,10 @@ export default function OnboardingPage() {
     if (showPremierCycle(template) && Object.keys(form.classesParNiveau).length < form.niveaux1erCycle.length) return 'Veuillez indiquer le nombre de classes pour chaque niveau.'
     if (showDeuxiemeCycle(template) && form.niveaux2eCycle.length === 0) return 'Veuillez sélectionner au moins un niveau du 2e cycle.'
     if (showSeriesFr(template) && form.filieres.length === 0) return 'Veuillez sélectionner au moins une filière.'
-    if (showStreamsEn(template) && form.filieres.length === 0) return 'Veuillez sélectionner au moins une filière.'
+    if (showStreamsEn(template)) {
+      if (template.code !== 'GSS_EN' && !enStreamStartLevel) return 'Veuillez sélectionner le niveau de départ des streams.'
+      if (!enGradingSystem) return 'Veuillez sélectionner un système de notes.'
+    }
     return ''
   }
 
