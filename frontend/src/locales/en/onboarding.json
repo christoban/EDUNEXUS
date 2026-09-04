@@ -142,6 +142,7 @@
       "offers": {
         "label": "Education offered",
         "hint": "Select all that apply. Several choices mean a multi-offer school.",
+        "complexHint": "Which types of education does the complex offer? (select all that apply)",
         "GENERAL": "General education",
         "TECHNICAL": "Technical education",
         "PROFESSIONAL": "Vocational education"
@@ -173,6 +174,8 @@
         "levelFamily": "Please choose the main level.",
         "offers": "Please select at least one education type.",
         "secondarySpan": "Please specify how far schooling goes.",
+        "technicalOffers": "Please select at least one technical stream.",
+        "professionalOffers": "Please select at least one vocational trade or field.",
         "ownership": "Please choose the legal status.",
         "template": "Please choose the school model."
       },
@@ -481,6 +484,15 @@
         "filieres": "Streams",
         "a4Languages": "A4 languages",
         "techFilieres": "Technical streams",
+        "primary": "Primary",
+        "maternelle": "Nursery",
+        "nursery": "Nursery",
+        "pebsFr": "Francophone PEBS",
+        "pebsEn": "Anglophone PEBS",
+        "streamsEn": "Anglophone streams",
+        "grading": "Grading system",
+        "sarMetiers": "SAR / SM trades",
+        "cfmFilieres": "CFM fields",
         "totalClasses": "Total classes"
       },
       "info": "Once submitted, your application will be reviewed within 24-48h. You will receive a confirmation email."

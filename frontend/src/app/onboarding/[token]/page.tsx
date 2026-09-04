@@ -15,7 +15,7 @@ import { pickEffectiveTemplateCode, templateDisplayName, suggestTemplateCode } f
 import { resolveTemplateCandidates } from '@/lib/onboarding/resolveTemplateCandidates'
 import type { LevelFamily, OfferFlag, Phase1Profile, SchoolStructure, SecondarySpan } from '@/lib/onboarding/phase1Profile'
 import { deriveEducationType } from '@/lib/onboarding/phase1Profile'
-import { showPremierCycle, showDeuxiemeCycle, showSeriesFr, showStreamsEn, showTechnique, showPrimaire, isPebsFrEligible, isPebsEnEligible } from '@/lib/onboarding/templateGates'
+import { showPremierCycle, showDeuxiemeCycle, showSeriesFr, showStreamsEn, showTechnique, showTechniqueBlocks, showPrimaire, hasMaternelleData, hasPrimaireData, hasPremierCycleData, hasDeuxiemeCycleData, hasTechniqueData, isPebsFrEligible, isPebsEnEligible } from '@/lib/onboarding/templateGates'
 import { buildOnboardingConfig } from '@/lib/onboarding/buildOnboardingConfig'
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -523,7 +523,7 @@ export default function OnboardingPage() {
     if (!isPebsEnEligible(template.code)) {
       if (hasPEBSAnglophone) setHasPEBSAnglophone(false)
     }
-    if (!showTechnique(template)) {
+    if (!showTechniqueBlocks(template, offers)) {
       setForm(f => (f.filieresTechniques.length === 0 ? f : { ...f, filieresTechniques: [] }))
       if (sarMetiers.length) setSarMetiers([])
       if (cfmFilieres.length) setCfmFilieres([])
@@ -611,7 +611,7 @@ export default function OnboardingPage() {
     if (!profile.subsystem) return t('phase1.step1.validation.subsystem')
     if (!profile.structure) return t('phase1.step1.validation.structure')
     if (profile.structure === 'MONO' && !profile.levelFamily) return t('phase1.step1.validation.levelFamily')
-    if (profile.structure === 'MONO' && profile.offers.length === 0) return t('phase1.step1.validation.offers')
+    if (profile.offers.length === 0) return t('phase1.step1.validation.offers')
     if (profile.levelFamily === 'SECONDARY' && profile.offers.length > 0 && profile.secondarySpan === null) return t('phase1.step1.validation.secondarySpan')
     if (!profile.ownership) return t('phase1.step1.validation.ownership')
     if (!effectiveCode || !templateCatalog.some((candidate) => candidate.code === effectiveCode)) return t('phase1.step1.validation.template')
@@ -640,6 +640,8 @@ export default function OnboardingPage() {
       if (has1erCfg && Object.keys(form.classesParNiveau).length < form.niveaux1erCycle.length) return 'Veuillez indiquer le nombre de classes pour chaque niveau du 1er cycle.'
       if (has2eCfg && form.filieres.length === 0 && !bilingualEnLevels.length && !bilingualEnFilieres.length) return 'Veuillez sélectionner au moins une filière ou configurer le volet anglophone.'
       if (form.niveauxPrimaire.length > 0 && Object.keys(form.classesParNiveauPrimaire).length < form.niveauxPrimaire.length) return 'Veuillez indiquer le nombre de classes pour chaque niveau primaire.'
+      if (offers.includes('TECHNICAL') && form.filieresTechniques.length === 0) return t('phase1.step1.validation.technicalOffers')
+      if (offers.includes('PROFESSIONAL') && sarMetiers.length === 0 && cfmFilieres.length === 0) return t('phase1.step1.validation.professionalOffers')
       return ''
     }
 
@@ -995,7 +997,7 @@ export default function OnboardingPage() {
               </Field>
             )}
 
-            {structure === 'MONO' && (
+            {(structure === 'MONO' || structure === 'COMPLEX') && (
               <Field label={t('phase1.step1.offers.label')} required>
                 <CheckboxGroup
                   options={(['GENERAL', 'TECHNICAL', 'PROFESSIONAL'] as OfferFlag[]).map((offer) => ({ value: offer, label: t(`phase1.step1.offers.${offer}`) }))}
@@ -1006,7 +1008,7 @@ export default function OnboardingPage() {
                     setSecondarySpan(null)
                     setSelectedTemplateCode(null)
                   }}
-                  note={t('phase1.step1.offers.hint')}
+                  note={structure === 'COMPLEX' ? t('phase1.step1.offers.complexHint') : t('phase1.step1.offers.hint')}
                 />
               </Field>
             )}
@@ -1813,8 +1815,8 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {/* ── GROUPE C — Technique (caché si COMPLEXE) ── */}
-            {template && !template.isComplexe && template.isTechnique && (
+            {/* ── GROUPE C — Technique / professionnel ── */}
+            {template && showTechniqueBlocks(template, offers) && (
               <div style={{ marginTop: 8, marginBottom: 8 }}>
                 <div style={{
                   fontSize: 15, fontWeight: 800, color: 'var(--text)',
@@ -1822,6 +1824,35 @@ export default function OnboardingPage() {
                 }}>
                   {t('phase1.step3.technical.sectionTitle')}
                 </div>
+
+                {template.isComplexe && offers.includes('TECHNICAL') && (
+                  <Field label={t('phase1.step3.technical.q14Tech')}>
+                    <CheckboxGroup
+                      options={FILIERES_TECHNIQUES_OFF.map(v => ({ value: v, label: v }))}
+                      values={form.filieresTechniques}
+                      onChange={v => setForm(f => ({ ...f, filieresTechniques: v }))}
+                    />
+                  </Field>
+                )}
+
+                {template.isComplexe && offers.includes('PROFESSIONAL') && (
+                  <div>
+                    <Field label={t('phase1.step3.technical.sarMetiers')}>
+                      <CheckboxGroup
+                        options={SAR_METIERS_OPTIONS.map(v => ({ value: v, label: t('phase1.sarMetiers.' + v) }))}
+                        values={sarMetiers}
+                        onChange={setSarMetiers}
+                      />
+                    </Field>
+                    <Field label={t('phase1.step3.technical.cfmFilieres')}>
+                      <CheckboxGroup
+                        options={CFM_FILIERES_OPTIONS.map(v => ({ value: v, label: t('phase1.cfmFilieres.' + v) }))}
+                        values={cfmFilieres}
+                        onChange={setCfmFilieres}
+                      />
+                    </Field>
+                  </div>
+                )}
 
                 {/* Admission (Q_ADMISSION) — visible pour TOUT template technique (CETIC,
                     LYCEE_TECHNIQUE_FR, GTC_EN, GTC_GTHS_EN...) : GGTC/CETIF partagent le même
@@ -2513,7 +2544,19 @@ export default function OnboardingPage() {
                     <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 700, textTransform: 'uppercase' }}>{t('phase1.step4.fields.template')}</div>
                     <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 700 }}>{templateDisplayName(template, currentLang === 'en' ? 'en' : 'fr')}</div>
                   </div>
-                  {template.hasPremierCycle && (
+                  {hasMaternelleData({ maternelleSections, nurseryLevels }) && (
+                    <div>
+                      <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 700, textTransform: 'uppercase' }}>{t('phase1.step4.fields.maternelle')}</div>
+                      <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 700 }}>{[...maternelleSections, ...nurseryLevels].join(' · ')}</div>
+                    </div>
+                  )}
+                  {hasPrimaireData(form) && (
+                    <div>
+                      <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 700, textTransform: 'uppercase' }}>{t('phase1.step4.fields.primary')}</div>
+                      <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 700 }}>{form.niveauxPrimaire.join(' · ')} ({Object.values(form.classesParNiveauPrimaire).reduce((total, count) => total + count, 0)} {t('phase1.step3.preview.totalClasses')})</div>
+                    </div>
+                  )}
+                  {hasPremierCycleData(form) && (
                     <>
                       <div>
                         <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 700, textTransform: 'uppercase' }}>{t('phase1.step4.fields.firstCycle')}</div>
@@ -2537,7 +2580,7 @@ export default function OnboardingPage() {
                       )}
                     </>
                   )}
-                  {template.hasDeuxiemeCycle && (
+                  {hasDeuxiemeCycleData(form) && (
                     <>
                       <div>
                         <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 700, textTransform: 'uppercase' }}>{t('phase1.step4.fields.secondCycle')}</div>
@@ -2559,10 +2602,22 @@ export default function OnboardingPage() {
                       )}
                     </>
                   )}
-                  {template.isTechnique && form.filieresTechniques.length > 0 && (
+                  {hasTechniqueData({ filieresTechniques: form.filieresTechniques, sarMetiers, cfmFilieres }) && (
                     <div>
                       <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 700, textTransform: 'uppercase' }}>{t('phase1.step4.fields.techFilieres')}</div>
-                      <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 700 }}>{form.filieresTechniques.join(' · ')}</div>
+                      <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 700 }}>{[...form.filieresTechniques, ...sarMetiers, ...cfmFilieres].join(' · ')}</div>
+                    </div>
+                  )}
+                  {(enStreamStartLevel || enGradingSystem || bilingualEnLevels.length > 0 || bilingualEnFilieres.length > 0) && (
+                    <div>
+                      <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 700, textTransform: 'uppercase' }}>{t('phase1.step4.fields.streamsEn')}</div>
+                      <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 700 }}>{[enStreamStartLevel, enGradingSystem, ...bilingualEnLevels, ...bilingualEnFilieres].filter(value => value.length > 0).join(' · ')}</div>
+                    </div>
+                  )}
+                  {(hasPEBSFrancophone || hasPEBSAnglophone) && (
+                    <div>
+                      <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 700, textTransform: 'uppercase' }}>{t('phase1.step4.fields.pebsFr')} / {t('phase1.step4.fields.pebsEn')}</div>
+                      <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 700 }}>{[hasPEBSFrancophone ? t('phase1.step4.fields.pebsFr') : '', hasPEBSAnglophone ? t('phase1.step4.fields.pebsEn') : ''].filter(value => value.length > 0).join(' · ')}</div>
                     </div>
                   )}
                   {previewData && (

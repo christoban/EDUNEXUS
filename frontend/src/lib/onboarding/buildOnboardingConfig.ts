@@ -81,7 +81,13 @@ export function buildOnboardingConfig(
     if (input.evalSystemPrimaire) cfg.evalSystemPrimaire = input.evalSystemPrimaire
   }
 
-  if (showTechnique(template)) {
+  const techniqueWanted = showTechnique(template) ||
+    (template.isComplexe && (
+      input.filieresTechniques.length > 0 ||
+      input.sarMetiers.length > 0 ||
+      input.cfmFilieres.length > 0
+    ))
+  if (techniqueWanted) {
     if (input.filieresTechniques.length) cfg.filieresTechniques = input.filieresTechniques
     if (input.sousTypeTechnique) cfg.sousTypeTechnique = input.sousTypeTechnique
     if (input.cetifMode) cfg.cetifMode = input.cetifMode

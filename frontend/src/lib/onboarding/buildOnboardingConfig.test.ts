@@ -113,4 +113,41 @@ describe('buildOnboardingConfig', () => {
 
     expect(templateDisplayName(bilingual, 'en')).toBe('Government Bilingual High School')
   })
+
+  it('conserve les filières techniques d’un complexe', () => {
+    const config = buildOnboardingConfig(entry({
+      code: 'COMPLEXE_SCOLAIRE',
+      name: 'Complexe Scolaire',
+      educationType: 'MIXED',
+      level: 'COMPLEX',
+      isComplexe: true,
+    }), { ...input, filieresTechniques: ['F1'] })
+
+    expect(config.filieresTechniques).toEqual(['F1'])
+  })
+
+  it('conserve le primaire d’un complexe', () => {
+    const config = buildOnboardingConfig(entry({
+      code: 'COMPLEXE_SCOLAIRE',
+      name: 'Complexe Scolaire',
+      educationType: 'MIXED',
+      level: 'COMPLEX',
+      isComplexe: true,
+    }), input)
+
+    expect(config.niveauxPrimaire).toEqual(['Class 1'])
+  })
+
+  it('ne transmet pas les filières techniques d’un GHS sans données techniques', () => {
+    const config = buildOnboardingConfig(entry({
+      code: 'GHS_EN',
+      name: 'Government High School',
+      subsystem: 'ANGLOPHONE',
+      hasPremierCycle: true,
+      hasDeuxiemeCycle: true,
+      langMode: 'anglophone',
+    }), input)
+
+    expect(config.filieresTechniques).toBeUndefined()
+  })
 })

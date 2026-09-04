@@ -142,6 +142,7 @@
       "offers": {
         "label": "Type d'enseignement proposé",
         "hint": "Cochez tout ce qui s'applique. Plusieurs cases = établissement à offre multiple.",
+        "complexHint": "Quels types d'enseignement le complexe propose-t-il ? (cochez tout ce qui s'applique)",
         "GENERAL": "Enseignement général",
         "TECHNICAL": "Enseignement technique",
         "PROFESSIONAL": "Enseignement professionnel"
@@ -173,6 +174,8 @@
         "levelFamily": "Veuillez choisir le niveau principal.",
         "offers": "Veuillez sélectionner au moins un type d'enseignement.",
         "secondarySpan": "Veuillez préciser jusqu'où va la scolarité.",
+        "technicalOffers": "Veuillez sélectionner au moins une filière technique.",
+        "professionalOffers": "Veuillez sélectionner au moins un métier ou une filière professionnelle.",
         "ownership": "Veuillez choisir le statut juridique.",
         "template": "Veuillez choisir le modèle d'établissement."
       },
@@ -481,6 +484,15 @@
         "filieres": "Filières",
         "a4Languages": "Langues A4",
         "techFilieres": "Filières techniques",
+        "primary": "Primaire",
+        "maternelle": "Maternelle",
+        "nursery": "Nursery",
+        "pebsFr": "PEBS francophone",
+        "pebsEn": "PEBS anglophone",
+        "streamsEn": "Streams anglophones",
+        "grading": "Système de notation",
+        "sarMetiers": "Métiers SAR / SM",
+        "cfmFilieres": "Filières CFM",
         "totalClasses": "Total classes"
       },
       "info": "Une fois soumis, votre dossier sera examiné sous 24-48h. Vous recevrez un email de confirmation."
