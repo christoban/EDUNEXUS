@@ -118,6 +118,64 @@
           }
         }
       },
+      "structure": {
+        "label": "School organisation",
+        "options": {
+          "MONO": {
+            "label": "One school type",
+            "desc": "For example, only a lycée, primary school or CETIC…"
+          },
+          "COMPLEX": {
+            "label": "School group / complex",
+            "desc": "Several cycles (nursery, primary, secondary…) under one structure"
+          }
+        }
+      },
+      "levelFamily": {
+        "label": "Main level",
+        "options": {
+          "MATERNELLE_NURSERY": { "label": "Nursery / Maternelle" },
+          "PRIMARY": { "label": "Primary / Primaire" },
+          "SECONDARY": { "label": "Secondary" }
+        }
+      },
+      "offers": {
+        "label": "Education offered",
+        "hint": "Select all that apply. Several choices mean a multi-offer school.",
+        "GENERAL": "General education",
+        "TECHNICAL": "Technical education",
+        "PROFESSIONAL": "Vocational education"
+      },
+      "secondarySpan": {
+        "label": "How far does schooling go?",
+        "TO_3E": "Up to 3e (CES)",
+        "TO_TLE": "Up to Terminale (Lycée)",
+        "TO_FORM5": "Through Form 5 (GSS)",
+        "TO_UPPER_SIXTH": "Through Upper Sixth (GHS)",
+        "TECH_1ER": "Technical first cycle (CETIC / GTC)",
+        "TECH_FULL": "Full technical cycle (Technical lycée / GTC + GTHS)",
+        "PRO_SAR": "SAR / Home economics section",
+        "PRO_CFM": "Vocational training centre (CFM)"
+      },
+      "modelSelect": {
+        "label": "School model",
+        "hint": "Choose the model that best matches your school. The suggestion is only a guide.",
+        "suggestion": "Suggestion",
+        "useSuggestion": "Use suggestion",
+        "empty": "No model matches. Check your answers above."
+      },
+      "templateSelect": {
+        "label": "School model"
+      },
+      "validation": {
+        "subsystem": "Please choose a subsystem.",
+        "structure": "Please choose the school organisation.",
+        "levelFamily": "Please choose the main level.",
+        "offers": "Please select at least one education type.",
+        "secondarySpan": "Please specify how far schooling goes.",
+        "ownership": "Please choose the legal status.",
+        "template": "Please choose the school model."
+      },
       "educationType": {
         "label": "Education type",
         "options": {

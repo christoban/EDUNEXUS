@@ -1,4 +1,17 @@
 import type { TemplateCatalogEntry, TemplateSubsystem, TemplateEducationType, TemplateLevel } from './templateCatalogTypes';
+import type { Phase1Profile } from './phase1Profile';
+import { resolveTemplateCandidates } from './resolveTemplateCandidates';
+
+export function templateDisplayName(
+  template: TemplateCatalogEntry,
+  lang: 'fr' | 'en',
+): string {
+  if (template.langMode === 'bilingual' || template.isComplexe) {
+    if (lang === 'en') return template.nameEn ?? template.name;
+    return template.nameFr ?? template.name;
+  }
+  return template.name;
+}
 
 export function filterTemplates(
   catalog: TemplateCatalogEntry[],
@@ -25,6 +38,13 @@ export function pickEffectiveTemplateCode(
   detected: string | null,
 ): string | null {
   return selected ?? detected;
+}
+
+export function suggestTemplateCode(
+  profile: Phase1Profile,
+  catalog: TemplateCatalogEntry[],
+): string | null {
+  return resolveTemplateCandidates(catalog, profile)[0]?.code ?? null;
 }
 
 // Pure detection — même heuristique que page.tsx, retourne code seul

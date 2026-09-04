@@ -5,6 +5,8 @@ export type TemplateLevel = 'PRIMARY' | 'SECONDARY' | 'COMPLEX';
 export interface TemplateCatalogEntry {
   code: string;
   name: string;
+  nameFr?: string;
+  nameEn?: string;
   subsystem: TemplateSubsystem;
   educationType: TemplateEducationType;
   level: TemplateLevel;

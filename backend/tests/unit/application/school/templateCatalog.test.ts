@@ -32,10 +32,26 @@ describe('templateCatalog', () => {
   });
 
   it('BILINGUAL et MIXED correctement typés', () => {
-    expect(findTemplateInCatalog('LYCEE_BILINGUE')!.subsystem).toBe('BILINGUAL');
-    expect(findTemplateInCatalog('COMPLEXE_SCOLAIRE')!.educationType).toBe('MIXED');
-    expect(findTemplateInCatalog('COMPLEXE_SCOLAIRE')!.level).toBe('COMPLEX');
-    expect(findTemplateInCatalog('COMPLEXE_SCOLAIRE')!.isComplexe).toBe(true);
+    const lyceeBilingue = findTemplateInCatalog('LYCEE_BILINGUE')!;
+    const primaryBilingual = findTemplateInCatalog('PRIMARY_BILINGUAL')!;
+    const complexe = findTemplateInCatalog('COMPLEXE_SCOLAIRE')!;
+
+    expect(lyceeBilingue.subsystem).toBe('BILINGUAL');
+    expect(lyceeBilingue.nameFr).toBeDefined();
+    expect(lyceeBilingue.nameEn).toBeDefined();
+    expect(primaryBilingual.nameFr).toBeDefined();
+    expect(primaryBilingual.nameEn).toBeDefined();
+    expect(complexe.nameFr).toBeDefined();
+    expect(complexe.nameEn).toBeDefined();
+    expect(complexe.educationType).toBe('MIXED');
+    expect(complexe.level).toBe('COMPLEX');
+    expect(complexe.isComplexe).toBe(true);
+  });
+
+  it('les templates mono-langue ne portent pas de double nom', () => {
+    const lyceeFr = findTemplateInCatalog('LYCEE_FR')!;
+    expect(lyceeFr.nameFr).toBeUndefined();
+    expect(lyceeFr.nameEn).toBeUndefined();
   });
 
   it('PRIVE_FR/PRIVE_EN ont ownershipHint privé', () => {

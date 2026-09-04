@@ -10,8 +10,11 @@ import {
   Lock, AlarmClock, PartyPopper, Eye, EyeOff,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import type { TemplateCatalogEntry, TemplateSubsystem, TemplateEducationType } from '@/lib/onboarding/templateCatalogTypes'
-import { filterTemplates, pickEffectiveTemplateCode, detectTemplateCode } from '@/lib/onboarding/templateSelection'
+import type { TemplateCatalogEntry } from '@/lib/onboarding/templateCatalogTypes'
+import { pickEffectiveTemplateCode, templateDisplayName, suggestTemplateCode } from '@/lib/onboarding/templateSelection'
+import { resolveTemplateCandidates } from '@/lib/onboarding/resolveTemplateCandidates'
+import type { LevelFamily, OfferFlag, Phase1Profile, SchoolStructure, SecondarySpan } from '@/lib/onboarding/phase1Profile'
+import { deriveEducationType } from '@/lib/onboarding/phase1Profile'
 import { showPremierCycle, showDeuxiemeCycle, showSeriesFr, showStreamsEn, showTechnique, showPrimaire, isPebsFrEligible, isPebsEnEligible } from '@/lib/onboarding/templateGates'
 import { buildOnboardingConfig } from '@/lib/onboarding/buildOnboardingConfig'
 
@@ -81,12 +84,6 @@ const SUBSYSTEM_KEYS = [
   { value: 'FRANCOPHONE', key: 'phase1.step1.subsystem.options.FRANCOPHONE.label', icon: Languages },
   { value: 'ANGLOPHONE',  key: 'phase1.step1.subsystem.options.ANGLOPHONE.label',  icon: Languages },
   { value: 'BILINGUAL',   key: 'phase1.step1.subsystem.options.BILINGUAL.label',   icon: Languages },
-]
-const EDUCATION_KEYS = [
-  { value: 'GENERAL',      key: 'phase1.step1.educationType.options.GENERAL.label',      icon: BookOpen },
-  { value: 'TECHNICAL',    key: 'phase1.step1.educationType.options.TECHNICAL.label',    icon: Settings },
-  { value: 'PROFESSIONAL', key: 'phase1.step1.educationType.options.PROFESSIONAL.label',  icon: Wrench },
-  { value: 'MIXED',        key: 'phase1.step1.educationType.options.MIXED.label',        icon: GraduationCap },
 ]
 const OWNERSHIP_KEYS = [
   { value: 'PUBLIC',          key: 'phase1.step1.ownership.options.PUBLIC.label',          icon: Landmark },
@@ -350,6 +347,10 @@ export default function OnboardingPage() {
   const [bilingualEnFilieres, setBilingualEnFilieres] = useState<string[]>([])
   const [templateCatalog, setTemplateCatalog] = useState<TemplateCatalogEntry[]>([])
   const [selectedTemplateCode, setSelectedTemplateCode] = useState<string | null>(null)
+  const [structure, setStructure] = useState<SchoolStructure | null>(null)
+  const [levelFamily, setLevelFamily] = useState<LevelFamily | null>(null)
+  const [offers, setOffers] = useState<OfferFlag[]>([])
+  const [secondarySpan, setSecondarySpan] = useState<SecondarySpan>(null)
 
   const t = useT('onboarding')
   const { lang: currentLang } = useLanguage()
@@ -383,19 +384,19 @@ export default function OnboardingPage() {
     }).catch(() => {})
   }, [])
 
-  const detectedCode = useMemo(() => detectTemplateCode(form), [form.subsystem, form.educationType, form.ownership, form.nom])
-  // Pré-sélection suggestion une seule fois
-  useEffect(() => {
-    if (selectedTemplateCode === null && detectedCode) {
-      // ne pas écraser si utilisateur a déjà choisi
-      // on pré-sélectionne seulement si pas encore choisi et catalogue chargé
-      if (templateCatalog.length > 0 && templateCatalog.some(t => t.code === detectedCode)) {
-        // ne pas auto-écraser après choix manuel — cet effet ne tourne que quand selected est null
-      }
-    }
-  }, [detectedCode, selectedTemplateCode, templateCatalog])
+  const profile = useMemo<Phase1Profile>(() => ({
+    subsystem: form.subsystem === 'FRANCOPHONE' || form.subsystem === 'ANGLOPHONE' || form.subsystem === 'BILINGUAL' ? form.subsystem : null,
+    structure,
+    levelFamily,
+    offers,
+    secondarySpan,
+    ownership: form.ownership === 'PUBLIC' || form.ownership === 'PRIVATE_SECULAR' || form.ownership === 'PRIVATE_FAITH' ? form.ownership : null,
+    selectedTemplateCode,
+  }), [form.subsystem, form.ownership, structure, levelFamily, offers, secondarySpan, selectedTemplateCode])
 
-  const effectiveCode = useMemo(() => pickEffectiveTemplateCode(selectedTemplateCode, detectedCode), [selectedTemplateCode, detectedCode])
+  const suggestedCode = useMemo(() => suggestTemplateCode(profile, templateCatalog), [profile, templateCatalog])
+
+  const effectiveCode = useMemo(() => pickEffectiveTemplateCode(selectedTemplateCode, suggestedCode), [selectedTemplateCode, suggestedCode])
   const catalogTemplate = useMemo(() => {
     if (!effectiveCode) return null
     return templateCatalog.find(t => t.code === effectiveCode) ?? null
@@ -404,20 +405,20 @@ export default function OnboardingPage() {
     return catalogTemplate
   }, [catalogTemplate])
 
-  const filteredTemplates = useMemo(() => {
-    if (templateCatalog.length === 0) return []
-    const validSubsystem = ['FRANCOPHONE', 'ANGLOPHONE', 'BILINGUAL'].includes(form.subsystem) ? form.subsystem as TemplateSubsystem : null
-    const validEducation = ['GENERAL', 'TECHNICAL', 'PROFESSIONAL', 'MIXED'].includes(form.educationType) ? form.educationType as TemplateEducationType : null
-    const validOwnership = ['PUBLIC', 'PRIVATE_SECULAR', 'PRIVATE_FAITH'].includes(form.ownership) ? form.ownership as 'PUBLIC' | 'PRIVATE_SECULAR' | 'PRIVATE_FAITH' : null
-    return filterTemplates(templateCatalog, {
-      subsystem: validSubsystem,
-      educationType: validEducation,
-      level: null,
-      ownership: validOwnership,
-    })
-  }, [templateCatalog, form.subsystem, form.educationType, form.ownership])
+  const filteredTemplates = useMemo(() => resolveTemplateCandidates(templateCatalog, profile), [templateCatalog, profile])
 
-  function setWithTemplateReset(k: 'subsystem' | 'educationType' | 'ownership') {
+  useEffect(() => {
+    setForm((current) => ({ ...current, educationType: deriveEducationType(offers) ?? (structure === 'COMPLEX' ? 'MIXED' : '') }))
+  }, [offers, structure])
+
+  useEffect(() => {
+    if (selectedTemplateCode !== null && !filteredTemplates.some((candidate) => candidate.code === selectedTemplateCode)) {
+      setSelectedTemplateCode(null)
+    }
+    if (levelFamily !== 'SECONDARY' && secondarySpan !== null) setSecondarySpan(null)
+  }, [filteredTemplates, selectedTemplateCode, levelFamily, secondarySpan])
+
+  function setWithTemplateReset(k: 'subsystem' | 'ownership') {
     return (v: string) => {
       setSelectedTemplateCode(null)
       setForm(f => ({ ...f, [k]: v }))
@@ -431,7 +432,6 @@ export default function OnboardingPage() {
   const previewTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   const subsystemOptions = useMemo(() => SUBSYSTEM_KEYS.map(k => ({ ...k, label: t(k.key) })), [t])
-  const educationOptions = useMemo(() => EDUCATION_KEYS.map(k => ({ ...k, label: t(k.key) })), [t])
   const ownershipOptions = useMemo(() => OWNERSHIP_KEYS.map(k => ({ ...k, label: t(k.key) })), [t])
   const conventionOptions = useMemo(() => CONVENTION_KEYS.map(k => ({ ...k, label: t(k.key), desc: t(k.descKey) })), [t])
 
@@ -608,6 +608,13 @@ export default function OnboardingPage() {
     if (!form.subdomain.trim()) return 'Le sous-domaine est requis.'
     if (!/^[a-z0-9-]+$/.test(form.subdomain)) return 'Le sous-domaine ne peut contenir que des lettres minuscules, chiffres et tirets.'
     if (form.subdomain.length < 3) return 'Le sous-domaine doit faire au moins 3 caractères.'
+    if (!profile.subsystem) return t('phase1.step1.validation.subsystem')
+    if (!profile.structure) return t('phase1.step1.validation.structure')
+    if (profile.structure === 'MONO' && !profile.levelFamily) return t('phase1.step1.validation.levelFamily')
+    if (profile.structure === 'MONO' && profile.offers.length === 0) return t('phase1.step1.validation.offers')
+    if (profile.levelFamily === 'SECONDARY' && profile.offers.length > 0 && profile.secondarySpan === null) return t('phase1.step1.validation.secondarySpan')
+    if (!profile.ownership) return t('phase1.step1.validation.ownership')
+    if (!effectiveCode || !templateCatalog.some((candidate) => candidate.code === effectiveCode)) return t('phase1.step1.validation.template')
     return ''
   }
 
@@ -729,15 +736,19 @@ export default function OnboardingPage() {
       })
       clearTimeout(timeout)
       const text = await res.text()
-      let data: any
+      let data: unknown
       try { data = JSON.parse(text) } catch { throw new Error(`Réponse non-JSON (HTTP ${res.status}): ${text.slice(0, 100)}`) }
-      if (!data.success) throw new Error(data.message || 'Erreur lors de la soumission.')
+      if (typeof data !== 'object' || data === null || !('success' in data)) {
+        throw new Error('Réponse invalide du serveur.')
+      }
+      const responseMessage = 'message' in data && typeof data.message === 'string' ? data.message : 'Erreur lors de la soumission.'
+      if (data.success !== true) throw new Error(responseMessage)
       setDone(true)
-    } catch (e: any) {
+    } catch (e: unknown) {
       clearTimeout(timeout)
-      const msg = e?.name === 'AbortError'
+      const msg = e instanceof DOMException && e.name === 'AbortError'
         ? 'La requête a pris trop de temps (>30s). Vérifiez votre connexion et réessayez.'
-        : (e?.message || 'Erreur réseau. Vérifiez votre connexion et réessayez.')
+        : (e instanceof Error ? e.message : 'Erreur réseau. Vérifiez votre connexion et réessayez.')
       setSubmitError(msg)
       setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
     } finally {
@@ -940,12 +951,86 @@ export default function OnboardingPage() {
             </Field>
 
             <Field label={t('phase1.step1.subsystem.label')} required>
-              <RadioCards options={subsystemOptions} value={form.subsystem} onChange={setWithTemplateReset('subsystem')} />
+              <RadioCards options={subsystemOptions} value={form.subsystem} onChange={(value) => {
+                setSelectedTemplateCode(null)
+                setStructure(null)
+                setLevelFamily(null)
+                setOffers([])
+                setSecondarySpan(null)
+                setWithTemplateReset('subsystem')(value)
+              }} />
             </Field>
 
-            <Field label={t('phase1.step1.educationType.label')} required>
-              <RadioCards options={educationOptions} value={form.educationType} onChange={setWithTemplateReset('educationType')} />
-            </Field>
+            {form.subsystem && (
+              <Field label={t('phase1.step1.structure.label')} required>
+                <RadioCards options={[
+                  { value: 'MONO', label: t('phase1.step1.structure.options.MONO.label'), icon: School },
+                  { value: 'COMPLEX', label: t('phase1.step1.structure.options.COMPLEX.label'), icon: GraduationCap },
+                ]} value={structure ?? ''} onChange={(value) => {
+                  const next = value as SchoolStructure
+                  setStructure(next)
+                  setSelectedTemplateCode(null)
+                  if (next === 'COMPLEX') {
+                    setLevelFamily(null)
+                    setSecondarySpan(null)
+                  }
+                }} />
+                <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 5, fontWeight: 600 }}>
+                  {structure === 'COMPLEX' ? t('phase1.step1.structure.options.COMPLEX.desc') : structure === 'MONO' ? t('phase1.step1.structure.options.MONO.desc') : ''}
+                </div>
+              </Field>
+            )}
+
+            {structure === 'MONO' && (
+              <Field label={t('phase1.step1.levelFamily.label')} required>
+                <RadioCards options={[
+                  { value: 'MATERNELLE_NURSERY', label: t('phase1.step1.levelFamily.options.MATERNELLE_NURSERY.label'), icon: School },
+                  { value: 'PRIMARY', label: t('phase1.step1.levelFamily.options.PRIMARY.label'), icon: BookOpen },
+                  { value: 'SECONDARY', label: t('phase1.step1.levelFamily.options.SECONDARY.label'), icon: GraduationCap },
+                ]} value={levelFamily ?? ''} onChange={(value) => {
+                  setLevelFamily(value as LevelFamily)
+                  setSecondarySpan(null)
+                  setSelectedTemplateCode(null)
+                }} />
+              </Field>
+            )}
+
+            {structure === 'MONO' && (
+              <Field label={t('phase1.step1.offers.label')} required>
+                <CheckboxGroup
+                  options={(['GENERAL', 'TECHNICAL', 'PROFESSIONAL'] as OfferFlag[]).map((offer) => ({ value: offer, label: t(`phase1.step1.offers.${offer}`) }))}
+                  values={offers}
+                  onChange={(values) => {
+                    const nextOffers = values as OfferFlag[]
+                    setOffers(nextOffers)
+                    setSecondarySpan(null)
+                    setSelectedTemplateCode(null)
+                  }}
+                  note={t('phase1.step1.offers.hint')}
+                />
+              </Field>
+            )}
+
+            {structure === 'MONO' && levelFamily === 'SECONDARY' && offers.length > 0 && (
+              <Field label={t('phase1.step1.secondarySpan.label')} required>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {(offers.includes('GENERAL') ? (form.subsystem === 'FRANCOPHONE'
+                    ? [{ value: 'TO_3E', label: t('phase1.step1.secondarySpan.TO_3E') }, { value: 'TO_TLE', label: t('phase1.step1.secondarySpan.TO_TLE') }]
+                    : form.subsystem === 'ANGLOPHONE'
+                      ? [{ value: 'TO_FORM5', label: t('phase1.step1.secondarySpan.TO_FORM5') }, { value: 'TO_UPPER_SIXTH', label: t('phase1.step1.secondarySpan.TO_UPPER_SIXTH') }]
+                      : [{ value: 'TO_TLE', label: t('phase1.step1.secondarySpan.TO_TLE') }])
+                    : []).concat(offers.includes('TECHNICAL') ? (form.subsystem === 'FRANCOPHONE'
+                      ? [{ value: 'TECH_1ER', label: t('phase1.step1.secondarySpan.TECH_1ER') }, { value: 'TECH_FULL', label: t('phase1.step1.secondarySpan.TECH_FULL') }]
+                      : [{ value: 'TECH_1ER', label: t('phase1.step1.secondarySpan.TECH_1ER') }, { value: 'TECH_FULL', label: t('phase1.step1.secondarySpan.TECH_FULL') }])
+                      : []).concat(offers.includes('PROFESSIONAL') ? [{ value: 'PRO_SAR', label: t('phase1.step1.secondarySpan.PRO_SAR') }, { value: 'PRO_CFM', label: t('phase1.step1.secondarySpan.PRO_CFM') }] : []).map((option) => (
+                    <button key={option.value} type="button" onClick={() => { setSecondarySpan(option.value as SecondarySpan); setSelectedTemplateCode(null) }}
+                      style={{ padding: '9px 12px', border: `2px solid ${secondarySpan === option.value ? 'var(--green)' : 'var(--border2)'}`, borderRadius: 10, background: secondarySpan === option.value ? 'rgba(5,150,105,0.07)' : 'white', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, color: secondarySpan === option.value ? 'var(--green2)' : 'var(--text2)', textAlign: 'left' }}>
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </Field>
+            )}
 
             <Field label={t('phase1.step1.ownership.label')} required>
               <RadioCards options={ownershipOptions} value={form.ownership} onChange={setWithTemplateReset('ownership')} />
@@ -961,7 +1046,7 @@ export default function OnboardingPage() {
                   {t('phase1.step1.templateDetected.title')}
                 </div>
                 <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--green2)' }}>
-                  {template.name}
+                  {templateDisplayName(template, currentLang === 'en' ? 'en' : 'fr')}
                 </div>
 
                 {/* Discriminating question: CES_FR vs LYCEE_FR */}
@@ -1028,7 +1113,7 @@ export default function OnboardingPage() {
 
             {/* Catalogue template — sélection explicite (source backend) */}
             {templateCatalog.length > 0 && (
-              <Field label={t('phase1.step1.templateSelect.label') ?? 'Template — choix explicite'}>
+              <Field label={t('phase1.step1.modelSelect.label')}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                   {filteredTemplates.map(tmpl => {
                     const active = effectiveCode === tmpl.code
@@ -1040,21 +1125,21 @@ export default function OnboardingPage() {
                           cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
                           color: active ? 'var(--green2)' : 'var(--text2)', textAlign: 'left',
                         }}>
-                        <div>{tmpl.name}</div>
+                        <div>{templateDisplayName(tmpl, currentLang === 'en' ? 'en' : 'fr')}</div>
                         <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 600 }}>{tmpl.code} · {tmpl.subsystem} · {tmpl.educationType}</div>
                       </button>
                     )
                   })}
                 </div>
                 {filteredTemplates.length === 0 && (
-                  <div style={{ fontSize: 13, color: 'var(--text3)', fontStyle: 'italic', marginTop: 6 }}>Aucun template ne correspond aux filtres.</div>
+                  <div style={{ fontSize: 13, color: 'var(--text3)', fontStyle: 'italic', marginTop: 6 }}>{t('phase1.step1.modelSelect.empty')}</div>
                 )}
-                {selectedTemplateCode === null && detectedCode && templateCatalog.some(t => t.code === detectedCode) && (
+                {selectedTemplateCode === null && suggestedCode && templateCatalog.some(t => t.code === suggestedCode) && (
                   <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text2)' }}>
-                    Suggestion : <strong>{templateCatalog.find(t => t.code === detectedCode)?.name}</strong>
-                    <button type="button" onClick={() => setSelectedTemplateCode(detectedCode!)}
+                    {t('phase1.step1.modelSelect.suggestion')} : <strong>{templateDisplayName(templateCatalog.find(t => t.code === suggestedCode)!, currentLang === 'en' ? 'en' : 'fr')}</strong>
+                    <button type="button" onClick={() => setSelectedTemplateCode(suggestedCode)}
                       style={{ marginLeft: 8, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--green)', background: 'var(--green)', color: 'white', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>
-                      Utiliser la suggestion
+                      {t('phase1.step1.modelSelect.useSuggestion')}
                     </button>
                   </div>
                 )}
@@ -1188,7 +1273,7 @@ export default function OnboardingPage() {
                   {t('phase1.step3.templateDetected.title')}
                 </div>
                 <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--green2)' }}>
-                  {template.name}
+                  {templateDisplayName(template, currentLang === 'en' ? 'en' : 'fr')}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 4 }}>
                   {t('phase1.step3.templateDetected.hint')}
@@ -2269,7 +2354,7 @@ export default function OnboardingPage() {
                   borderRadius: 12, padding: '14px 16px',
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 16, fontWeight: 800, color: 'var(--text)', marginBottom: 10 }}>
-                    <School size={16} strokeWidth={2} /> {template.name}
+                    <School size={16} strokeWidth={2} /> {templateDisplayName(template, currentLang === 'en' ? 'en' : 'fr')}
                   </div>
 
                   {previewLoading && (
@@ -2384,9 +2469,9 @@ export default function OnboardingPage() {
                 {[
                   { labelKey: 'phase1.step4.fields.name', val: form.nom },
                   { labelKey: 'phase1.step4.fields.subdomain', val: `zekoulabia.cm/${form.subdomain}` },
-                  { labelKey: 'phase1.step4.fields.template', val: template?.name ?? '—' },
+                  { labelKey: 'phase1.step4.fields.template', val: template ? templateDisplayName(template, currentLang === 'en' ? 'en' : 'fr') : '—' },
                   { labelKey: 'phase1.step4.fields.subsystem', val: subsystemOptions.find(o => o.value === form.subsystem)?.label ?? form.subsystem },
-                  { labelKey: 'phase1.step4.fields.education', val: educationOptions.find(o => o.value === form.educationType)?.label ?? form.educationType },
+                  { labelKey: 'phase1.step4.fields.education', val: form.educationType ? t(`phase1.step1.educationType.options.${form.educationType}.label`) : '—' },
                   { labelKey: 'phase1.step4.fields.ownership', val: ownershipOptions.find(o => o.value === form.ownership)?.label ?? form.ownership },
                   { labelKey: 'phase1.step4.fields.city', val: form.ville || '—' },
                   { labelKey: 'phase1.step4.fields.region', val: form.region || '—' },
@@ -2426,7 +2511,7 @@ export default function OnboardingPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 20px' }}>
                   <div>
                     <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 700, textTransform: 'uppercase' }}>{t('phase1.step4.fields.template')}</div>
-                    <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 700 }}>{template.name}</div>
+                    <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 700 }}>{templateDisplayName(template, currentLang === 'en' ? 'en' : 'fr')}</div>
                   </div>
                   {template.hasPremierCycle && (
                     <>

@@ -118,6 +118,64 @@
           }
         }
       },
+      "structure": {
+        "label": "Organisation de l'établissement",
+        "options": {
+          "MONO": {
+            "label": "Un seul type d'établissement",
+            "desc": "Ex. uniquement un lycée, une primaire, un CETIC…"
+          },
+          "COMPLEX": {
+            "label": "Groupe / complexe scolaire",
+            "desc": "Plusieurs cycles (maternelle, primaire, secondaire…) sous la même structure"
+          }
+        }
+      },
+      "levelFamily": {
+        "label": "Niveau principal",
+        "options": {
+          "MATERNELLE_NURSERY": { "label": "Maternelle / Nursery" },
+          "PRIMARY": { "label": "Primaire / Primary" },
+          "SECONDARY": { "label": "Secondaire / Secondary" }
+        }
+      },
+      "offers": {
+        "label": "Type d'enseignement proposé",
+        "hint": "Cochez tout ce qui s'applique. Plusieurs cases = établissement à offre multiple.",
+        "GENERAL": "Enseignement général",
+        "TECHNICAL": "Enseignement technique",
+        "PROFESSIONAL": "Enseignement professionnel"
+      },
+      "secondarySpan": {
+        "label": "Jusqu'où va la scolarité ?",
+        "TO_3E": "Jusqu'à la 3ᵉ (CES)",
+        "TO_TLE": "Jusqu'à la Terminale (Lycée)",
+        "TO_FORM5": "Jusqu'à Form 5 (GSS)",
+        "TO_UPPER_SIXTH": "Jusqu'à Upper Sixth (GHS)",
+        "TECH_1ER": "1er cycle technique (CETIC / GTC)",
+        "TECH_FULL": "Cycle technique complet (Lycée technique / GTC + GTHS)",
+        "PRO_SAR": "SAR / Section ménagère",
+        "PRO_CFM": "Centre de formation aux métiers (CFM)"
+      },
+      "modelSelect": {
+        "label": "Modèle d'établissement",
+        "hint": "Choisissez le modèle qui correspond le mieux. La suggestion n'est qu'une aide.",
+        "suggestion": "Suggestion",
+        "useSuggestion": "Utiliser la suggestion",
+        "empty": "Aucun modèle ne correspond. Vérifiez vos réponses ci-dessus."
+      },
+      "templateSelect": {
+        "label": "Modèle d'établissement"
+      },
+      "validation": {
+        "subsystem": "Veuillez choisir un sous-système.",
+        "structure": "Veuillez choisir l'organisation de l'établissement.",
+        "levelFamily": "Veuillez choisir le niveau principal.",
+        "offers": "Veuillez sélectionner au moins un type d'enseignement.",
+        "secondarySpan": "Veuillez préciser jusqu'où va la scolarité.",
+        "ownership": "Veuillez choisir le statut juridique.",
+        "template": "Veuillez choisir le modèle d'établissement."
+      },
       "educationType": {
         "label": "Type d'enseignement",
         "options": {
