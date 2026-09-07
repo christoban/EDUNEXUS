@@ -4,10 +4,11 @@
  * Source : Spécification ZekoulABia + terrain Cameroun
  *
  * ─── Règle de nommage ────────────────────────────────────────────────────────
- *   Titres FR    → utilisés dans les templates francophones
+ *   Titres FR    → utilisés dans les templates francophones 
  *   Titres EN    → utilisés dans les templates anglophones
  *   Titres MIXTE → utilisés dans les templates bilingues (les deux sections)
  */
+
 import type { StaffPermissionType, TemplateMeta } from '@domain/types/enums';
 
 // ─── Mapping titre → permissions ──────────────────────────────────────────────
@@ -39,6 +40,7 @@ export const PERMISSIONS_PAR_TITRE: Record<string, StaffPermissionType[]> = {
   'Documentaliste': ['MANAGE_LIBRARY'],
   "Conseiller d'Orientation": ['MANAGE_ORIENTATION'],
   'Comptable-Matières': ['MANAGE_PATRIMOINE', 'MANAGE_DEGRADATIONS'],
+  'Secrétaire': ['MANAGE_ENROLLMENT', 'GENERATE_REPORTS'],
 
   // ── Technique francophone (en plus du pool secondaire FR) ──────────────────
   'Chef des Travaux': [
@@ -78,6 +80,7 @@ export const PERMISSIONS_PAR_TITRE: Record<string, StaffPermissionType[]> = {
   ],
   'Librarian': ['MANAGE_LIBRARY'],
   'Guidance Counsellor': ['MANAGE_ORIENTATION'],
+  'School Secretary': ['MANAGE_ENROLLMENT', 'GENERATE_REPORTS'],
 
   // ── Primaire anglophone ─────────────────────────────────────────────────────
   'Deputy Head Teacher': [
@@ -104,6 +107,7 @@ export type StaffTitleDef = {
 };
 
 const FR_SECONDARY_TITLES: StaffTitleDef[] = [
+  { key: 'Secrétaire',                 label: 'Secrétaire',                         permissions: PERMISSIONS_PAR_TITRE['Secrétaire'] },
   { key: 'Censeur',                 label: 'Censeur',                           permissions: PERMISSIONS_PAR_TITRE['Censeur'] },
   { key: 'Surveillant Général',     label: 'Surveillant Général',               permissions: PERMISSIONS_PAR_TITRE['Surveillant Général'] },
   { key: 'Intendant',               label: 'Intendant',                         permissions: PERMISSIONS_PAR_TITRE['Intendant'] },
@@ -114,6 +118,7 @@ const FR_SECONDARY_TITLES: StaffTitleDef[] = [
 ];
 
 const FR_TECHNIQUE_TITLES: StaffTitleDef[] = [
+  { key: 'Secrétaire',                 label: 'Secrétaire',                         permissions: PERMISSIONS_PAR_TITRE['Secrétaire'] },
   { key: 'Censeur',                 label: 'Censeur',                           permissions: PERMISSIONS_PAR_TITRE['Censeur'] },
   { key: 'Chef des Travaux',        label: 'Chef des Travaux',                  permissions: PERMISSIONS_PAR_TITRE['Chef des Travaux'] },
   { key: 'Surveillant Général',     label: 'Surveillant Général',               permissions: PERMISSIONS_PAR_TITRE['Surveillant Général'] },
@@ -124,6 +129,7 @@ const FR_TECHNIQUE_TITLES: StaffTitleDef[] = [
 ];
 
 const FR_PRIMAIRE_TITLES: StaffTitleDef[] = [
+  { key: 'Secrétaire',                 label: 'Secrétaire',                         permissions: PERMISSIONS_PAR_TITRE['Secrétaire'] },
   { key: 'Directeur Adjoint',       label: 'Directeur(trice) Adjoint(e)',       permissions: PERMISSIONS_PAR_TITRE['Directeur Adjoint'] },
   { key: 'Économe',                 label: 'Économe / Intendant',               permissions: PERMISSIONS_PAR_TITRE['Économe'] },
   { key: 'Conseiller Pédagogique',  label: 'Conseiller(ère) Pédagogique',       permissions: PERMISSIONS_PAR_TITRE['Conseiller Pédagogique'] },
@@ -131,6 +137,7 @@ const FR_PRIMAIRE_TITLES: StaffTitleDef[] = [
 ];
 
 const EN_SECONDARY_TITLES: StaffTitleDef[] = [
+  { key: 'School Secretary',          label: 'School Secretary',                   permissions: PERMISSIONS_PAR_TITRE['School Secretary'] },
   { key: 'Vice-Principal',          label: 'Vice-Principal',                    permissions: PERMISSIONS_PAR_TITRE['Vice-Principal'] },
   { key: 'Discipline Master',       label: 'Discipline Master',                 permissions: PERMISSIONS_PAR_TITRE['Discipline Master'] },
   { key: 'Bursar',                  label: 'Bursar',                            permissions: PERMISSIONS_PAR_TITRE['Bursar'] },
@@ -140,6 +147,7 @@ const EN_SECONDARY_TITLES: StaffTitleDef[] = [
 ];
 
 const EN_PRIMARY_TITLES: StaffTitleDef[] = [
+  { key: 'School Secretary',          label: 'School Secretary',                   permissions: PERMISSIONS_PAR_TITRE['School Secretary'] },
   { key: 'Deputy Head Teacher',     label: 'Deputy Head Teacher',               permissions: PERMISSIONS_PAR_TITRE['Deputy Head Teacher'] },
   { key: 'Bursar',                  label: 'Bursar',                            permissions: PERMISSIONS_PAR_TITRE['Bursar'] },
   { key: 'Librarian',               label: 'Librarian / Teacher-Librarian',     permissions: PERMISSIONS_PAR_TITRE['Librarian'] },
@@ -148,6 +156,8 @@ const EN_PRIMARY_TITLES: StaffTitleDef[] = [
 
 // Bilingue secondaire : les deux sections cohabitent dans le même établissement
 const BILINGUAL_SECONDARY_TITLES: StaffTitleDef[] = [
+  { key: 'Secrétaire',                 label: 'Secrétaire / School Secretary',     permissions: PERMISSIONS_PAR_TITRE['Secrétaire'] },
+  { key: 'School Secretary',          label: 'School Secretary / Secrétaire',     permissions: PERMISSIONS_PAR_TITRE['School Secretary'] },
   { key: 'Censeur',                 label: 'Censeur (section FR)',               permissions: PERMISSIONS_PAR_TITRE['Censeur'] },
   { key: 'Vice-Principal',          label: 'Vice-Principal (EN section)',        permissions: PERMISSIONS_PAR_TITRE['Vice-Principal'] },
   { key: 'Surveillant Général',     label: 'Surveillant Général',               permissions: PERMISSIONS_PAR_TITRE['Surveillant Général'] },
@@ -160,6 +170,8 @@ const BILINGUAL_SECONDARY_TITLES: StaffTitleDef[] = [
 ];
 
 const BILINGUAL_PRIMARY_TITLES: StaffTitleDef[] = [
+  { key: 'Secrétaire',                 label: 'Secrétaire / School Secretary',     permissions: PERMISSIONS_PAR_TITRE['Secrétaire'] },
+  { key: 'School Secretary',          label: 'School Secretary / Secrétaire',     permissions: PERMISSIONS_PAR_TITRE['School Secretary'] },
   { key: 'Directeur Adjoint',       label: 'Directeur(trice) Adjoint(e) / Deputy Head', permissions: PERMISSIONS_PAR_TITRE['Directeur Adjoint'] },
   { key: 'Économe',                 label: 'Économe / Bursar',                  permissions: PERMISSIONS_PAR_TITRE['Économe'] },
   { key: 'Documentaliste',          label: 'Documentaliste / Librarian',        permissions: PERMISSIONS_PAR_TITRE['Documentaliste'] },
