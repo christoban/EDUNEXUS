@@ -600,3 +600,23 @@ export async function notifyOnboardingActivatedSmsOnly(opts: {
     console.error('[SMS Onboarding Activé (SMS_ONLY)] Erreur inattendue:', err)
   }
 }
+
+export async function notifyCredentialsSms(opts: {
+  schoolId: string
+  phone: string | null
+  roleLabel: string
+  loginIdentifier: string
+  temporaryPassword: string
+}): Promise<void> {
+  try {
+    if (!opts.phone) return
+    await dispatchSms(
+      opts.schoolId,
+      opts.phone,
+      `ZekoulABia - ${opts.roleLabel}. Login: ${opts.loginIdentifier}. Mot de passe temporaire: ${opts.temporaryPassword}. Changez-le à la première connexion.`,
+      'ONBOARDING',
+    )
+  } catch (err) {
+    console.error('[SMS Identifiants] Erreur inattendue:', err)
+  }
+}

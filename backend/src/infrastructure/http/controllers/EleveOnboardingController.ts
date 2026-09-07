@@ -154,7 +154,11 @@ export class EleveOnboardingController {
       const { classId } = req.body as { classId?: string };
 
       const result = await this._valider.execute({ schoolId, onboardingId, validatedById, validatorRole, classId });
-      res.json({ success: true, data: result });
+      const data = {
+        ...result,
+        comptesCrees: result.comptesCrees.map(({ temporaryPassword: _temporaryPassword, dispositifOS: _dispositifOS, ...compte }) => compte),
+      };
+      res.json({ success: true, data });
       const school = await this.schoolRepository.findById(schoolId);
       void notifierOnboardingValidationAvecEcole(schoolId, school?.name ?? null, school?.subdomain ?? null, result);
     } catch (err) { next(err); }

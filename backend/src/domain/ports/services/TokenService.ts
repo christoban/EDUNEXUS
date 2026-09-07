@@ -9,6 +9,7 @@ export interface PayloadToken {
   schoolId: string;
   role: UserRole;
   permissions: StaffPermissionType[];
+  mustChangePassword?: boolean;
   tokenType: 'access' | 'refresh';
   refreshTokenVersion?: number;
 }

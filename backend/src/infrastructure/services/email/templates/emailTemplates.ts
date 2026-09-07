@@ -245,3 +245,22 @@ export const buildOnboardingPasswordSetupTemplate = (payload: {
 
   return { subject, html: shell(subject, isFr ? "Configuration du compte" : "Account setup", body), text };
 };
+
+export const buildCredentialsTemplate = (payload: {
+  roleLabel: string;
+  loginIdentifier: string;
+  temporaryPassword: string;
+  language?: Language;
+}) => {
+  const { roleLabel, loginIdentifier, temporaryPassword, language = "fr" } = payload;
+  const isFr = language === "fr";
+  const subject = isFr ? `Vos identifiants ZEKOULABIA - ${roleLabel}` : `Your ZEKOULABIA credentials - ${roleLabel}`;
+  const body = isFr
+    ? `<p>Bonjour,</p><p>Votre compte <strong>${roleLabel}</strong> ZEKOULABIA est prêt.</p><p>Identifiant : <strong>${loginIdentifier}</strong><br />Mot de passe temporaire : <strong>${temporaryPassword}</strong></p><p>Vous devez modifier ce mot de passe lors de votre première connexion.</p>`
+    : `<p>Hello,</p><p>Your ZEKOULABIA <strong>${roleLabel}</strong> account is ready.</p><p>Login: <strong>${loginIdentifier}</strong><br />Temporary password: <strong>${temporaryPassword}</strong></p><p>You must change this password on your first login.</p>`;
+  const text = isFr
+    ? `Votre compte ZEKOULABIA (${roleLabel}) est prêt. Identifiant: ${loginIdentifier}. Mot de passe temporaire: ${temporaryPassword}. Changez-le à la première connexion.`
+    : `Your ZEKOULABIA account (${roleLabel}) is ready. Login: ${loginIdentifier}. Temporary password: ${temporaryPassword}. Change it on your first login.`;
+
+  return { subject, html: shell(subject, isFr ? "Identifiants de connexion" : "Login credentials", body), text };
+};

@@ -33,6 +33,7 @@ export interface PendingLoginPayload {
   role: string;
   permissions: string[];
   nomComplet: string;
+  mustChangePassword: boolean;
   roleMismatch: boolean;
   redirectTo?: string | null;
   tokenType: 'pending_login' | 'pending_mfa' | 'pending_mfa_setup';
@@ -94,6 +95,7 @@ export function issueFinalSession(
     userId: payload.userId,
     role: payload.role,
     permissions: payload.permissions,
+    mustChangePassword: payload.mustChangePassword,
     nomComplet: payload.nomComplet,
     roleMismatch: payload.roleMismatch,
     redirectTo: payload.redirectTo ?? null,

@@ -1,6 +1,6 @@
 import type { PrismaClient, Prisma } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import { randomBytes, createHash } from 'crypto';
+import { generateTemporaryPassword } from '@domain/services/PasswordGenerator';
 import type {
   EleveOnboardingRepository,
   OnboardingSettings,
@@ -10,14 +10,6 @@ import type {
   ValiderOnboardingCompteResultat,
 } from '@domain/ports/repositories/EleveOnboardingRepository';
 import type { OnboardingRecipient, OnboardingSource } from '@domain/types/enums';
-
-const RESET_TOKEN_VALIDITY_MS = 7 * 24 * 60 * 60 * 1000;
-
-function genererIdentifiants() {
-  const resetToken = randomBytes(32).toString('hex');
-  const resetTokenHash = createHash('sha256').update(resetToken).digest('hex');
-  return { resetToken, resetTokenHash, resetTokenExpiry: new Date(Date.now() + RESET_TOKEN_VALIDITY_MS) };
-}
 
 export class PrismaEleveOnboardingRepository implements EleveOnboardingRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -173,6 +165,7 @@ export class PrismaEleveOnboardingRepository implements EleveOnboardingRepositor
 
   async validerOnboarding(input: ValiderOnboardingInput): Promise<{ studentProfileId: string; comptesCrees: ValiderOnboardingCompteResultat[] }> {
     const { studentProfile, comptesCrees } = await this.prisma.$transaction(async (tx) => {
+      const studentTemporaryPassword = generateTemporaryPassword();
       const studentUser = await tx.user.create({
         data: {
           schoolId: input.schoolId,
@@ -181,9 +174,8 @@ export class PrismaEleveOnboardingRepository implements EleveOnboardingRepositor
           lastName: input.nom,
           email: input.eleveContactEmail,
           phone: input.eleveContactTelephone,
-          passwordHash: input.studentPasswordHash,
-          resetPasswordToken: input.studentResetTokenHash,
-          resetPasswordTokenExpiry: input.studentResetTokenExpiry,
+          passwordHash: await bcrypt.hash(studentTemporaryPassword, 10),
+          mustChangePassword: true,
           accessMode: input.eleveAccessMode,
           isActive: true,
         },
@@ -216,7 +208,8 @@ export class PrismaEleveOnboardingRepository implements EleveOnboardingRepositor
       const comptesCrees: ValiderOnboardingCompteResultat[] = [{
         role: 'STUDENT',
         userId: studentUser.id,
-        resetToken: input.studentResetToken,
+        temporaryPassword: studentTemporaryPassword,
+        dispositifOS: input.eleveDispositifOS,
         contactEmail: input.eleveContactEmail,
         contactTelephone: input.eleveContactTelephone,
         compteExistant: false,
@@ -235,18 +228,18 @@ export class PrismaEleveOnboardingRepository implements EleveOnboardingRepositor
 
         let parentProfileId: string;
         let parentUserId: string;
-        let parentReset: ReturnType<typeof genererIdentifiants> | null;
+        let parentTemporaryPassword: string | null = null;
         let compteExistant: boolean;
 
         if (existingParentUser) {
           const existingProfile = await tx.parentProfile.findUnique({ where: { userId: existingParentUser.id } });
           parentProfileId = existingProfile!.id;
           parentUserId = existingParentUser.id;
-          parentReset = null;
+          parentTemporaryPassword = null;
           compteExistant = true;
         } else {
-          parentReset = input.parentAccessMode === 'FULL_ACCESS' ? genererIdentifiants() : null;
-          const parentPassword = await bcrypt.hash(randomBytes(24).toString('hex'), 10);
+          parentTemporaryPassword = generateTemporaryPassword();
+          const parentPassword = await bcrypt.hash(parentTemporaryPassword, 10);
           const parentUser = await tx.user.create({
             data: {
               schoolId: input.schoolId,
@@ -256,8 +249,7 @@ export class PrismaEleveOnboardingRepository implements EleveOnboardingRepositor
               email: input.parentContactEmail,
               phone: input.parentContactTelephone,
               passwordHash: parentPassword,
-              resetPasswordToken: parentReset?.resetTokenHash ?? null,
-              resetPasswordTokenExpiry: parentReset?.resetTokenExpiry ?? null,
+              mustChangePassword: true,
               accessMode: input.parentAccessMode,
               isActive: true,
             },
@@ -275,7 +267,8 @@ export class PrismaEleveOnboardingRepository implements EleveOnboardingRepositor
         comptesCrees.push({
           role: 'PARENT',
           userId: parentUserId,
-          resetToken: parentReset?.resetToken ?? null,
+          temporaryPassword: parentTemporaryPassword,
+          dispositifOS: input.parentDispositifOS,
           contactEmail: input.parentContactEmail,
           contactTelephone: input.parentContactTelephone,
           compteExistant,

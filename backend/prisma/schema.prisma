@@ -546,6 +546,7 @@ model User {
   lastName                        String
   avatarUrl                       String?
   isActive                        Boolean                    @default(true)
+  mustChangePassword              Boolean                    @default(false)
   // Défaut FULL_ACCESS. SMS_ONLY : compte créé (grades/présence/etc. fonctionnent normalement)
   // mais aucun lien d'activation/notification n'est jamais envoyé — la seule famille n'a pas de
   // smartphone du tout (Axe 2, Plan_Diversite_Numerique). Orthogonal à recipientType, qui

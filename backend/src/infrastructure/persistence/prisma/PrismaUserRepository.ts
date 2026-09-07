@@ -30,7 +30,7 @@ export class PrismaUserRepository implements UserRepository {
     return bcrypt.compare(plain, hash);
   }
   private baseUserData(d: ReturnType<User['toObject']>) {
-    return { id: d.id, schoolId: d.schoolId, role: d.role, email: d.email, phone: d.phone, firstName: d.firstName, lastName: d.lastName, avatarUrl: d.avatarUrl, isActive: d.isActive, refreshTokenVersion: d.refreshTokenVersion, createdAt: d.createdAt, updatedAt: d.updatedAt };
+    return { id: d.id, schoolId: d.schoolId, role: d.role, email: d.email, phone: d.phone, firstName: d.firstName, lastName: d.lastName, avatarUrl: d.avatarUrl, isActive: d.isActive, mustChangePassword: d.mustChangePassword, refreshTokenVersion: d.refreshTokenVersion, createdAt: d.createdAt, updatedAt: d.updatedAt };
   }
 
   async findById(id: string): Promise<User | null> { return this.findDomain({ id }); }
@@ -230,7 +230,7 @@ export class PrismaUserRepository implements UserRepository {
   }
 
   async findAuthDataById(id: string): Promise<AuthUserData | null> {
-    return this.prisma.user.findUnique({ where: { id }, select: { id: true, email: true, isActive: true, loginEmailOtpHash: true, loginEmailOtpExpiresAt: true, loginEmailOtpAttempts: true, mfaEnabled: true, mfaSecret: true, mfaTempSecret: true, mfaRecoveryCodeHashes: true } });
+    return this.prisma.user.findUnique({ where: { id }, select: { id: true, email: true, isActive: true, mustChangePassword: true, loginEmailOtpHash: true, loginEmailOtpExpiresAt: true, loginEmailOtpAttempts: true, mfaEnabled: true, mfaSecret: true, mfaTempSecret: true, mfaRecoveryCodeHashes: true } });
   }
 
   async saveLoginEmailOtp(id: string, data: { hash: string; expiresAt: Date }): Promise<void> { await this.patchUser(id, { loginEmailOtpHash: data.hash, loginEmailOtpExpiresAt: data.expiresAt, loginEmailOtpAttempts: 0, loginEmailOtpSentAt: new Date() }); }
@@ -254,18 +254,18 @@ export class PrismaUserRepository implements UserRepository {
   async reinitialiserMotDePasse(tokenHash: string, passwordHash: string): Promise<void> {
     const user = await this.prisma.user.findFirst({ where: { resetPasswordToken: tokenHash, resetPasswordTokenExpiry: { gt: new Date() } }, select: { id: true } });
     if (!user) throw new Error('Lien invalide ou expiré. Demandez un nouveau lien.');
-    await this.patchUser(user.id, { passwordHash, resetPasswordToken: null, resetPasswordTokenExpiry: null, refreshTokenVersion: { increment: 1 } });
+    await this.patchUser(user.id, { passwordHash, mustChangePassword: false, resetPasswordToken: null, resetPasswordTokenExpiry: null, refreshTokenVersion: { increment: 1 } });
   }
   async verifierMotDePasse(userId: string, plainPassword: string): Promise<boolean> {
     const data = await this.prisma.user.findUnique({ where: { id: userId }, select: { passwordHash: true } });
     if (!data?.passwordHash) return false;
     return this.compareHash(plainPassword, data.passwordHash);
   }
-  async mettreAJourMotDePasse(userId: string, passwordHash: string): Promise<void> { await this.patchUser(userId, { passwordHash, resetPasswordToken: null, resetPasswordTokenExpiry: null, refreshTokenVersion: { increment: 1 } }); }
-  async definirMotDePasseInvitation(userId: string, passwordHash: string): Promise<void> { await this.patchUser(userId, { passwordHash }); }
+  async mettreAJourMotDePasse(userId: string, passwordHash: string): Promise<void> { await this.patchUser(userId, { passwordHash, mustChangePassword: false, resetPasswordToken: null, resetPasswordTokenExpiry: null, refreshTokenVersion: { increment: 1 } }); }
+  async definirMotDePasseInvitation(userId: string, passwordHash: string): Promise<void> { await this.patchUser(userId, { passwordHash, mustChangePassword: false }); }
 
   private toDomain(data: any): User {
     const permissions: StaffPermissionType[] = data.staffProfile?.permissions?.map((p: { permission: StaffPermissionType }) => p.permission) ?? [];
-    return User.reconstituer({ id: data.id, schoolId: data.schoolId, role: data.role as UserRole, email: data.email ?? undefined, phone: data.phone ?? undefined, firstName: data.firstName, lastName: data.lastName, avatarUrl: data.avatarUrl ?? undefined, isActive: data.isActive, refreshTokenVersion: data.refreshTokenVersion, lastLogin: data.lastLogin ?? undefined, createdAt: data.createdAt, updatedAt: data.updatedAt, staffPermissions: permissions, staffSectionId: data.staffProfile?.sectionId ?? undefined });
+    return User.reconstituer({ id: data.id, schoolId: data.schoolId, role: data.role as UserRole, email: data.email ?? undefined, phone: data.phone ?? undefined, firstName: data.firstName, lastName: data.lastName, avatarUrl: data.avatarUrl ?? undefined, isActive: data.isActive, mustChangePassword: data.mustChangePassword ?? false, refreshTokenVersion: data.refreshTokenVersion, lastLogin: data.lastLogin ?? undefined, createdAt: data.createdAt, updatedAt: data.updatedAt, staffPermissions: permissions, staffSectionId: data.staffProfile?.sectionId ?? undefined });
   }
 }

@@ -47,7 +47,7 @@ const ROLES = [
 
 type LoginStep = 'credentials' | 'email_otp' | 'totp' | 'mfa_setup'
 
-type LoginData = { role: string; nomComplet: string; userId: string; permissions: string[]; roleMismatch: boolean; redirectTo?: string | null }
+type LoginData = { role: string; nomComplet: string; userId: string; permissions: string[]; roleMismatch: boolean; mustChangePassword?: boolean; redirectTo?: string | null }
 
 function maskEmail(email: string) {
   const [local, domain] = email.split('@')
@@ -190,14 +190,15 @@ export default function LoginPage() {
 
   // ── Finalise la connexion (appelé après OTP seul, ou après TOTP, ou après activation MFA) ──
   const completeLogin = (data: LoginData) => {
-    const { role, nomComplet, userId, permissions, roleMismatch, redirectTo } = data
+    const { role, nomComplet, userId, permissions, roleMismatch, mustChangePassword, redirectTo } = data
     const config = ROLE_CONFIG[role] ?? { icon: User, badge: role, color: 'var(--text3)', bg: 'var(--bg2)', dest: '/' }
-    const dest = redirectTo ?? config.dest
+    const dest = mustChangePassword ? '/change-password' : (redirectTo ?? config.dest)
     const firstName = nomComplet?.split(' ')[0] ?? 'Bienvenue'
 
     localStorage.setItem('zekoulabia_user', JSON.stringify({
       userId, role, nomComplet, firstName,
       permissions: permissions ?? [],
+      mustChangePassword: mustChangePassword ?? false,
     }))
 
     if (roleMismatch && selectedRole) {

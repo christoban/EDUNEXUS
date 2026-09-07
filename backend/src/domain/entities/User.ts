@@ -15,6 +15,7 @@ export interface UserProps {
   lastName: string;
   avatarUrl?: string;
   isActive: boolean;
+  mustChangePassword?: boolean;
   refreshTokenVersion: number;
   lastLogin?: Date;
   createdAt: Date;
@@ -35,6 +36,7 @@ export interface CreerUserProps {
   firstName: string;
   lastName: string;
   avatarUrl?: string;
+  mustChangePassword?: boolean;
   staffPermissions?: StaffPermissionType[];
   staffSectionId?: string;
   professorPrincipalClassIds?: string[];
@@ -55,6 +57,7 @@ export class User {
       ...props,
       id: crypto.randomUUID(),
       isActive: true,
+      mustChangePassword: props.mustChangePassword ?? false,
       refreshTokenVersion: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -75,6 +78,7 @@ export class User {
   get firstName(): string { return this.props.firstName; }
   get lastName(): string { return this.props.lastName; }
   get isActive(): boolean { return this.props.isActive; }
+  get mustChangePassword(): boolean { return this.props.mustChangePassword ?? false; }
   get staffPermissions(): StaffPermissionType[] { return this.props.staffPermissions ?? []; }
   get nomComplet(): string { return `${this.props.firstName} ${this.props.lastName}`; }
 

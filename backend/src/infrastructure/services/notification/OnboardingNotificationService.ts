@@ -7,12 +7,11 @@ import type { PrismaClient } from '@prisma/client';
 import { sendTransactionalEmail } from '../email/EmailService.ts';
 import {
   notifyOnboardingLinkSms,
-  notifyOnboardingActivatedSms,
-  notifyOnboardingActivatedSmsOnly,
+  notifyCredentialsSms,
 } from '../sms/SmsNotificationService.ts';
 import {
   buildOnboardingLinkTemplate,
-  buildOnboardingPasswordSetupTemplate,
+  buildCredentialsTemplate,
 } from '../email/templates/emailTemplates';
 
 function frontendUrl(): string {
@@ -100,18 +99,19 @@ export async function notifierOnboardingLienCreeAvecEcole(
   }
 }
 
-/** Envoi fire-and-forget du lien "configurez votre mot de passe" pour chaque compte créé/réutilisé. */
+/** Envoi fire-and-forget des identifiants temporaires pour chaque compte nouvellement créé. */
 export async function notifierOnboardingValidation(
   prisma: PrismaClient,
   schoolId: string,
   result: {
     comptesCrees: {
       role: 'STUDENT' | 'PARENT';
-      resetToken: string | null;
+      temporaryPassword: string | null;
       contactEmail: string | null;
       contactTelephone: string | null;
       compteExistant: boolean;
       accessMode?: 'FULL_ACCESS' | 'SMS_ONLY';
+      dispositifOS?: string | null;
     }[];
   },
 ): Promise<void> {
@@ -120,7 +120,6 @@ export async function notifierOnboardingValidation(
       where: { id: schoolId },
       select: { name: true, subdomain: true },
     });
-    const schoolName = school?.name ?? 'votre établissement';
     await notifierOnboardingValidationAvecEcole(schoolId, school?.name ?? null, school?.subdomain ?? null, result);
   } catch (err: unknown) {
     console.error('[Onboarding] Échec notification validation:', err instanceof Error ? err.message : String(err));
@@ -135,11 +134,12 @@ export async function notifierOnboardingValidationAvecEcole(
   result: {
     comptesCrees: {
       role: 'STUDENT' | 'PARENT';
-      resetToken: string | null;
+      temporaryPassword: string | null;
       contactEmail: string | null;
       contactTelephone: string | null;
       compteExistant: boolean;
       accessMode?: 'FULL_ACCESS' | 'SMS_ONLY';
+      dispositifOS?: string | null;
     }[];
   },
 ): Promise<void> {
@@ -149,33 +149,26 @@ export async function notifierOnboardingValidationAvecEcole(
     for (const compte of result.comptesCrees) {
       if (compte.compteExistant) continue;
 
-      if (compte.accessMode === 'SMS_ONLY') {
-        if (compte.contactTelephone) {
-          void notifyOnboardingActivatedSmsOnly({ schoolId, schoolName: schoolNameResolved, phone: compte.contactTelephone });
-        }
-        continue;
-      }
+      if (!compte.temporaryPassword) continue;
+      const roleLabel = compte.role === 'PARENT' ? 'Parent' : 'Élève';
+      const loginIdentifier = compte.contactEmail ?? compte.contactTelephone ?? '';
+      const preferEmail = !!compte.contactEmail && (!compte.dispositifOS || compte.dispositifOS === 'ANDROID' || compte.dispositifOS === 'IOS');
 
-      if (!compte.resetToken) continue;
-      const recipientName = compte.role === 'PARENT' ? 'Parent' : 'Élève';
-      const setupUrl = `${frontendUrl()}/reset-password?token=${compte.resetToken}&subdomain=${subdomain ?? ''}`;
-
-      if (compte.contactEmail) {
-        const tpl = buildOnboardingPasswordSetupTemplate({ recipientName, schoolName: schoolNameResolved, setupUrl });
+      if (preferEmail) {
+        const tpl = buildCredentialsTemplate({ roleLabel, loginIdentifier, temporaryPassword: compte.temporaryPassword });
         await sendTransactionalEmail({
           recipientEmail: compte.contactEmail,
           subject: tpl.subject,
-          template: 'password_reset',
-          eventType: 'password_reset',
+          template: 'welcome_credentials',
+          eventType: 'user_invite',
           html: tpl.html,
           text: tpl.text,
           metadata: { schoolId },
         }).catch((err: unknown) =>
           console.error('[Email] Échec envoi configuration mot de passe onboarding:', err instanceof Error ? err.message : String(err)),
         );
-      }
-      if (compte.contactTelephone) {
-        void notifyOnboardingActivatedSms({ schoolId, schoolName: schoolNameResolved, phone: compte.contactTelephone, setupUrl });
+      } else if (compte.contactTelephone) {
+        void notifyCredentialsSms({ schoolId, phone: compte.contactTelephone, roleLabel, loginIdentifier, temporaryPassword: compte.temporaryPassword });
       }
     }
   } catch (err: unknown) {

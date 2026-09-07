@@ -6,6 +6,7 @@ export interface AuthPayload {
   schoolId:    string
   role:        string
   permissions: string[]
+  mustChangePassword?: boolean
   tokenType:   "access" | "refresh"
   isMasterUser?: boolean
 }
@@ -27,6 +28,10 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction) => 
 
     if (payload.tokenType !== "access") {
       return res.status(401).json({ error: 'Token de mauvais type' })
+    }
+
+    if (payload.mustChangePassword && !req.path.endsWith('/auth/change-password')) {
+      return res.status(403).json({ error: 'MUST_CHANGE_PASSWORD', mustChangePassword: true })
     }
 
     req.user = payload

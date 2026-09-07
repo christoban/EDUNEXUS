@@ -39,6 +39,7 @@ export interface ConnecterUtilisateurResultat {
   nomComplet: string;
   accessToken: string;
   refreshToken: string;
+  mustChangePassword: boolean;
   roleMismatch?: boolean;
   redirectTo?: string; // présent si l'école était APPROVED → '/admin/configuration'
 }
@@ -135,6 +136,7 @@ export class ConnecterUtilisateurUseCase {
       nomComplet: user.nomComplet,
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
+      mustChangePassword: user.mustChangePassword,
       roleMismatch,
       // Indique au frontend où rediriger : ADMIN sur école qui vient d'être auto-activée →
       // configuration (school.status vaut déjà 'ACTIVE' à ce stade, d'où le flag capturé plus haut).

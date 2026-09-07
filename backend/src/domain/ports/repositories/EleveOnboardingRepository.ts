@@ -48,7 +48,8 @@ export interface OnboardingProfileMatch {
 export interface ValiderOnboardingCompteResultat {
   role: 'STUDENT' | 'PARENT';
   userId: string;
-  resetToken: string | null;
+  temporaryPassword: string | null;
+  dispositifOS: string | null;
   contactEmail: string | null;
   contactTelephone: string | null;
   compteExistant: boolean;
@@ -71,10 +72,8 @@ export interface ValiderOnboardingInput {
   parentRecoitContact: boolean;
   eleveAccessMode: 'FULL_ACCESS' | 'SMS_ONLY';
   parentAccessMode: 'FULL_ACCESS' | 'SMS_ONLY';
-  studentPasswordHash: string;
-  studentResetTokenHash: string | null;
-  studentResetTokenExpiry: Date | null;
-  studentResetToken: string | null;
+  eleveDispositifOS: string | null;
+  parentDispositifOS: string | null;
   examCandidateId: string | null;
 }
 

@@ -81,7 +81,8 @@ export interface ValiderOnboardingCompteResultat {
    * Token EN CLAIR pour le lien "configurez votre mot de passe" — null si compte existant
    * réutilisé (rien à configurer), OU si accessMode=SMS_ONLY (aucun lien n'est jamais généré).
    */
-  resetToken: string | null;
+  temporaryPassword: string | null;
+  dispositifOS: string | null;
   contactEmail: string | null;
   contactTelephone: string | null;
   /** true si un compte PARENT existant a été réutilisé (autre enfant déjà scolarisé) plutôt que recréé. */

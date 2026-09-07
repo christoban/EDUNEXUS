@@ -66,6 +66,7 @@ export class UserAuthController {
         role: resultat.role,
         permissions: resultat.permissions,
         nomComplet: resultat.nomComplet,
+        mustChangePassword: resultat.mustChangePassword,
         roleMismatch: resultat.roleMismatch ?? false,
         redirectTo: resultat.redirectTo ?? null,
       };

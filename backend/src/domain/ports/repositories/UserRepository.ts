@@ -24,6 +24,7 @@ export interface AuthUserData {
   id: string;
   email: string | null;
   isActive: boolean;
+  mustChangePassword?: boolean;
   loginEmailOtpHash: string | null;
   loginEmailOtpExpiresAt: Date | null;
   loginEmailOtpAttempts: number;

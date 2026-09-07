@@ -45,19 +45,9 @@
  */
 import type { EleveOnboardingRepository } from '@domain/ports/repositories/EleveOnboardingRepository';
 import type { ActivityLogPort } from '@domain/ports/services/ActivityLogPort';
-import { randomBytes, createHash } from 'crypto';
-import bcrypt from 'bcryptjs';
 import { parseDateFR } from '../../shared/date/parseDateFR';
 import { peutTransitionnerDepuisPendingValidation } from './rules';
 import type { ValiderOnboardingCommande, ValiderOnboardingResultat } from './types';
-
-const RESET_TOKEN_VALIDITY_MS = 7 * 24 * 60 * 60 * 1000; // 7 jours pour configurer le mot de passe
-
-function genererIdentifiants() {
-  const resetToken = randomBytes(32).toString('hex');
-  const resetTokenHash = createHash('sha256').update(resetToken).digest('hex');
-  return { resetToken, resetTokenHash, resetTokenExpiry: new Date(Date.now() + RESET_TOKEN_VALIDITY_MS) };
-}
 
 export class ValiderOnboardingUseCase {
   constructor(
@@ -112,9 +102,6 @@ export class ValiderOnboardingUseCase {
     const parentAccessMode: 'FULL_ACCESS' | 'SMS_ONLY' =
       onboarding.parentADispositif === false && !!parentContactTelephoneUtilise ? 'SMS_ONLY' : 'FULL_ACCESS';
 
-    const studentPassword = await bcrypt.hash(randomBytes(24).toString('hex'), 10);
-    const studentReset = eleveRecoitContact && eleveAccessMode === 'FULL_ACCESS' ? genererIdentifiants() : null;
-
     const { studentProfileId, comptesCrees } = await this.eleveOnboardingRepository.validerOnboarding({
       schoolId: cmd.schoolId,
       onboardingId: onboarding.id,
@@ -131,10 +118,8 @@ export class ValiderOnboardingUseCase {
       parentRecoitContact,
       eleveAccessMode,
       parentAccessMode,
-      studentPasswordHash: studentPassword,
-      studentResetTokenHash: studentReset?.resetTokenHash ?? null,
-      studentResetTokenExpiry: studentReset?.resetTokenExpiry ?? null,
-      studentResetToken: studentReset?.resetToken ?? null,
+      eleveDispositifOS: onboarding.eleveDispositifOS,
+      parentDispositifOS: onboarding.parentDispositifOS,
       examCandidateId: onboarding.examCandidateId,
     });
 
