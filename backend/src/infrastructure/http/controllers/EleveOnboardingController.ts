@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import type { DispositifOS } from '@application/eleveOnboarding/types';
 import type { EleveOnboardingRepository } from '@domain/ports/repositories/EleveOnboardingRepository';
 import type { SchoolRepository } from '@domain/ports/repositories/SchoolRepository';
+import type { CredentialsNotificationPort } from '@domain/ports/services/CredentialsNotificationPort';
 import { CreerSqueletteOnboardingUseCase } from '@application/eleveOnboarding/CreerSqueletteOnboardingUseCase';
 import { SoumettreFormulaireOnboardingUseCase } from '@application/eleveOnboarding/SoumettreFormulaireOnboardingUseCase';
 import { ValiderOnboardingUseCase } from '@application/eleveOnboarding/ValiderOnboardingUseCase';
@@ -21,6 +22,7 @@ export class EleveOnboardingController {
     private readonly _rejeter: RejeterOnboardingUseCase,
     private readonly onboardingRepository: EleveOnboardingRepository,
     private readonly schoolRepository: SchoolRepository,
+    private readonly credentialsNotifier: CredentialsNotificationPort,
   ) {}
 
   private checkEnrollmentPermission(req: Request, res: Response): boolean {
@@ -159,7 +161,7 @@ export class EleveOnboardingController {
       };
       res.json({ success: true, data });
       const school = await this.schoolRepository.findById(schoolId);
-      void notifierOnboardingValidationAvecEcole(schoolId, school?.name ?? null, school?.subdomain ?? null, result);
+      void notifierOnboardingValidationAvecEcole(schoolId, school?.name ?? null, school?.subdomain ?? null, result, this.credentialsNotifier);
     } catch (err) { next(err); }
   };
 

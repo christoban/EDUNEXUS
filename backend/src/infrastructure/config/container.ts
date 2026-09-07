@@ -1115,6 +1115,7 @@ export function creerContainer() {
       rejeter: new RejeterOnboardingUseCase(eleveOnboardingRepository, activityLog),
       repository: eleveOnboardingRepository,
     },
+    credentialsNotificationService,
     statisticalCampaign: {
       verifierCompletude: new VerifierCompletudeSupplementUseCase(new PrismaStatisticalCampaignRepository(prisma)),
       genererDeclaration: new GenererDeclarationStatistiqueMinesecUseCase(

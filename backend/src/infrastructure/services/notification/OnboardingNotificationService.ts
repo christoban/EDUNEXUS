@@ -4,6 +4,7 @@
  * Fire-and-forget, jamais throw — les envois ponctuels sont déclenchés par une action utilisateur.
  */
 import type { PrismaClient } from '@prisma/client';
+import type { CredentialsNotificationPort } from '@domain/ports/services/CredentialsNotificationPort';
 import { sendTransactionalEmail } from '../email/EmailService.ts';
 import {
   notifyOnboardingLinkSms,
@@ -11,8 +12,6 @@ import {
 import {
   buildOnboardingLinkTemplate,
 } from '../email/templates/emailTemplates';
-import { CredentialsNotificationService } from './CredentialsNotificationService';
-import { NodemailerEmailService } from '../email/NodemailerEmailService';
 
 function frontendUrl(): string {
   return process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
@@ -114,13 +113,14 @@ export async function notifierOnboardingValidation(
       dispositifOS?: string | null;
     }[];
   },
+  credentialsNotifier: CredentialsNotificationPort,
 ): Promise<void> {
   try {
     const school = await prisma.school.findUnique({
       where: { id: schoolId },
       select: { name: true, subdomain: true },
     });
-    await notifierOnboardingValidationAvecEcole(schoolId, school?.name ?? null, school?.subdomain ?? null, result);
+    await notifierOnboardingValidationAvecEcole(schoolId, school?.name ?? null, school?.subdomain ?? null, result, credentialsNotifier);
   } catch (err: unknown) {
     console.error('[Onboarding] Échec notification validation:', err instanceof Error ? err.message : String(err));
   }
@@ -142,10 +142,10 @@ export async function notifierOnboardingValidationAvecEcole(
       dispositifOS?: string | null;
     }[];
   },
+  credentialsNotifier: CredentialsNotificationPort,
 ): Promise<void> {
   try {
     const schoolNameResolved = schoolName ?? 'votre établissement';
-    const credentialsNotifier = new CredentialsNotificationService(new NodemailerEmailService());
 
     for (const compte of result.comptesCrees) {
       if (compte.compteExistant) continue;
