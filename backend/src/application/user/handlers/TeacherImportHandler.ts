@@ -2,13 +2,16 @@ import { User } from '@domain/entities/User';
 import type { UserRepository } from '@domain/ports/repositories/UserRepository';
 import type { ImportUtilisateursRepository } from '@domain/ports/repositories/ImportUtilisateursRepository';
 import type { EmailService } from '@domain/ports/services/EmailService';
+import type { CredentialsNotificationPort } from '@domain/ports/services/CredentialsNotificationPort';
 import type { TeacherImportRow, ImportRow } from '../dto/ImportUserDtos';
-import { envoyerEmailDevMode, envoyerEmailLienInvitation } from './importEmailNotifications';
+import { generateTemporaryPassword } from '@domain/services/PasswordGenerator';
+import bcrypt from 'bcryptjs';
 
 interface Dependencies {
   importRepository: ImportUtilisateursRepository;
   userRepository: UserRepository;
   emailService: EmailService;
+  credentialsNotifier?: CredentialsNotificationPort;
 }
 
 export async function traiterLigneTeacher(
@@ -62,14 +65,19 @@ export async function traiterLigneTeacher(
     phone: row.telephone?.trim() || undefined,
     firstName: row.prenom.trim(),
     lastName: row.nom.trim(),
+    mustChangePassword: true,
   });
 
-  await userRepository.saveAvecProfil(teacherUser, { passwordHash, subjectIds, departmentIds });
+  const temporaryPassword = generateTemporaryPassword();
+  const generatedPasswordHash = await bcrypt.hash(temporaryPassword, 10);
+  await userRepository.saveAvecProfil(teacherUser, { passwordHash: generatedPasswordHash, subjectIds, departmentIds });
 
-  if (isDevMode) {
-    await envoyerEmailDevMode(emailService, email, row.prenom.trim(), row.nom.trim(), schoolId, schoolName).catch(() => {});
-  } else {
-    await envoyerEmailLienInvitation(emailService, teacherUser.id, email, row.prenom.trim(), row.nom.trim(), schoolId, schoolName).catch(() => {});
+  if (deps.credentialsNotifier) {
+    try {
+      await deps.credentialsNotifier.sendCredentials({ schoolId, email, phone: row.telephone?.trim() || null, temporaryPassword, roleLabel: 'Enseignant', loginIdentifier: email, schoolName });
+    } catch (error) {
+      console.error('[Credentials] Échec envoi import enseignant:', error instanceof Error ? error.message : String(error));
+    }
   }
 
   let ppAssigned = false;

@@ -2,14 +2,17 @@ import { User } from '@domain/entities/User';
 import type { ImportUtilisateursRepository } from '@domain/ports/repositories/ImportUtilisateursRepository';
 import type { UserRepository } from '@domain/ports/repositories/UserRepository';
 import type { EmailService } from '@domain/ports/services/EmailService';
+import type { CredentialsNotificationPort } from '@domain/ports/services/CredentialsNotificationPort';
 import type { ParentImportRow } from '../dto/ImportUserDtos';
-import { envoyerEmailDevMode, envoyerEmailLienInvitation } from './importEmailNotifications';
+import { generateTemporaryPassword } from '@domain/services/PasswordGenerator';
+import bcrypt from 'bcryptjs';
 import type { ImportWarning } from '../ImporterUtilisateursUseCase';
 
 interface Dependencies {
   importRepository: ImportUtilisateursRepository;
   userRepository: UserRepository;
   emailService: EmailService;
+  credentialsNotifier?: CredentialsNotificationPort;
 }
 
 export async function traiterLigneParent(
@@ -55,16 +58,21 @@ export async function traiterLigneParent(
     phone,
     firstName: row.prenom.trim(),
     lastName: row.nom.trim(),
+    mustChangePassword: true,
   });
 
+  const temporaryPassword = generateTemporaryPassword();
+  const generatedPasswordHash = await bcrypt.hash(temporaryPassword, 10);
   await userRepository.saveAvecProfil(parentUser, {
-    passwordHash,
+    passwordHash: generatedPasswordHash,
     parentOfStudentIds: studentProfileIds,
   });
 
-  if (isDevMode) {
-    await envoyerEmailDevMode(emailService, email || '', row.prenom.trim(), row.nom.trim(), schoolId, schoolName).catch(() => {});
-  } else {
-    await envoyerEmailLienInvitation(emailService, parentUser.id, email || '', row.prenom.trim(), row.nom.trim(), schoolId, schoolName).catch(() => {});
+  if (deps.credentialsNotifier) {
+    try {
+      await deps.credentialsNotifier.sendCredentials({ schoolId, email: email ?? null, phone: phone ?? null, temporaryPassword, roleLabel: 'Parent', loginIdentifier: email || phone || '', schoolName });
+    } catch (error) {
+      console.error('[Credentials] Échec envoi import parent:', error instanceof Error ? error.message : String(error));
+    }
   }
 }

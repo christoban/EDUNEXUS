@@ -37,11 +37,8 @@
  * enfant déjà scolarisé), il est réutilisé — pas de doublon, pas de nouveau mot de passe
  * à configurer (contrainte @@unique([schoolId, email/phone]) sur User de toute façon).
  *
- * accessMode=SMS_ONLY (Axe 2) : si le destinataire a explicitement déclaré n'avoir aucun
- * dispositif capable d'ouvrir un lien (eleveADispositif/parentADispositif = false) mais
- * possède un numéro de téléphone, aucun resetToken n'est généré — le compte existe et reste
- * pleinement fonctionnel pour tout le reste du système (notes, présence...), mais son
- * activation se fait en présentiel à l'établissement plutôt que via un lien envoyé par SMS.
+ * accessMode=SMS_ONLY reste porté par le compte pour les règles d'accès existantes ; les
+ * identifiants temporaires sont envoyés par SMS lorsque l'email n'est pas prioritaire.
  */
 import type { EleveOnboardingRepository } from '@domain/ports/repositories/EleveOnboardingRepository';
 import type { ActivityLogPort } from '@domain/ports/services/ActivityLogPort';

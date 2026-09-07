@@ -1,16 +1,19 @@
 import { User } from '@domain/entities/User';
 import type { UserRepository } from '@domain/ports/repositories/UserRepository';
 import type { ImportUtilisateursRepository } from '@domain/ports/repositories/ImportUtilisateursRepository';
+import type { CredentialsNotificationPort } from '@domain/ports/services/CredentialsNotificationPort';
 import type { EmailService } from '@domain/ports/services/EmailService';
 import type { StaffImportRow } from '../dto/ImportUserDtos';
 import { getPermissionsPourTitre } from '@domain/rules/StaffPermissionRules';
-import { envoyerEmailDevMode, envoyerEmailLienInvitation } from './importEmailNotifications';
+import { generateTemporaryPassword } from '@domain/services/PasswordGenerator';
+import bcrypt from 'bcryptjs';
 import type { ImportWarning } from '../ImporterUtilisateursUseCase';
 
 interface Dependencies {
   userRepository: UserRepository;
   importRepository: ImportUtilisateursRepository;
   emailService: EmailService;
+  credentialsNotifier?: CredentialsNotificationPort;
 }
 
 export async function traiterLigneStaff(
@@ -61,16 +64,21 @@ export async function traiterLigneStaff(
     lastName: row.nom.trim(),
     staffPermissions: permissions,
     staffSectionId,
+    mustChangePassword: true,
   });
 
+  const temporaryPassword = generateTemporaryPassword();
+  const generatedPasswordHash = await bcrypt.hash(temporaryPassword, 10);
   await deps.userRepository.saveAvecProfil(staffUser, {
-    passwordHash,
+    passwordHash: generatedPasswordHash,
     staffTitle: fonction,
   });
 
-  if (isDevMode) {
-    await envoyerEmailDevMode(emailService, email, row.prenom.trim(), row.nom.trim(), schoolId, schoolName).catch(() => {});
-  } else {
-    await envoyerEmailLienInvitation(deps.emailService, schoolId, email, row.prenom.trim(), row.nom.trim(), schoolId, schoolName).catch(() => {});
+  if (deps.credentialsNotifier) {
+    try {
+      await deps.credentialsNotifier.sendCredentials({ schoolId, email, phone: row.telephone?.trim() || null, temporaryPassword, roleLabel: fonction, loginIdentifier: email, schoolName });
+    } catch (error) {
+      console.error('[Credentials] Échec envoi import staff:', error instanceof Error ? error.message : String(error));
+    }
   }
 }

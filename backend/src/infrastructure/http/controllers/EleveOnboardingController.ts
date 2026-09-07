@@ -8,6 +8,7 @@ import { ValiderOnboardingUseCase } from '@application/eleveOnboarding/ValiderOn
 import { RejeterOnboardingUseCase } from '@application/eleveOnboarding/RejeterOnboardingUseCase';
 import { notifierOnboardingLienCreeAvecEcole, notifierOnboardingValidationAvecEcole } from '@infrastructure/services/notification/OnboardingNotificationService';
 import { generateOnboardingFormPdf } from '../../pdf/onboarding/OnboardingFormPdfRenderer';
+import { canManageEnrollment } from '@domain/rules/EnrollmentRules';
 
 /**
  * Préfixe /api/v2/eleve-onboarding — distinct de /api/v2/onboarding.
@@ -24,9 +25,7 @@ export class EleveOnboardingController {
 
   private checkEnrollmentPermission(req: Request, res: Response): boolean {
     const user = req.user!;
-    if (user.role === 'ADMIN') return true;
-    const perms = user.permissions ?? [];
-    if (!perms.includes('MANAGE_ENROLLMENT')) {
+    if (!canManageEnrollment({ role: user.role, staffPermissions: user.permissions })) {
       res.status(403).json({ success: false, message: 'Permission MANAGE_ENROLLMENT requise' });
       return false;
     }

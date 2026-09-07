@@ -7,12 +7,12 @@ import type { PrismaClient } from '@prisma/client';
 import { sendTransactionalEmail } from '../email/EmailService.ts';
 import {
   notifyOnboardingLinkSms,
-  notifyCredentialsSms,
 } from '../sms/SmsNotificationService.ts';
 import {
   buildOnboardingLinkTemplate,
-  buildCredentialsTemplate,
 } from '../email/templates/emailTemplates';
+import { CredentialsNotificationService } from './CredentialsNotificationService';
+import { NodemailerEmailService } from '../email/NodemailerEmailService';
 
 function frontendUrl(): string {
   return process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
@@ -130,7 +130,7 @@ export async function notifierOnboardingValidation(
 export async function notifierOnboardingValidationAvecEcole(
   schoolId: string,
   schoolName: string | null,
-  subdomain: string | null,
+  _subdomain: string | null,
   result: {
     comptesCrees: {
       role: 'STUDENT' | 'PARENT';
@@ -145,6 +145,7 @@ export async function notifierOnboardingValidationAvecEcole(
 ): Promise<void> {
   try {
     const schoolNameResolved = schoolName ?? 'votre établissement';
+    const credentialsNotifier = new CredentialsNotificationService(new NodemailerEmailService());
 
     for (const compte of result.comptesCrees) {
       if (compte.compteExistant) continue;
@@ -152,23 +153,19 @@ export async function notifierOnboardingValidationAvecEcole(
       if (!compte.temporaryPassword) continue;
       const roleLabel = compte.role === 'PARENT' ? 'Parent' : 'Élève';
       const loginIdentifier = compte.contactEmail ?? compte.contactTelephone ?? '';
-      const preferEmail = !!compte.contactEmail && (!compte.dispositifOS || compte.dispositifOS === 'ANDROID' || compte.dispositifOS === 'IOS');
-
-      if (preferEmail) {
-        const tpl = buildCredentialsTemplate({ roleLabel, loginIdentifier, temporaryPassword: compte.temporaryPassword });
-        await sendTransactionalEmail({
-          recipientEmail: compte.contactEmail,
-          subject: tpl.subject,
-          template: 'welcome_credentials',
-          eventType: 'user_invite',
-          html: tpl.html,
-          text: tpl.text,
-          metadata: { schoolId },
-        }).catch((err: unknown) =>
-          console.error('[Email] Échec envoi configuration mot de passe onboarding:', err instanceof Error ? err.message : String(err)),
-        );
-      } else if (compte.contactTelephone) {
-        void notifyCredentialsSms({ schoolId, phone: compte.contactTelephone, roleLabel, loginIdentifier, temporaryPassword: compte.temporaryPassword });
+      try {
+        await credentialsNotifier.sendCredentials({
+          schoolId,
+          email: compte.contactEmail,
+          phone: compte.contactTelephone,
+          os: compte.dispositifOS,
+          temporaryPassword: compte.temporaryPassword,
+          roleLabel,
+          loginIdentifier,
+          schoolName: schoolNameResolved,
+        });
+      } catch (error) {
+        console.error('[Credentials] Échec envoi onboarding:', error instanceof Error ? error.message : String(error));
       }
     }
   } catch (err: unknown) {

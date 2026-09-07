@@ -4,8 +4,6 @@
  * création directe d'un nouveau compte TEACHER dans l'école cible via le flux d'invitation
  * déjà existant — statut ACCEPTED immédiatement, pas d'étape de validation famille (Section 5).
  */
-import bcrypt from 'bcryptjs';
-import crypto from 'crypto';
 import type { GroupTransferRepository } from '@domain/ports/repositories/GroupTransferRepository';
 import type { GroupeScolaireQueryRepository } from '@domain/ports/repositories/GroupeScolaireQueryRepository';
 import { InscrireUtilisateurUseCase } from '../user/InscrireUtilisateurUseCase';
@@ -33,11 +31,6 @@ export class AccepterTransfertEnseignantUseCase {
     if (!sourceTeacher) throw new Error('Enseignant introuvable dans l\'école source');
     if (!sourceTeacher.email) throw new Error('Cet enseignant n\'a pas d\'email — impossible de lui envoyer un lien de création de compte');
 
-    const isDevMode = process.env.EMAIL_DISABLED === 'true';
-    const passwordHash = isDevMode
-      ? await bcrypt.hash('chris123456789', 10)
-      : await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
-
     const resultat = await this.inscrire.execute({
       schoolId: cmd.targetSchoolId,
       role: 'TEACHER',
@@ -45,7 +38,6 @@ export class AccepterTransfertEnseignantUseCase {
       phone: sourceTeacher.phone ?? undefined,
       firstName: sourceTeacher.firstName,
       lastName: sourceTeacher.lastName,
-      passwordHash,
     });
 
     await this.transfertRepository.accepterEnseignant(demande.id);

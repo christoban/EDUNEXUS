@@ -7,6 +7,9 @@ import { User } from '@domain/entities/User';
 import type { UserRepository } from '@domain/ports/repositories/UserRepository';
 import type { UserRole, StaffPermissionType } from '@domain/types/enums';
 import { getPermissionsPourTitre } from '@domain/rules/StaffPermissionRules';
+import type { CredentialsNotificationPort } from '@domain/ports/services/CredentialsNotificationPort';
+import { generateTemporaryPassword } from '@domain/services/PasswordGenerator';
+import bcrypt from 'bcryptjs';
 
 export interface InscrireUtilisateurCommande {
   schoolId: string;
@@ -15,7 +18,7 @@ export interface InscrireUtilisateurCommande {
   phone?: string;
   firstName: string;
   lastName: string;
-  passwordHash: string; // Hashé avant d'arriver ici
+  passwordHash?: string; // Compatibilité avec les appelants historiques
 
   // STAFF
   staffTitle?: string;   // "Censeur", "Intendant", etc.
@@ -42,7 +45,10 @@ export interface InscrireUtilisateurResultat {
 }
 
 export class InscrireUtilisateurUseCase {
-  constructor(private readonly userRepository: UserRepository) {}
+  constructor(
+    private readonly userRepository: UserRepository,
+    private readonly credentialsNotifier?: CredentialsNotificationPort,
+  ) {}
 
   async execute(commande: InscrireUtilisateurCommande): Promise<InscrireUtilisateurResultat> {
     // 1. Vérifier doublon email/école
@@ -73,11 +79,13 @@ export class InscrireUtilisateurUseCase {
       lastName: commande.lastName,
       staffPermissions: permissions,
       staffSectionId: commande.staffSectionId,
+      mustChangePassword: true,
     });
 
     // 4. Sauvegarder avec les données de profil
+    const temporaryPassword = generateTemporaryPassword();
     await this.userRepository.saveAvecProfil(user, {
-      passwordHash: commande.passwordHash,
+      passwordHash: await bcrypt.hash(temporaryPassword, 10),
       staffTitle: commande.staffTitle,
       specializations: commande.specializations,
       subjectIds: commande.subjectIds,
@@ -86,6 +94,21 @@ export class InscrireUtilisateurUseCase {
       gender: commande.gender,
       parentOfStudentIds: commande.parentOfStudentIds,
     });
+
+    if (this.credentialsNotifier) {
+      try {
+        await this.credentialsNotifier.sendCredentials({
+          schoolId: commande.schoolId,
+          email: commande.email ?? null,
+          phone: commande.phone ?? null,
+          temporaryPassword,
+          roleLabel: commande.role === 'STAFF' ? commande.staffTitle ?? 'Staff' : commande.role,
+          loginIdentifier: commande.email ?? commande.phone ?? '',
+        });
+      } catch (error) {
+        console.error('[Credentials] Échec envoi après création:', error instanceof Error ? error.message : String(error));
+      }
+    }
 
     return {
       userId: user.id,

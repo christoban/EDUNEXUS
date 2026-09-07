@@ -1,4 +1,3 @@
-import bcrypt from 'bcryptjs';
 import type { UserRepository } from '@domain/ports/repositories/UserRepository';
 import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/AnneeAcademiqueRepository';
 import type { StudentGroupSetRepository } from '@domain/ports/repositories/StudentGroupSetRepository';
@@ -6,6 +5,7 @@ import type { StudentGroupRepository } from '@domain/ports/repositories/StudentG
 import type { StudentGroupMembershipRepository } from '@domain/ports/repositories/StudentGroupMembershipRepository';
 import type { ImportUtilisateursRepository } from '@domain/ports/repositories/ImportUtilisateursRepository';
 import type { EmailService } from '@domain/ports/services/EmailService';
+import type { CredentialsNotificationPort } from '@domain/ports/services/CredentialsNotificationPort';
 import type { CreerClasseService } from '@domain/ports/services/CreerClasseService';
 import type { ImportTargetType, ImportConfirmResponse } from './dto/ImportUserDtos';
 import { traiterLigneStudent } from './handlers/StudentImportHandler';
@@ -44,8 +44,6 @@ export interface ImportWarning {
   avertissement: string;
 }
 
-const DEV_PASS = 'chris123456789';
-
 export class ImporterUtilisateursUseCase {
   constructor(
     private readonly importRepository: ImportUtilisateursRepository,
@@ -56,6 +54,7 @@ export class ImporterUtilisateursUseCase {
     private readonly membershipRepository: StudentGroupMembershipRepository,
     private readonly emailService: EmailService,
     private readonly creerClasseUseCase: CreerClasseService,
+    private readonly credentialsNotifier?: CredentialsNotificationPort,
   ) {}
 
   async execute(
@@ -85,16 +84,6 @@ export class ImporterUtilisateursUseCase {
     let staffCrees = 0;
     let elevesCrees = 0;
     let enseignantsCrees = 0;
-
-    const isDevMode = process.env.EMAIL_DISABLED === 'true';
-
-    let sharedHash: string;
-    if (isDevMode) {
-      sharedHash = await bcrypt.hash('chris123456789', 10);
-    } else {
-      const { randomBytes } = await import('crypto');
-      sharedHash = await bcrypt.hash(randomBytes(32).toString('hex'), 10);
-    }
 
     const contexte = await this.importRepository.chargerContexte(schoolId);
     const schoolName = contexte.schoolName;
@@ -152,11 +141,12 @@ export class ImporterUtilisateursUseCase {
                   groupRepository: this.groupRepository,
                   membershipRepository: this.membershipRepository,
                   emailService: this.emailService,
+                  credentialsNotifier: this.credentialsNotifier,
                 },
                 schoolId,
                 rawRow as any,
-                sharedHash,
-                isDevMode,
+                '',
+                false,
                 schoolName,
                 new Map(contexte.classes.map((c) => [c.name, c.id])),
                 new Map(contexte.lv2Subjects.map((s) => [s.name.toLowerCase().trim(), s.id])),
@@ -172,11 +162,12 @@ export class ImporterUtilisateursUseCase {
                   importRepository: this.importRepository,
                   userRepository: this.userRepository,
                   emailService: this.emailService,
+                  credentialsNotifier: this.credentialsNotifier,
                 },
                 schoolId,
                 rawRow,
-                sharedHash,
-                isDevMode,
+                '',
+                false,
                 schoolName,
                 new Map(contexte.classes.map((c) => [c.name, c.id])),
               ),
@@ -193,11 +184,12 @@ export class ImporterUtilisateursUseCase {
                   userRepository: this.userRepository,
                   importRepository: this.importRepository,
                   emailService: this.emailService,
+                  credentialsNotifier: this.credentialsNotifier,
                 },
                 schoolId,
                 rawRow as any,
-                sharedHash,
-                isDevMode,
+                '',
+                false,
                 schoolName,
                 warnings,
                 ligne,
@@ -212,11 +204,12 @@ export class ImporterUtilisateursUseCase {
                   importRepository: this.importRepository,
                   userRepository: this.userRepository,
                   emailService: this.emailService,
+                  credentialsNotifier: this.credentialsNotifier,
                 },
                 schoolId,
                 rawRow as any,
-                sharedHash,
-                isDevMode,
+                '',
+                false,
                 schoolName,
                 warnings,
                 ligne,

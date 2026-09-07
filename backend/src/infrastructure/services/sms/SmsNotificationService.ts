@@ -179,21 +179,24 @@ async function dispatchSms(
   rawPhone: string,
   message: string,
   type: SmsType,
+  sensitive = false,
 ): Promise<void> {
   if (!rawPhone) return
   const phone = normalizePhone(rawPhone)
 
   if (!isSmsConfigured()) {
-    console.log(`[SMS-SIMULATION] À: ${phone} | Type: ${type} | Message: ${message}`)
-    await persistLog({ schoolId, to: phone, content: message, type, status: 'simulated', simulated: true })
+    const content = sensitive ? '[contenu sensible masqué]' : message
+    console.log(`[SMS-SIMULATION] À: ${phone} | Type: ${type} | Message: ${content}`)
+    await persistLog({ schoolId, to: phone, content, type, status: 'simulated', simulated: true })
     return
   }
 
   const result = await sendSMS(phone, message)
+  const loggedContent = sensitive ? '[contenu sensible masqué]' : message
   await persistLog({
     schoolId,
     to: phone,
-    content: message,
+    content: loggedContent,
     type,
     status: result.success ? 'sent' : 'failed',
     simulated: false,
@@ -615,6 +618,7 @@ export async function notifyCredentialsSms(opts: {
       opts.phone,
       `ZekoulABia - ${opts.roleLabel}. Login: ${opts.loginIdentifier}. Mot de passe temporaire: ${opts.temporaryPassword}. Changez-le à la première connexion.`,
       'ONBOARDING',
+      true,
     )
   } catch (err) {
     console.error('[SMS Identifiants] Erreur inattendue:', err)

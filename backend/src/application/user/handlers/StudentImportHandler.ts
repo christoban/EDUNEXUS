@@ -6,11 +6,13 @@ import type { StudentGroupRepository } from '@domain/ports/repositories/StudentG
 import type { StudentGroupMembershipRepository } from '@domain/ports/repositories/StudentGroupMembershipRepository';
 import type { ImportUtilisateursRepository } from '@domain/ports/repositories/ImportUtilisateursRepository';
 import type { EmailService } from '@domain/ports/services/EmailService';
+import type { CredentialsNotificationPort } from '@domain/ports/services/CredentialsNotificationPort';
 import { synchroniserAppartenanceLV2, synchroniserAppartenanceProgramme } from '@application/studentGroup/syncGroupMembership';
 import type { PebsFiliere } from '@domain/types/enums';
 import { parseDateFR } from '../../../shared/date/parseDateFR';
 import type { StudentImportRow, ImportRow } from '../dto/ImportUserDtos';
-import { envoyerEmailDevMode, envoyerEmailLienInvitation } from './importEmailNotifications';
+import { generateTemporaryPassword } from '@domain/services/PasswordGenerator';
+import bcrypt from 'bcryptjs';
 
 const DEV_PASS = 'chris123456789';
 
@@ -22,6 +24,7 @@ interface Dependencies {
   groupRepository: StudentGroupRepository;
   membershipRepository: StudentGroupMembershipRepository;
   emailService: EmailService;
+  credentialsNotifier?: CredentialsNotificationPort;
 }
 
 export async function traiterLigneStudent(
@@ -69,10 +72,19 @@ export async function traiterLigneStudent(
         phone: row.telephoneParent?.trim() || undefined,
         firstName: row.prenomParent?.trim() || `Parent de ${row.prenom.trim()}`,
         lastName: row.nomParent?.trim() || row.nom.trim(),
+        mustChangePassword: true,
       });
+      const parentTemporaryPassword = generateTemporaryPassword();
       await deps.userRepository.saveAvecProfil(parentUser, {
-        passwordHash,
+        passwordHash: await bcrypt.hash(parentTemporaryPassword, 10),
       });
+      if (deps.credentialsNotifier) {
+        try {
+          await deps.credentialsNotifier.sendCredentials({ schoolId, email: parentEmail, phone: row.telephoneParent?.trim() || null, temporaryPassword: parentTemporaryPassword, roleLabel: 'Parent', loginIdentifier: parentEmail, schoolName });
+        } catch (error) {
+          console.error('[Credentials] Échec envoi parent importé:', error instanceof Error ? error.message : String(error));
+        }
+      }
       parentUserId = parentUser.id;
     }
   }
@@ -84,15 +96,24 @@ export async function traiterLigneStudent(
     phone,
     firstName: row.prenom.trim(),
     lastName: row.nom.trim(),
+    mustChangePassword: true,
   });
 
+  const temporaryPassword = generateTemporaryPassword();
   await deps.userRepository.saveAvecProfil(studentUser, {
-    passwordHash,
+    passwordHash: await bcrypt.hash(temporaryPassword, 10),
     classeId,
     dateOfBirth,
     gender,
     parentOfStudentIds: parentUserId ? [parentUserId] : [],
   });
+  if (deps.credentialsNotifier) {
+    try {
+      await deps.credentialsNotifier.sendCredentials({ schoolId, email: email ?? null, phone: phone ?? null, temporaryPassword, roleLabel: 'Élève', loginIdentifier: email || phone || '', schoolName });
+    } catch (error) {
+      console.error('[Credentials] Échec envoi élève importé:', error instanceof Error ? error.message : String(error));
+    }
+  }
 
   const pebsVal = row.pebs?.trim().toUpperCase() ?? '';
   const lv2Val = row.lv2?.trim() ?? '';
@@ -138,11 +159,6 @@ export async function traiterLigneStudent(
     }
   }
 
-  if (isDevMode) {
-    await envoyerEmailDevMode(deps.emailService, email || '', row.prenom.trim(), row.nom.trim(), schoolId, schoolName).catch(() => {});
-  } else {
-    await envoyerEmailLienInvitation(deps.emailService, studentUser.id, email || '', row.prenom.trim(), row.nom.trim(), schoolId, schoolName).catch(() => {});
-  }
 }
 
 function parserSexe(sexe?: string): string | undefined {

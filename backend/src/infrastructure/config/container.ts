@@ -46,6 +46,7 @@ import { AIActionAuditAdapter } from '@infrastructure/services/ai/AIActionAuditA
 
 // --- Adapters Services (ports) ---
 import { SmsNotificationAdapter } from '@infrastructure/services/sms/SmsNotificationAdapter';
+import { CredentialsNotificationService } from '@infrastructure/services/notification/CredentialsNotificationService';
 import { DocumentAiAdapter } from '@infrastructure/services/ai/DocumentAiAdapter';
 import { EmailTemplateAdapter } from '@infrastructure/services/email/EmailTemplateAdapter';
 import { RealtimeSocketAdapter } from '@infrastructure/socket/RealtimeSocketAdapter';
@@ -463,6 +464,7 @@ export function creerContainer() {
 
   // 3. Services (adaptateurs réels)
   const emailService = new NodemailerEmailService();
+  const credentialsNotificationService = new CredentialsNotificationService(emailService);
   const notificationService = new SocketNotificationService(eventPublisher);
   const pdfService = new PdfKitBulletinService();
 
@@ -493,6 +495,7 @@ export function creerContainer() {
     studentGroupMembershipRepository,
     emailService,
     creerClasseUseCase,
+    credentialsNotificationService,
   );
 
   // 6. Use Cases — Présences
@@ -574,7 +577,7 @@ export function creerContainer() {
   const connecterUtilisateurUseCase = new ConnecterUtilisateurUseCase(
     userRepository, schoolRepository, tokenService
   );
-  const inscrireUtilisateurUseCase = new InscrireUtilisateurUseCase(userRepository);
+  const inscrireUtilisateurUseCase = new InscrireUtilisateurUseCase(userRepository, credentialsNotificationService);
   const rafraichirTokenUseCase = new RafraichirTokenUseCase(
     userRepository, schoolRepository, tokenService
   );
