@@ -44,6 +44,8 @@ export function creerAssessmentRoutes(
         academicSequenceId: req.body.academicSequenceId,
         scheduledDate: new Date(req.body.scheduledDate),
         durationMinutes: req.body.durationMinutes,
+        isAnonymized: req.body.isAnonymized,
+        correctionMode: req.body.correctionMode,
       });
       res.status(201).json({ success: true, data: result });
     } catch (error) {

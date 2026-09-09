@@ -7,4 +7,4 @@ export class AnonymatLinkGenerator implements AnonymatLinkGeneratorPort {
   buildListUrl(rawToken: string): string {
     return `${this.config.frontendBaseUrl()}/anonymat/${rawToken}`;
   }
-}
+} 

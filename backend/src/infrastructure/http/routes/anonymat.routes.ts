@@ -5,7 +5,14 @@ import { AnonymatDomainError } from '@domain/errors/AnonymatErrors';
 
 function envoyerErreur(error: unknown, res: Response, next: NextFunction): void {
   if (error instanceof AnonymatDomainError) {
-    const status = error.code === 'TOKEN_INVALID' || error.code === 'TOKEN_EXPIRED' || error.code === 'ALREADY_DONE' ? 400 : 404;
+    let status = 400;
+    if (error.code === 'TOKEN_EXPIRED' || error.code === 'ALREADY_DONE') {
+      status = 410;
+    } else if (error.code === 'TOKEN_INVALID') {
+      status = 400;
+    } else {
+      status = 404;
+    }
     res.status(status).json({ success: false, error: error.code, message: error.message });
     return;
   }

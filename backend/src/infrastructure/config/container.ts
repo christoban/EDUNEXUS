@@ -390,7 +390,7 @@ import { DesignerEquipeAnonymatUseCase } from '@application/assessment/DesignerE
 import { ObtenirListeAnonymatParTokenUseCase } from '@application/assessment/ObtenirListeAnonymatParTokenUseCase';
 import { MarquerAnonymisationTermineeUseCase } from '@application/assessment/MarquerAnonymisationTermineeUseCase';
 import { AnonymatInvitationService } from '@infrastructure/services/notification/AnonymatInvitationService';
-import { AnonymatLinkGenerator } from '@domain/ports/services/anonymat/AnonymatLinkGenerator';
+import { AnonymatLinkGenerator } from '@infrastructure/services/anonymat/AnonymatLinkGenerator';
 import { EnvAppConfig } from '@infrastructure/config/EnvAppConfig';
 import { ConsoleLogger } from '@infrastructure/services/logging/ConsoleLogger';
 
