@@ -14,6 +14,13 @@ function toDomain(data: any): HarmonizedAssessmentSession {
     durationMinutes: data.durationMinutes,
     status: data.status,
     createdAt: data.createdAt,
+    isAnonymized: data.isAnonymized ?? false,
+    anonymatStatus: data.anonymatStatus ?? 'NONE',
+    correctionMode: data.correctionMode ?? null,
+    codesGeneratedAt: data.codesGeneratedAt ?? null,
+    codesGeneratedById: data.codesGeneratedById ?? null,
+    reconciledAt: data.reconciledAt ?? null,
+    reconciledById: data.reconciledById ?? null,
   });
 }
 
@@ -51,6 +58,13 @@ export class PrismaHarmonizedAssessmentSessionRepository implements HarmonizedAs
         scheduledDate: obj.scheduledDate,
         durationMinutes: obj.durationMinutes,
         status: obj.status,
+        isAnonymized: obj.isAnonymized,
+        anonymatStatus: obj.anonymatStatus,
+        correctionMode: obj.correctionMode,
+        codesGeneratedAt: obj.codesGeneratedAt,
+        codesGeneratedById: obj.codesGeneratedById,
+        reconciledAt: obj.reconciledAt,
+        reconciledById: obj.reconciledById,
       },
     });
   }
@@ -64,6 +78,13 @@ export class PrismaHarmonizedAssessmentSessionRepository implements HarmonizedAs
         scheduledDate: obj.scheduledDate,
         durationMinutes: obj.durationMinutes,
         academicSequenceId: obj.academicSequenceId,
+        isAnonymized: obj.isAnonymized,
+        anonymatStatus: obj.anonymatStatus,
+        correctionMode: obj.correctionMode,
+        codesGeneratedAt: obj.codesGeneratedAt,
+        codesGeneratedById: obj.codesGeneratedById,
+        reconciledAt: obj.reconciledAt,
+        reconciledById: obj.reconciledById,
       },
     });
   }
