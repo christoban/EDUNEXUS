@@ -17,6 +17,7 @@ import { creerReportCardRoutes } from '@infrastructure/http/routes/reportCard.ro
 import { creerClassCouncilRoutes } from '@infrastructure/http/routes/classCouncil.routes';
 import { creerBulletinValidationRoutes } from '@infrastructure/http/routes/bulletinValidation.routes';
 import { creerAssessmentRoutes } from '@infrastructure/http/routes/assessment.routes';
+import { creerAnonymatPublicRoutes } from '@infrastructure/http/routes/anonymat.routes';
 import { creerTaskRoutes } from '@infrastructure/http/routes/task.routes';
 import { creerAcademicYearRoutes } from '@infrastructure/http/routes/academicYear.routes';
 import { creerPedagogieRoutes } from '@infrastructure/http/routes/pedagogie.routes';
@@ -176,6 +177,12 @@ export function registerAcademicRoutes(app: Application, prismaParam: typeof pri
     c.assessment.planifierSession,
     c.assessment.enregistrerParticipation,
     c.assessment.enregistrerParticipationEnLot,
+    c.assessment.genererCodesAnonymat,
+    c.assessment.designerEquipeAnonymat,
+  ));
+  app.use('/api/v2/anonymat', creerAnonymatPublicRoutes(
+    c.assessment.obtenirListeAnonymatParToken,
+    c.assessment.marquerAnonymisationTerminee,
   ));
   app.use('/api/v2/tasks', creerTaskRoutes(
     c.task.creer,

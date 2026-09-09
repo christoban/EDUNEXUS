@@ -38,6 +38,7 @@ import { PrismaBulletinValidationRepository } from '@infrastructure/persistence/
 import { PrismaAssessmentScopeRepository } from '@infrastructure/persistence/prisma/PrismaAssessmentScopeRepository';
 import { PrismaHarmonizedAssessmentSessionRepository } from '@infrastructure/persistence/prisma/PrismaHarmonizedAssessmentSessionRepository';
 import { PrismaAssessmentParticipationRepository } from '@infrastructure/persistence/prisma/PrismaAssessmentParticipationRepository';
+import { PrismaAnonymatRepository } from '@infrastructure/persistence/prisma/PrismaAnonymatRepository';
 import { PrismaTaskRepository } from '@infrastructure/persistence/prisma/PrismaTaskRepository';
 
 // --- Adapters Audit ---
@@ -384,6 +385,14 @@ import { CreerAssessmentScopeUseCase } from '@application/assessment/CreerAssess
 import { PlanifierAssessmentSessionUseCase } from '@application/assessment/PlanifierAssessmentSessionUseCase';
 import { EnregistrerParticipationUseCase } from '@application/assessment/EnregistrerParticipationUseCase';
 import { EnregistrerParticipationEnLotUseCase } from '@application/assessment/EnregistrerParticipationEnLotUseCase';
+import { GenererCodesAnonymatUseCase } from '@application/assessment/GenererCodesAnonymatUseCase';
+import { DesignerEquipeAnonymatUseCase } from '@application/assessment/DesignerEquipeAnonymatUseCase';
+import { ObtenirListeAnonymatParTokenUseCase } from '@application/assessment/ObtenirListeAnonymatParTokenUseCase';
+import { MarquerAnonymisationTermineeUseCase } from '@application/assessment/MarquerAnonymisationTermineeUseCase';
+import { AnonymatInvitationService } from '@infrastructure/services/notification/AnonymatInvitationService';
+import { AnonymatLinkGenerator } from '@domain/ports/services/anonymat/AnonymatLinkGenerator';
+import { EnvAppConfig } from '@infrastructure/config/EnvAppConfig';
+import { ConsoleLogger } from '@infrastructure/services/logging/ConsoleLogger';
 
 // --- Use Cases : Tâches ---
 import { CreerTaskUseCase } from '@application/task/CreerTaskUseCase';
@@ -451,6 +460,7 @@ export function creerContainer() {
   const assessmentScopeRepository = new PrismaAssessmentScopeRepository(prisma);
   const assessmentSessionRepository = new PrismaHarmonizedAssessmentSessionRepository(prisma);
   const assessmentParticipationRepository = new PrismaAssessmentParticipationRepository(prisma);
+  const anonymatRepository = new PrismaAnonymatRepository(prisma);
   const taskRepository = new PrismaTaskRepository(prisma);
   const statisticsQueryRepository = new PrismaStatisticsQueryRepository(prisma);
 
@@ -464,6 +474,9 @@ export function creerContainer() {
 
   // 3. Services (adaptateurs réels)
   const emailService = new NodemailerEmailService();
+  const anonymatInvitation = new AnonymatInvitationService(emailService);
+  const anonymatLinkGenerator = new AnonymatLinkGenerator(new EnvAppConfig());
+  const anonymatLogger = new ConsoleLogger();
   const credentialsNotificationService = new CredentialsNotificationService(emailService);
   const notificationService = new SocketNotificationService(eventPublisher);
   const pdfService = new PdfKitBulletinService();
@@ -860,6 +873,22 @@ export function creerContainer() {
   const planifierAssessmentSessionUseCase = new PlanifierAssessmentSessionUseCase(assessmentSessionRepository);
   const enregistrerParticipationUseCase = new EnregistrerParticipationUseCase(assessmentParticipationRepository);
   const enregistrerParticipationEnLotUseCase = new EnregistrerParticipationEnLotUseCase(assessmentParticipationRepository);
+  const genererCodesAnonymatUseCase = new GenererCodesAnonymatUseCase(
+    assessmentSessionRepository,
+    anonymatRepository,
+  );
+  const designerEquipeAnonymatUseCase = new DesignerEquipeAnonymatUseCase(
+    assessmentSessionRepository,
+    anonymatRepository,
+    anonymatInvitation,
+    anonymatLinkGenerator,
+    anonymatLogger,
+  );
+  const obtenirListeAnonymatParTokenUseCase = new ObtenirListeAnonymatParTokenUseCase(anonymatRepository);
+  const marquerAnonymisationTermineeUseCase = new MarquerAnonymisationTermineeUseCase(
+    anonymatRepository,
+    assessmentSessionRepository,
+  );
 
   // 18bis. Use Cases — Tâches
   const creerTaskUseCase = new CreerTaskUseCase(taskRepository, userRepository);
@@ -1183,6 +1212,10 @@ export function creerContainer() {
       planifierSession: planifierAssessmentSessionUseCase,
       enregistrerParticipation: enregistrerParticipationUseCase,
       enregistrerParticipationEnLot: enregistrerParticipationEnLotUseCase,
+      genererCodesAnonymat: genererCodesAnonymatUseCase,
+      designerEquipeAnonymat: designerEquipeAnonymatUseCase,
+      obtenirListeAnonymatParToken: obtenirListeAnonymatParTokenUseCase,
+      marquerAnonymisationTerminee: marquerAnonymisationTermineeUseCase,
     },
     task: {
       creer: creerTaskUseCase,

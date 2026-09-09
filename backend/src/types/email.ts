@@ -24,6 +24,7 @@ export type EmailEventType =
   | "payment_receipt"
   | "discipline_notification"
   | "absence_alert"
+  | "anonymat_team_invite"
   | "ai_security_suspicious_pattern";
 
 export type EmailStatus = "sent" | "failed";

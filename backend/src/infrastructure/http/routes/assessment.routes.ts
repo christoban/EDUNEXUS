@@ -3,6 +3,9 @@ import type { CreerAssessmentScopeUseCase } from '@application/assessment/CreerA
 import type { PlanifierAssessmentSessionUseCase } from '@application/assessment/PlanifierAssessmentSessionUseCase';
 import type { EnregistrerParticipationUseCase } from '@application/assessment/EnregistrerParticipationUseCase';
 import type { EnregistrerParticipationEnLotUseCase } from '@application/assessment/EnregistrerParticipationEnLotUseCase';
+import type { GenererCodesAnonymatUseCase } from '@application/assessment/GenererCodesAnonymatUseCase';
+import type { DesignerEquipeAnonymatUseCase } from '@application/assessment/DesignerEquipeAnonymatUseCase';
+import { AnonymatDomainError } from '@domain/errors/AnonymatErrors';
 import { requireAuth } from '../middlewares/auth.ts';
 
 export function creerAssessmentRoutes(
@@ -10,6 +13,8 @@ export function creerAssessmentRoutes(
   planifierSession: PlanifierAssessmentSessionUseCase,
   enregistrerParticipation: EnregistrerParticipationUseCase,
   enregistrerParticipationEnLot: EnregistrerParticipationEnLotUseCase,
+  genererCodes: GenererCodesAnonymatUseCase,
+  designerEquipe: DesignerEquipeAnonymatUseCase,
 ): Router {
   const router = Router();
 
@@ -71,6 +76,51 @@ export function creerAssessmentRoutes(
       });
       res.status(201).json({ success: true, data: result });
     } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post('/sessions/:sessionId/anonymat/codes', async (req, res, next) => {
+    try {
+      const result = await genererCodes.execute({
+        schoolId: req.user!.schoolId,
+        sessionId: req.params.sessionId,
+        actorUserId: req.user!.userId,
+        actorRole: req.user!.role,
+        actorStaffPermissions: req.user!.permissions,
+        classIds: req.body.classIds,
+      });
+      res.json({ success: true, data: result });
+    } catch (error) {
+      if (error instanceof AnonymatDomainError) {
+        const status = error.code === 'FORBIDDEN_MANAGE_ANONYMAT' ? 403 : error.code === 'SESSION_NOT_FOUND' ? 404 : 400;
+        res.status(status).json({ success: false, error: error.code, message: error.message });
+        return;
+      }
+      next(error);
+    }
+  });
+
+  router.post('/sessions/:sessionId/anonymat/team', async (req, res, next) => {
+    try {
+      const result = await designerEquipe.execute({
+        schoolId: req.user!.schoolId,
+        sessionId: req.params.sessionId,
+        actorUserId: req.user!.userId,
+        actorRole: req.user!.role,
+        actorStaffPermissions: req.user!.permissions,
+        members: req.body.members,
+        classIds: req.body.classIds,
+        schoolName: req.body.schoolName,
+        tokenValidityHours: req.body.tokenValidityHours,
+      });
+      res.json({ success: true, data: result });
+    } catch (error) {
+      if (error instanceof AnonymatDomainError) {
+        const status = error.code === 'FORBIDDEN_MANAGE_ANONYMAT' ? 403 : error.code === 'SESSION_NOT_FOUND' ? 404 : 400;
+        res.status(status).json({ success: false, error: error.code, message: error.message });
+        return;
+      }
       next(error);
     }
   });

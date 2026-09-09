@@ -1059,6 +1059,7 @@ model Class {
   roomAssignments       ClassRoomAssignment[]
    enrollments           Enrollment[]
   assessmentSessions    HarmonizedAssessmentSession[]
+  anonymatCodes         AnonymatCode[]
 
   @@index([schoolId])
   @@index([deletedAt])
@@ -1411,15 +1412,6 @@ model HarmonizedAssessmentSession {
   anonymatTeamMembers   AnonymatTeamMember[]
   correctionAssignments CorrectionAssignment[]
 
-  // Anonymat
-  isAnonymized        Boolean               @default(false)
-  anonymatStatus      AnonymatStatus        @default(NONE)
-  correctionMode      CorrectionMode?
-  codesGeneratedAt    DateTime?
-  codesGeneratedById  String?
-  reconciledAt        DateTime?
-  reconciledById      String?
-
   school              School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   assessmentScope     AssessmentScope     @relation(fields: [assessmentScopeId], references: [id])
   subject             Subject             @relation(fields: [subjectId], references: [id])
@@ -1427,16 +1419,10 @@ model HarmonizedAssessmentSession {
   academicSequence    AcademicSequence?   @relation(fields: [academicSequenceId], references: [id])
   participations      AssessmentParticipation[]
   grades              Grade[]
-  anonymatCodes       AnonymatCode[]
-  notesAnonymes       NoteAnonyme[]
-  anonymatTeamMembers AnonymatTeamMember[]
-  correctionAssignments CorrectionAssignment[]
 
   @@index([schoolId, classId, scheduledDate])
   @@index([schoolId, subjectId])
 }
-
-
 
 /// Code d'anonymat éphémère : 2 lettres + 2 chiffres (ex: KP73)
 model AnonymatCode {
@@ -1451,6 +1437,7 @@ model AnonymatCode {
 
   session             HarmonizedAssessmentSession @relation(fields: [assessmentSessionId], references: [id], onDelete: Cascade)
   studentProfile      StudentProfile              @relation(fields: [studentProfileId], references: [id])
+  class               Class                       @relation(fields: [classId], references: [id])
   school              School                      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@unique([assessmentSessionId, code])
@@ -1541,23 +1528,6 @@ enum AnonymatTeamMemberStatus {
   IN_PROGRESS
   DONE
   EXPIRED
-}
-
-/// Assignation de correction (surtout utile en mode CROSSED)
-model CorrectionAssignment {
-  id                  String   @id @default(cuid())
-  schoolId            String
-  assessmentSessionId String
-  classId             String
-  correcteurUserId    String
-  assignedByUserId    String
-  assignedAt          DateTime @default(now())
-
-  session             HarmonizedAssessmentSession @relation(fields: [assessmentSessionId], references: [id], onDelete: Cascade)
-  school              School                      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-
-  @@unique([assessmentSessionId, classId])
-  @@index([correcteurUserId])
 }
 
 model AssessmentParticipation {
@@ -2481,6 +2451,7 @@ enum StaffPermissionType {
   MANAGE_LIBRARY
   MANAGE_ORIENTATION
   MANAGE_ENROLLMENT
+  MANAGE_ANONYMAT
 }
 
 enum AcademicYearStatus {
@@ -2651,29 +2622,6 @@ enum AssessmentSessionStatus {
   IN_PROGRESS
   COMPLETED
   CANCELLED
-}
-
-enum AnonymatStatus {
-  NONE
-  CODES_GENERES
-  EQUIPE_DESIGNEE
-  ANONYMISATION_EN_COURS
-  ANONYMISATION_TERMINEE
-  EN_CORRECTION
-  CORRECTION_TERMINEE
-  RECONCILIE
-}
-
-enum CorrectionMode {
-  OWN_CLASS
-  CROSSED
-}
-
-enum AnonymatTeamMemberStatus {
-  PENDING
-  IN_PROGRESS
-  DONE
-  EXPIRED
 }
 
 enum SlotKind {
