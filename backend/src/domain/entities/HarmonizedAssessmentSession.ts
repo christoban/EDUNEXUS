@@ -122,4 +122,36 @@ export class HarmonizedAssessmentSession {
   toObject(): HarmonizedAssessmentSessionProps {
     return { ...this.props };
   }
+
+  marquerCodesGeneres(userId: string, at: Date = new Date()): void {
+  if (!this.props.isAnonymized) {
+    throw new InvalidAnonymatStateError('Session non anonymisée');
+  }
+  if (this.props.anonymatStatus !== 'NONE' && this.props.anonymatStatus !== 'CODES_GENERES') {
+    throw new InvalidAnonymatStateError(
+      `Impossible de générer les codes depuis le statut ${this.props.anonymatStatus}`,
+    );
+  }
+  this.props.anonymatStatus = 'CODES_GENERES';
+  this.props.codesGeneratedAt = at;
+  this.props.codesGeneratedById = userId;
+}
+
+marquerEquipeDesignee(): void {
+  if (this.props.anonymatStatus !== 'CODES_GENERES' && this.props.anonymatStatus !== 'EQUIPE_DESIGNEE') {
+    throw new InvalidAnonymatStateError('Codes requis avant désignation de l\'équipe');
+  }
+  this.props.anonymatStatus = 'EQUIPE_DESIGNEE';
+}
+
+marquerAnonymisationEnCours(): void {
+  this.props.anonymatStatus = 'ANONYMISATION_EN_COURS';
+}
+
+marquerAnonymisationTerminee(): void {
+  this.props.anonymatStatus = 'ANONYMISATION_TERMINEE';
+}
+
+findById(id: string, schoolId: string): Promise<HarmonizedAssessmentSession | null>;
+update(session: HarmonizedAssessmentSession): Promise<void>; 
 }

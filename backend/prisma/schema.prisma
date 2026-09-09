@@ -1398,6 +1398,19 @@ model HarmonizedAssessmentSession {
   status              AssessmentSessionStatus @default(PLANNED)
   createdAt           DateTime @default(now())
 
+  isAnonymized          Boolean          @default(false)
+  anonymatStatus        AnonymatStatus   @default(NONE)
+  correctionMode        CorrectionMode?
+  codesGeneratedAt      DateTime?
+  codesGeneratedById    String?
+  reconciledAt          DateTime?
+  reconciledById        String?
+
+  anonymatCodes         AnonymatCode[]
+  notesAnonymes         NoteAnonyme[]
+  anonymatTeamMembers   AnonymatTeamMember[]
+  correctionAssignments CorrectionAssignment[]
+
   // Anonymat
   isAnonymized        Boolean               @default(false)
   anonymatStatus      AnonymatStatus        @default(NONE)
@@ -1422,6 +1435,8 @@ model HarmonizedAssessmentSession {
   @@index([schoolId, classId, scheduledDate])
   @@index([schoolId, subjectId])
 }
+
+
 
 /// Code d'anonymat éphémère : 2 lettres + 2 chiffres (ex: KP73)
 model AnonymatCode {
@@ -1487,6 +1502,45 @@ model AnonymatTeamMember {
 
   @@index([assessmentSessionId])
   @@index([magicTokenHash])
+}
+
+model CorrectionAssignment {
+  id                  String   @id @default(cuid())
+  schoolId            String
+  assessmentSessionId String
+  classId             String
+  correcteurUserId    String
+  assignedByUserId    String
+  assignedAt          DateTime @default(now())
+
+  session HarmonizedAssessmentSession @relation(fields: [assessmentSessionId], references: [id], onDelete: Cascade)
+  school  School                      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([assessmentSessionId, classId])
+  @@index([correcteurUserId])
+}
+
+enum AnonymatStatus {
+  NONE
+  CODES_GENERES
+  EQUIPE_DESIGNEE
+  ANONYMISATION_EN_COURS
+  ANONYMISATION_TERMINEE
+  EN_CORRECTION
+  CORRECTION_TERMINEE
+  RECONCILIE
+}
+
+enum CorrectionMode {
+  OWN_CLASS
+  CROSSED
+}
+
+enum AnonymatTeamMemberStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
+  EXPIRED
 }
 
 /// Assignation de correction (surtout utile en mode CROSSED)
