@@ -1,4 +1,4 @@
-import type { AssessmentSessionStatus } from '@domain/types/enums';
+import type { AssessmentSessionStatus, AnonymatStatus, CorrectionMode } from '@domain/types/enums';
 
 export interface HarmonizedAssessmentSessionProps {
   id: string;
@@ -11,16 +11,38 @@ export interface HarmonizedAssessmentSessionProps {
   durationMinutes?: number | null;
   status: AssessmentSessionStatus;
   createdAt: Date;
+  // Anonymat
+  isAnonymized: boolean;
+  anonymatStatus: AnonymatStatus;
+  correctionMode?: CorrectionMode | null;
+  codesGeneratedAt?: Date | null;
+  codesGeneratedById?: string | null;
+  reconciledAt?: Date | null;
+  reconciledById?: string | null;
 }
 
 export class HarmonizedAssessmentSession {
   private constructor(private readonly props: HarmonizedAssessmentSessionProps) {}
 
-  static create(props: Omit<HarmonizedAssessmentSessionProps, 'id' | 'createdAt'>): HarmonizedAssessmentSession {
+  static create(
+    props: Omit<HarmonizedAssessmentSessionProps, 'id' | 'createdAt' | 'isAnonymized' | 'anonymatStatus'> & {
+      isAnonymized?: boolean;
+      anonymatStatus?: AnonymatStatus;
+      correctionMode?: CorrectionMode | null;
+    }
+  ): HarmonizedAssessmentSession {
+    const isAnonymized = props.isAnonymized ?? false;
     return new HarmonizedAssessmentSession({
       ...props,
       id: crypto.randomUUID(),
       createdAt: new Date(),
+      isAnonymized,
+      anonymatStatus: props.anonymatStatus ?? 'NONE',
+      correctionMode: isAnonymized ? (props.correctionMode ?? 'OWN_CLASS') : null,
+      codesGeneratedAt: null,
+      codesGeneratedById: null,
+      reconciledAt: null,
+      reconciledById: null,
     });
   }
 
@@ -38,6 +60,64 @@ export class HarmonizedAssessmentSession {
   get durationMinutes(): number | null | undefined { return this.props.durationMinutes; }
   get status(): AssessmentSessionStatus { return this.props.status; }
   get createdAt(): Date { return this.props.createdAt; }
+  get isAnonymized(): boolean { return this.props.isAnonymized; }
+  get anonymatStatus(): AnonymatStatus { return this.props.anonymatStatus; }
+  get correctionMode(): CorrectionMode | null | undefined { return this.props.correctionMode; }
+  get codesGeneratedAt(): Date | null | undefined { return this.props.codesGeneratedAt; }
+  get codesGeneratedById(): string | null | undefined { return this.props.codesGeneratedById; }
+  get reconciledAt(): Date | null | undefined { return this.props.reconciledAt; }
+  get reconciledById(): string | null | undefined { return this.props.reconciledById; }
+
+  activerAnonymat(mode: CorrectionMode): void {
+    if (this.props.status !== 'PLANNED') {
+      throw new Error('Anonymat activable uniquement sur une session PLANNED');
+    }
+    this.props.isAnonymized = true;
+    this.props.correctionMode = mode;
+    this.props.anonymatStatus = 'NONE';
+  }
+
+  marquerCodesGeneres(userId: string): void {
+    if (!this.props.isAnonymized) throw new Error('Session non anonymisée');
+    this.props.anonymatStatus = 'CODES_GENERES';
+    this.props.codesGeneratedAt = new Date();
+    this.props.codesGeneratedById = userId;
+  }
+
+  marquerEquipeDesignee(): void {
+    if (!this.props.isAnonymized) throw new Error('Session non anonymisée');
+    if (this.props.anonymatStatus !== 'CODES_GENERES') {
+      throw new Error('Équipe désignable uniquement après génération des codes');
+    }
+    this.props.anonymatStatus = 'EQUIPE_DESIGNEE';
+  }
+
+  marquerAnonymisationEnCours(): void {
+    if (!this.props.isAnonymized) throw new Error('Session non anonymisée');
+    this.props.anonymatStatus = 'ANONYMISATION_EN_COURS';
+  }
+
+  marquerAnonymisationTerminee(): void {
+    if (!this.props.isAnonymized) throw new Error('Session non anonymisée');
+    this.props.anonymatStatus = 'ANONYMISATION_TERMINEE';
+  }
+
+  marquerEnCorrection(): void {
+    if (!this.props.isAnonymized) throw new Error('Session non anonymisée');
+    this.props.anonymatStatus = 'EN_CORRECTION';
+  }
+
+  marquerCorrectionTerminee(): void {
+    if (!this.props.isAnonymized) throw new Error('Session non anonymisée');
+    this.props.anonymatStatus = 'CORRECTION_TERMINEE';
+  }
+
+  marquerReconcilie(userId: string): void {
+    if (!this.props.isAnonymized) throw new Error('Session non anonymisée');
+    this.props.anonymatStatus = 'RECONCILIE';
+    this.props.reconciledAt = new Date();
+    this.props.reconciledById = userId;
+  }
 
   toObject(): HarmonizedAssessmentSessionProps {
     return { ...this.props };
