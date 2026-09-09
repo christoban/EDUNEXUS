@@ -8,11 +8,11 @@ CREATE TYPE "CorrectionMode" AS ENUM ('OWN_CLASS', 'CROSSED');
 CREATE TYPE "AnonymatTeamMemberStatus" AS ENUM ('PENDING', 'IN_PROGRESS', 'DONE', 'EXPIRED');
 
 -- AlterTable
-ALTER TABLE "HarmonizedAssessmentSession" ADD COLUMN     "isAnonymized" BOOLEAN NOT NULL DEFAULT false,
-ADD COLUMN     "anonymatStatus" "AnonymatStatus" NOT NULL DEFAULT 'NONE',
-ADD COLUMN     "correctionMode" "CorrectionMode",
+ALTER TABLE "HarmonizedAssessmentSession" ADD COLUMN     "anonymatStatus" "AnonymatStatus" NOT NULL DEFAULT 'NONE',
 ADD COLUMN     "codesGeneratedAt" TIMESTAMP(3),
 ADD COLUMN     "codesGeneratedById" TEXT,
+ADD COLUMN     "correctionMode" "CorrectionMode",
+ADD COLUMN     "isAnonymized" BOOLEAN NOT NULL DEFAULT false,
 ADD COLUMN     "reconciledAt" TIMESTAMP(3),
 ADD COLUMN     "reconciledById" TEXT;
 
@@ -80,25 +80,25 @@ CREATE TABLE "CorrectionAssignment" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "AnonymatCode_assessmentSessionId_code_key" ON "AnonymatCode"("assessmentSessionId", "code");
-
--- CreateIndex
-CREATE UNIQUE INDEX "AnonymatCode_assessmentSessionId_studentProfileId_key" ON "AnonymatCode"("assessmentSessionId", "studentProfileId");
-
--- CreateIndex
 CREATE INDEX "AnonymatCode_assessmentSessionId_classId_idx" ON "AnonymatCode"("assessmentSessionId", "classId");
 
 -- CreateIndex
 CREATE INDEX "AnonymatCode_schoolId_idx" ON "AnonymatCode"("schoolId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "NoteAnonyme_assessmentSessionId_code_key" ON "NoteAnonyme"("assessmentSessionId", "code");
+CREATE UNIQUE INDEX "AnonymatCode_assessmentSessionId_code_key" ON "AnonymatCode"("assessmentSessionId", "code");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AnonymatCode_assessmentSessionId_studentProfileId_key" ON "AnonymatCode"("assessmentSessionId", "studentProfileId");
 
 -- CreateIndex
 CREATE INDEX "NoteAnonyme_assessmentSessionId_correcteurId_idx" ON "NoteAnonyme"("assessmentSessionId", "correcteurId");
 
 -- CreateIndex
 CREATE INDEX "NoteAnonyme_schoolId_idx" ON "NoteAnonyme"("schoolId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "NoteAnonyme_assessmentSessionId_code_key" ON "NoteAnonyme"("assessmentSessionId", "code");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "AnonymatTeamMember_magicTokenHash_key" ON "AnonymatTeamMember"("magicTokenHash");
@@ -110,10 +110,10 @@ CREATE INDEX "AnonymatTeamMember_assessmentSessionId_idx" ON "AnonymatTeamMember
 CREATE INDEX "AnonymatTeamMember_magicTokenHash_idx" ON "AnonymatTeamMember"("magicTokenHash");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "CorrectionAssignment_assessmentSessionId_classId_key" ON "CorrectionAssignment"("assessmentSessionId", "classId");
+CREATE INDEX "CorrectionAssignment_correcteurUserId_idx" ON "CorrectionAssignment"("correcteurUserId");
 
 -- CreateIndex
-CREATE INDEX "CorrectionAssignment_correcteurUserId_idx" ON "CorrectionAssignment"("correcteurUserId");
+CREATE UNIQUE INDEX "CorrectionAssignment_assessmentSessionId_classId_key" ON "CorrectionAssignment"("assessmentSessionId", "classId");
 
 -- AddForeignKey
 ALTER TABLE "AnonymatCode" ADD CONSTRAINT "AnonymatCode_assessmentSessionId_fkey" FOREIGN KEY ("assessmentSessionId") REFERENCES "HarmonizedAssessmentSession"("id") ON DELETE CASCADE ON UPDATE CASCADE;
